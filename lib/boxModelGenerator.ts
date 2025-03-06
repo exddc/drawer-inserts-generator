@@ -122,8 +122,8 @@ export function createBoxWithRoundedEdges({
     // Rotate the entire group to lay flat on x-y plane
     meshGroup.rotation.x = -Math.PI / 2;
     
-    // Position centered horizontally with z=0 (as requested)
-    meshGroup.position.set(-width / 2, 0, 0);
+    // IMPORTANT: We don't set position here - this is handled by the parent code
+    // This ensures consistent positioning between boxes
     
     return meshGroup;
   } else {
@@ -178,8 +178,8 @@ export function createBoxWithRoundedEdges({
     // Rotate to lay flat on the x-y plane
     mesh.rotation.x = -Math.PI / 2;
     
-    // Position centered horizontally with z=0 (as requested)
-    mesh.position.set(-width / 2, 0, 0);
+    // IMPORTANT: We don't set position here - this is handled by the parent code
+    // This ensures consistent positioning between boxes
     
     return mesh;
   }

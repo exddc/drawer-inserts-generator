@@ -68,7 +68,7 @@ const defaultValues = {
   wallThickness: 2,
   cornerRadius: 5,
   hasBottom: true,
-  minBoxWidth: 50,
+  minBoxWidth: 10, // Fixed to 10 as requested
   maxBoxWidth: 100,
   useMultipleBoxes: true,
   debugMode: false,
@@ -118,23 +118,16 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     set({ hasBottom, height: newHeight });
   },
   
+  // Disabled: Min box width is now fixed at 10
   setMinBoxWidth: (minBoxWidth: number) => {
+    // Keep the value fixed at 10 regardless of input
+    const fixedMinWidth = 10;
     const { maxBoxWidth, width, useMultipleBoxes } = get();
     
-    // Validate min width
-    const newMinWidth = validateMinWidth(minBoxWidth, maxBoxWidth);
-    
-    // If the new min width is greater than max width, update max width too
-    let newMaxWidth = maxBoxWidth;
-    if (newMinWidth > maxBoxWidth) {
-      newMaxWidth = newMinWidth;
-    }
-    
-    // Recalculate box widths
+    // Just recalculate box widths if needed
     set({ 
-      minBoxWidth: newMinWidth,
-      maxBoxWidth: newMaxWidth,
-      boxWidths: recalculateBoxWidths(width, newMinWidth, newMaxWidth, useMultipleBoxes)
+      minBoxWidth: fixedMinWidth,
+      boxWidths: recalculateBoxWidths(width, fixedMinWidth, maxBoxWidth, useMultipleBoxes)
     });
   },
   

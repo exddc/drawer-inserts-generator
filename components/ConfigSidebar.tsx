@@ -60,9 +60,7 @@ export default function ConfigSidebar({
         width,
         depth,
         wallThickness,
-        defaultConstraints.cornerRadius.max,
-        useMultipleBoxes,
-        minBoxWidth
+        defaultConstraints.cornerRadius.max
     );
 
     // Effect to ensure corner radius stays within valid range when other parameters change
@@ -282,45 +280,18 @@ export default function ConfigSidebar({
 
                     {useMultipleBoxes && (
                         <>
-                            {/* Min Box Width Input */}
+                            {/* Min Box Width (fixed to 10 and disabled) */}
                             <div className="space-y-2 mt-2">
                                 <div className="flex items-center justify-between">
-                                    <Label htmlFor="minBoxWidth">
-                                        Min Box Width (mm)
+                                    <Label
+                                        htmlFor="minBoxWidth"
+                                        className="text-muted-foreground"
+                                    >
+                                        Min Box Width (fixed at 10mm)
                                     </Label>
                                     <span className="text-sm text-muted-foreground">
-                                        {minBoxWidth}
+                                        10
                                     </span>
-                                </div>
-                                <div className="grid grid-cols-[1fr_80px] gap-2">
-                                    <Slider
-                                        id="minBoxWidth-slider"
-                                        min={
-                                            defaultConstraints.minBoxWidth
-                                                ?.min || 10
-                                        }
-                                        max={maxBoxWidth}
-                                        step={1}
-                                        value={[minBoxWidth]}
-                                        onValueChange={(value) =>
-                                            handleSliderChange(
-                                                'minBoxWidth',
-                                                value
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        id="minBoxWidth"
-                                        type="number"
-                                        name="minBoxWidth"
-                                        value={minBoxWidth}
-                                        onChange={handleInputChange}
-                                        min={
-                                            defaultConstraints.minBoxWidth
-                                                ?.min || 10
-                                        }
-                                        max={maxBoxWidth}
-                                    />
                                 </div>
                             </div>
 

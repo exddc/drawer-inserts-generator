@@ -71,7 +71,7 @@ export function validateNumericInput(
 
 /**
  * Calculate the maximum allowed corner radius based on current dimensions
- * Takes into account multiple boxes if enabled
+ * Takes into account wall thickness and dimensions
  */
 export function calculateMaxCornerRadius(
   width: number,
@@ -81,16 +81,16 @@ export function calculateMaxCornerRadius(
   useMultipleBoxes: boolean = false,
   minBoxWidth: number | null = null
 ): number {
-  // For multiple boxes, use the smallest box width instead of the total width
-  const effectiveWidth = useMultipleBoxes && minBoxWidth ? minBoxWidth : width;
+  // Since we've fixed minBoxWidth to 10, it's better to use the total width for now
+  // We'll just calculate based on the current box dimensions
   
   // Guard against negative or invalid values
-  if (effectiveWidth <= 0 || depth <= 0 || wallThickness <= 0 || 
-      effectiveWidth <= 2 * wallThickness || depth <= 2 * wallThickness) {
+  if (width <= 0 || depth <= 0 || wallThickness <= 0 || 
+      width <= 2 * wallThickness || depth <= 2 * wallThickness) {
     return 0;
   }
   
-  const maxCornerX = (effectiveWidth - 2 * wallThickness) / 2;
+  const maxCornerX = (width - 2 * wallThickness) / 2;
   const maxCornerY = (depth - 2 * wallThickness) / 2;
   return Math.max(0, Math.min(maxCornerX, maxCornerY, maxConstraint));
 }

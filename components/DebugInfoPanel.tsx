@@ -144,7 +144,7 @@ export default function DebugInfoPanel({
     if (!enabled) return null;
 
     return (
-        <div className="fixed top-20 right-4 z-50 bg-black/80 text-white p-3 rounded-md text-xs font-mono whitespace-nowrap">
+        <div className="fixed top-4 right-4 z-50 bg-black/80 text-white p-3 rounded-md text-xs font-mono whitespace-nowrap">
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                 <div className="font-semibold">FPS:</div>
                 <div
@@ -171,11 +171,23 @@ export default function DebugInfoPanel({
                 <div className="font-semibold">Draw Calls:</div>
                 <div>{renderInfo.calls}</div>
 
-                <div className="font-semibold">Rendered Tris:</div>
-                <div>{renderInfo.triangles.toLocaleString()}</div>
-
                 <div className="font-semibold">Meshes:</div>
                 <div>{boxMeshGroup?.children.length || 0}</div>
+
+                {/* Box positions debug */}
+                <div className="col-span-2 mt-2 pt-2 border-t border-gray-600">
+                    <div className="font-semibold mb-1">Box Positions:</div>
+                    {boxMeshGroup?.children.map((child, index) => {
+                        const pos = child.position;
+                        return (
+                            <div key={index} className="text-xs">
+                                Box {index + 1}: x: {pos.x.toFixed(1)}, z:{' '}
+                                {pos.z.toFixed(1)}, w:{' '}
+                                {child.userData?.dimensions?.width || 'N/A'}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

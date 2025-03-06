@@ -233,17 +233,19 @@ export default function Home() {
                     },
                 };
 
-                // Position the box relative to others - ensure no overlap by using exact positions
-                // IMPORTANT: Z position is fixed at 0 as requested
-                if (box instanceof THREE.Group) {
-                    box.position.set(currentX + boxWidth / 2, 0, 0);
-                } else {
-                    box.position.set(currentX + boxWidth / 2, 0, 0);
+                // Position the box relative to others - ensure no overlap
+                // Important: each box is already modeled with its center at (0,0,0)
+                if (box instanceof THREE.Group || box instanceof THREE.Mesh) {
+                    // Position the box with:
+                    // X: starting point (currentX) plus half the width
+                    // Y: 0 (flat on ground)
+                    // Z: depth/2 as requested
+                    box.position.set(currentX, 0, depth / 2);
                 }
 
                 boxMeshGroupRef.current?.add(box);
 
-                // Update position for next box
+                // Update position for next box - move by the full width
                 currentX += boxWidth;
             });
         } catch (error) {
