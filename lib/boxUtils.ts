@@ -1,3 +1,4 @@
+// lib/boxUtils.ts
 import * as THREE from 'three';
 
 /**
@@ -10,11 +11,6 @@ export function calculateBoxWidths(
 ): number[] {
     // Ensure constraints make sense
     if (minWidth <= 0 || maxWidth <= 0 || minWidth > maxWidth || totalWidth <= 0) {
-        return [totalWidth];
-    }
-
-    // Special case: if total width is less than minWidth, return one box of totalWidth
-    if (totalWidth < minWidth) {
         return [totalWidth];
     }
     
@@ -61,6 +57,65 @@ export function calculateBoxWidths(
     }
     
     return widths;
+}
+
+/**
+ * Calculate box depths that fit within total depth
+ * Uses the same logic as calculateBoxWidths
+ */
+export function calculateBoxDepths(
+    totalDepth: number,
+    minDepth: number,
+    maxDepth: number
+): number[] {
+    // Use the same algorithm as width calculation
+    return calculateBoxWidths(totalDepth, minDepth, maxDepth);
+}
+
+/**
+ * Generate a grid of box dimensions based on width and depth distributions
+ */
+export function generateBoxGrid(
+    boxWidths: number[],
+    boxDepths: number[]
+): { width: number; depth: number; x: number; z: number }[] {
+    const grid: { width: number; depth: number; x: number; z: number }[] = [];
+    
+    // Calculate the total dimensions to center the grid
+    const totalWidth = boxWidths.reduce((sum, w) => sum + w, 0);
+    const totalDepth = boxDepths.reduce((sum, d) => sum + d, 0);
+    
+    // Start position (centered on the scene)
+    let startX = -totalWidth / 2;
+    // Place first row so that grid center is at z=0
+    let startZ = -totalDepth / 2;
+    
+    // Generate the grid of boxes
+    let currentDepthPos = startZ;
+    
+    // Loop through each row (depths)
+    for (const depth of boxDepths) {
+        let currentWidthPos = startX;
+        
+        // Loop through each column (widths)
+        for (const width of boxWidths) {
+            // Add box with its position and dimensions
+            grid.push({
+                width,
+                depth,
+                x: currentWidthPos - width / 2, // Position at left edge, box will be centered in modelGenerator
+                z: currentDepthPos + depth / 2, // Position at front edge, box will be centered in modelGenerator
+            });
+            
+            // Move to next column position
+            currentWidthPos += width;
+        }
+        
+        // Move to next row position
+        currentDepthPos += depth;
+    }
+    
+    return grid;
 }
 
 /**

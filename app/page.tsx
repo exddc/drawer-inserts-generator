@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import {
@@ -24,6 +24,7 @@ export default function Home() {
         hasBottom,
         debugMode,
         boxWidths,
+        boxDepths,
     } = useBoxStore();
 
     // Refs for Three.js
@@ -34,17 +35,14 @@ export default function Home() {
     const controlsRef = useRef<OrbitControls | null>(null);
     const boxMeshGroupRef = useRef<THREE.Group | null>(null);
 
-    // Track if scene has been initialized
-    const [isInitialized, setIsInitialized] = useState(false);
-
     // Refs for debug tooltip
     const tooltipRef = useRef<HTMLDivElement | null>(null);
     const raycasterRef = useRef<THREE.Raycaster | null>(null);
     const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
 
-    // Initialize Three.js (only once)
+    // Initialize Three.js
     useEffect(() => {
-        if (!containerRef.current || isInitialized) return;
+        if (!containerRef.current) return;
 
         // Create scene
         const scene = new THREE.Scene();
@@ -59,7 +57,7 @@ export default function Home() {
             0.1,
             1000
         );
-        camera.position.set(-150, 150, 150);
+        camera.position.set(150, 150, 150);
         cameraRef.current = camera;
 
         // Create renderer with transparent background for glassy look
@@ -157,15 +155,12 @@ export default function Home() {
         // Create initial box model
         createBoxModel(boxMeshGroupRef.current, {
             boxWidths,
-            depth,
+            boxDepths,
             height,
             wallThickness,
             cornerRadius,
             hasBottom,
         });
-
-        // Mark as initialized
-        setIsInitialized(true);
 
         // Cleanup
         return () => {
@@ -180,26 +175,27 @@ export default function Home() {
                 document.body.removeChild(tooltipRef.current);
             }
         };
-    }, []); // Empty dependency array - only runs once
+    }, []);
 
     // Update grid and box model when dimensions change
     useEffect(() => {
-        if (!isInitialized) return;
-
         // Update grid size
-        setupGrid(sceneRef.current, width, depth);
+        if (sceneRef.current) {
+            setupGrid(sceneRef.current, width, depth);
+        }
 
-        // Update box model without recreating the scene
-        createBoxModel(boxMeshGroupRef.current, {
-            boxWidths,
-            depth,
-            height,
-            wallThickness,
-            cornerRadius,
-            hasBottom,
-        });
+        // Update box model
+        if (boxMeshGroupRef.current) {
+            createBoxModel(boxMeshGroupRef.current, {
+                boxWidths,
+                boxDepths,
+                height,
+                wallThickness,
+                cornerRadius,
+                hasBottom,
+            });
+        }
     }, [
-        isInitialized,
         width,
         depth,
         height,
@@ -207,20 +203,19 @@ export default function Home() {
         cornerRadius,
         hasBottom,
         boxWidths,
+        boxDepths,
     ]);
 
     // Update renderer info settings when debug mode changes
     useEffect(() => {
-        if (!isInitialized) return;
-
         if (rendererRef.current) {
             rendererRef.current.info.autoReset = !debugMode;
         }
-    }, [debugMode, isInitialized]);
+    }, [debugMode]);
 
     // Set up event listeners for debug mode
     useEffect(() => {
-        if (!containerRef.current || !debugMode || !isInitialized) return;
+        if (!containerRef.current || !debugMode) return;
 
         // Event handlers for debug interactions
         const handleMouseMove = (event: MouseEvent) => {
@@ -322,7 +317,7 @@ export default function Home() {
                 tooltipRef.current.classList.add('hidden');
             }
         };
-    }, [debugMode, wallThickness, isInitialized]);
+    }, [debugMode, wallThickness]);
 
     return (
         <div className="flex flex-col bg-background flex-grow">

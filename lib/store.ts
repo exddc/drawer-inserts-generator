@@ -1,6 +1,6 @@
 // lib/store.ts
 import { create } from 'zustand';
-import { calculateBoxWidths } from '@/lib/boxUtils';
+import { calculateBoxWidths, calculateBoxDepths } from '@/lib/boxUtils';
 import { defaultConstraints } from '@/lib/validationUtils';
 
 export interface BoxState {
@@ -15,8 +15,11 @@ export interface BoxState {
   // Multi-box settings
   minBoxWidth: number;
   maxBoxWidth: number;
+  minBoxDepth: number;
+  maxBoxDepth: number;
   useMultipleBoxes: boolean;
   boxWidths: number[];
+  boxDepths: number[];
   
   // Debug mode
   debugMode: boolean;
@@ -30,6 +33,8 @@ export interface BoxState {
   setHasBottom: (hasBottom: boolean) => void;
   setMinBoxWidth: (width: number) => void;
   setMaxBoxWidth: (width: number) => void;
+  setMinBoxDepth: (depth: number) => void;
+  setMaxBoxDepth: (depth: number) => void;
   setUseMultipleBoxes: (useMultiple: boolean) => void;
   setDebugMode: (debug: boolean) => void;
   
@@ -50,6 +55,19 @@ const recalculateBoxWidths = (
   return calculateBoxWidths(totalWidth, minWidth, maxWidth);
 };
 
+// Helper to recalculate box depths
+const recalculateBoxDepths = (
+  totalDepth: number,
+  minDepth: number,
+  maxDepth: number,
+  useMultiple: boolean
+): number[] => {
+  if (!useMultiple) {
+    return [totalDepth];
+  }
+  return calculateBoxDepths(totalDepth, minDepth, maxDepth);
+};
+
 // Helper to ensure max width is valid
 const validateMaxWidth = (maxWidth: number, minWidth: number, totalWidth: number): number => {
   return Math.min(Math.max(minWidth, maxWidth), totalWidth);
@@ -60,6 +78,16 @@ const validateMinWidth = (minWidth: number, maxWidth: number): number => {
   return Math.min(Math.max(defaultConstraints.minBoxWidth?.min || 10, minWidth), maxWidth);
 };
 
+// Helper to ensure max depth is valid
+const validateMaxDepth = (maxDepth: number, minDepth: number, totalDepth: number): number => {
+  return Math.min(Math.max(minDepth, maxDepth), totalDepth);
+};
+
+// Helper to ensure min depth is valid
+const validateMinDepth = (minDepth: number, maxDepth: number): number => {
+  return Math.min(Math.max(defaultConstraints.minBoxDepth?.min || 10, minDepth), maxDepth);
+};
+
 // Default values
 const defaultValues = {
   width: 150,
@@ -68,8 +96,10 @@ const defaultValues = {
   wallThickness: 2,
   cornerRadius: 5,
   hasBottom: true,
-  minBoxWidth: 10, // Fixed to 10 as requested
+  minBoxWidth: 50,
   maxBoxWidth: 100,
+  minBoxDepth: 50,
+  maxBoxDepth: 100,
   useMultipleBoxes: true,
   debugMode: false,
 };
@@ -81,6 +111,12 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     defaultValues.width,
     defaultValues.minBoxWidth,
     defaultValues.maxBoxWidth,
+    defaultValues.useMultipleBoxes
+  ),
+  boxDepths: recalculateBoxDepths(
+    defaultValues.depth,
+    defaultValues.minBoxDepth,
+    defaultValues.maxBoxDepth,
     defaultValues.useMultipleBoxes
   ),
   
@@ -98,7 +134,18 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     });
   },
   
-  setDepth: (depth: number) => set({ depth }),
+  setDepth: (depth: number) => {
+    const { minBoxDepth, maxBoxDepth, useMultipleBoxes } = get();
+    
+    // Ensure max depth doesn't exceed total depth
+    const newMaxDepth = validateMaxDepth(maxBoxDepth, minBoxDepth, depth);
+    
+    set({ 
+      depth,
+      maxBoxDepth: newMaxDepth,
+      boxDepths: recalculateBoxDepths(depth, minBoxDepth, newMaxDepth, useMultipleBoxes)
+    });
+  },
   
   setHeight: (height: number) => set({ height }),
   
@@ -118,16 +165,16 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     set({ hasBottom, height: newHeight });
   },
   
-  // Disabled: Min box width is now fixed at 10
   setMinBoxWidth: (minBoxWidth: number) => {
-    // Keep the value fixed at 10 regardless of input
-    const fixedMinWidth = 10;
     const { maxBoxWidth, width, useMultipleBoxes } = get();
     
-    // Just recalculate box widths if needed
+    // Validate min width
+    const newMinWidth = validateMinWidth(minBoxWidth, maxBoxWidth);
+    
+    // Recalculate box widths
     set({ 
-      minBoxWidth: fixedMinWidth,
-      boxWidths: recalculateBoxWidths(width, fixedMinWidth, maxBoxWidth, useMultipleBoxes)
+      minBoxWidth: newMinWidth,
+      boxWidths: recalculateBoxWidths(width, newMinWidth, maxBoxWidth, useMultipleBoxes)
     });
   },
   
@@ -144,12 +191,39 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     });
   },
   
+  setMinBoxDepth: (minBoxDepth: number) => {
+    const { maxBoxDepth, depth, useMultipleBoxes } = get();
+    
+    // Validate min depth
+    const newMinDepth = validateMinDepth(minBoxDepth, maxBoxDepth);
+    
+    // Recalculate box depths
+    set({ 
+      minBoxDepth: newMinDepth,
+      boxDepths: recalculateBoxDepths(depth, newMinDepth, maxBoxDepth, useMultipleBoxes)
+    });
+  },
+  
+  setMaxBoxDepth: (maxBoxDepth: number) => {
+    const { minBoxDepth, depth, useMultipleBoxes } = get();
+    
+    // Validate max depth
+    const newMaxDepth = validateMaxDepth(maxBoxDepth, minBoxDepth, depth);
+    
+    // Recalculate box depths
+    set({ 
+      maxBoxDepth: newMaxDepth,
+      boxDepths: recalculateBoxDepths(depth, minBoxDepth, newMaxDepth, useMultipleBoxes)
+    });
+  },
+  
   setUseMultipleBoxes: (useMultipleBoxes: boolean) => {
-    const { width, minBoxWidth, maxBoxWidth } = get();
+    const { width, minBoxWidth, maxBoxWidth, depth, minBoxDepth, maxBoxDepth } = get();
     
     set({ 
       useMultipleBoxes,
-      boxWidths: recalculateBoxWidths(width, minBoxWidth, maxBoxWidth, useMultipleBoxes)
+      boxWidths: recalculateBoxWidths(width, minBoxWidth, maxBoxWidth, useMultipleBoxes),
+      boxDepths: recalculateBoxDepths(depth, minBoxDepth, maxBoxDepth, useMultipleBoxes)
     });
   },
   
@@ -183,6 +257,12 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         break;
       case 'maxBoxWidth':
         state.setMaxBoxWidth(value as number);
+        break;
+      case 'minBoxDepth':
+        state.setMinBoxDepth(value as number);
+        break;
+      case 'maxBoxDepth':
+        state.setMaxBoxDepth(value as number);
         break;
       case 'useMultipleBoxes':
         state.setUseMultipleBoxes(value as boolean);

@@ -1,18 +1,6 @@
 import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter';
-
-interface ExportInputs {
-    width: number;
-    depth: number;
-    height: number;
-    wallThickness: number;
-    cornerRadius: number;
-    hasBottom: boolean;
-    useMultipleBoxes: boolean;
-    minBoxWidth?: number;
-    maxBoxWidth?: number;
-    debugMode?: boolean;
-}
+import { FormInputs } from '@/components/ConfigSidebar';
 
 /**
  * Export the model as an STL file
@@ -20,8 +8,9 @@ interface ExportInputs {
 export function exportSTL(
     scene: THREE.Scene | null, 
     boxMeshGroup: THREE.Group | null, 
-    inputs: ExportInputs,
-    boxWidths: number[]
+    inputs: FormInputs,
+    boxWidths: number[],
+    boxDepths: number[]
 ): void {
     if (!boxMeshGroup || !scene) return;
 
@@ -32,10 +21,21 @@ export function exportSTL(
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     
-    // Name the file based on total dimensions and number of boxes
-    const boxCount = boxWidths.length;
-    const boxLabel = boxCount > 1 ? `${boxCount}boxes` : 'box';
-    link.download = `drawer-inserts-${inputs.width}x${inputs.depth}x${inputs.height}-${boxLabel}.stl`;
+    // Name the file based on total dimensions and grid layout
+    const boxCount = boxWidths.length * boxDepths.length;
+    let filenameParts = [
+        'drawer-inserts',
+        `${inputs.width}x${inputs.depth}x${inputs.height}`
+    ];
+    
+    if (boxCount > 1) {
+        // Add grid dimensions to filename
+        filenameParts.push(`${boxWidths.length}x${boxDepths.length}-grid`);
+    } else {
+        filenameParts.push('single-box');
+    }
+    
+    link.download = `${filenameParts.join('-')}.stl`;
     
     link.click();
 }

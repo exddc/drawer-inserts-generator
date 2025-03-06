@@ -1,17 +1,32 @@
 'use client';
-import { useEffect } from 'react';
-import * as THREE from 'three';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     calculateMaxCornerRadius,
     defaultConstraints,
 } from '@/lib/validationUtils';
 import { exportSTL } from '@/lib/exportUtils';
 import { useBoxStore } from '@/lib/store';
+
+// Define the form input types
+export interface FormInputs {
+    width: number;
+    depth: number;
+    height: number;
+    wallThickness: number;
+    cornerRadius: number;
+    hasBottom: boolean;
+    minBoxWidth: number;
+    maxBoxWidth: number;
+    minBoxDepth: number;
+    maxBoxDepth: number;
+    useMultipleBoxes: boolean;
+    debugMode: boolean;
+}
 
 interface ConfigSidebarProps {
     scene: THREE.Scene | null;
@@ -32,121 +47,139 @@ export default function ConfigSidebar({
         hasBottom,
         minBoxWidth,
         maxBoxWidth,
+        minBoxDepth,
+        maxBoxDepth,
         useMultipleBoxes,
         debugMode,
         boxWidths,
+        boxDepths,
         updateInput,
     } = useBoxStore();
 
     // Handle input changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        updateInput(name, parseFloat(value));
-    };
+        const { name, value, type } = e.target;
 
-    // Handle slider changes
-    const handleSliderChange = (name: string, value: number[]) => {
-        updateInput(name, value[0]);
+        if (type === 'checkbox') {
+            updateInput(name, (e.target as HTMLInputElement).checked);
+        } else {
+            updateInput(name, parseFloat(value));
+        }
     };
 
     // Handle checkbox changes
-    const handleCheckboxChange = (name: string, checked: boolean) => {
-        updateInput(name, checked);
+    const handleCheckboxChange = (checked: boolean) => {
+        updateInput('hasBottom', checked);
     };
 
-    // Calculate max corner radius based on current values
-    // We'll use this just for display purposes, but won't automatically change the corner radius
-    const maxCornerRadius = calculateMaxCornerRadius(
-        width,
-        depth,
-        wallThickness,
-        defaultConstraints.cornerRadius.max
-    );
-
-    // Effect to ensure corner radius stays within valid range when other parameters change
-    useEffect(() => {
-        // Only adjust corner radius if it exceeds the max allowed value
-        if (cornerRadius > maxCornerRadius) {
-            updateInput('cornerRadius', maxCornerRadius);
+    // Handle slider changes (shadcn Slider returns an array of values)
+    const handleSliderChange = (name: string, value: number[]) => {
+        if (value.length > 0) {
+            updateInput(name, value[0]);
         }
-    }, [maxCornerRadius, cornerRadius, updateInput]);
+    };
+
+    const handleMultiBoxCheckboxChange = (checked: boolean) => {
+        updateInput('useMultipleBoxes', checked);
+    };
+
+    const handleDebugModeChange = (checked: boolean) => {
+        updateInput('debugMode', checked);
+    };
+
+    // Function to handle STL export
+    const handleExportSTL = () => {
+        if (!scene || !boxMeshGroup) return;
+
+        exportSTL(
+            scene,
+            boxMeshGroup,
+            {
+                width,
+                depth,
+                height,
+                wallThickness,
+                cornerRadius,
+                hasBottom,
+                minBoxWidth,
+                maxBoxWidth,
+                minBoxDepth,
+                maxBoxDepth,
+                useMultipleBoxes,
+                debugMode,
+            },
+            boxWidths,
+            boxDepths
+        );
+    };
 
     return (
         <div className="h-full overflow-auto p-4">
             <div className="space-y-4">
-                {/* Width Input */}
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="width">Total Width (mm)</Label>
-                        <span className="text-sm text-muted-foreground">
-                            {width}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-[1fr_80px] gap-2">
+                    <Label htmlFor="width">Total Width (mm): {width}</Label>
+                    <div className="flex items-center space-x-2 mt-2">
                         <Slider
                             id="width-slider"
-                            min={defaultConstraints.width.min}
-                            max={defaultConstraints.width.max}
-                            step={1}
+                            name="width"
                             value={[width]}
                             onValueChange={(value) =>
                                 handleSliderChange('width', value)
                             }
+                            min={defaultConstraints.width.min}
+                            max={defaultConstraints.width.max}
+                            step={1}
+                            className="flex-grow"
                         />
                         <Input
-                            id="width"
                             type="number"
                             name="width"
                             value={width}
                             onChange={handleInputChange}
                             min={defaultConstraints.width.min}
                             max={defaultConstraints.width.max}
+                            className="w-20"
                         />
                     </div>
                 </div>
 
-                {/* Depth Input */}
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="depth">Depth (mm)</Label>
-                        <span className="text-sm text-muted-foreground">
-                            {depth}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-[1fr_80px] gap-2">
+                    <Label htmlFor="depth">Total Depth (mm): {depth}</Label>
+                    <div className="flex items-center space-x-2 mt-2">
                         <Slider
                             id="depth-slider"
-                            min={defaultConstraints.depth.min}
-                            max={defaultConstraints.depth.max}
-                            step={1}
+                            name="depth"
                             value={[depth]}
                             onValueChange={(value) =>
                                 handleSliderChange('depth', value)
                             }
+                            min={defaultConstraints.depth.min}
+                            max={defaultConstraints.depth.max}
+                            step={1}
+                            className="flex-grow"
                         />
                         <Input
-                            id="depth"
                             type="number"
                             name="depth"
                             value={depth}
                             onChange={handleInputChange}
                             min={defaultConstraints.depth.min}
                             max={defaultConstraints.depth.max}
+                            className="w-20"
                         />
                     </div>
                 </div>
 
-                {/* Height Input */}
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="height">Height (mm)</Label>
-                        <span className="text-sm text-muted-foreground">
-                            {height}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-[1fr_80px] gap-2">
+                    <Label htmlFor="height">Height (mm): {height}</Label>
+                    <div className="flex items-center space-x-2 mt-2">
                         <Slider
                             id="height-slider"
+                            name="height"
+                            value={[height]}
+                            onValueChange={(value) =>
+                                handleSliderChange('height', value)
+                            }
                             min={
                                 hasBottom
                                     ? Math.max(
@@ -157,13 +190,9 @@ export default function ConfigSidebar({
                             }
                             max={defaultConstraints.height.max}
                             step={1}
-                            value={[height]}
-                            onValueChange={(value) =>
-                                handleSliderChange('height', value)
-                            }
+                            className="flex-grow"
                         />
                         <Input
-                            id="height"
                             type="number"
                             name="height"
                             value={height}
@@ -177,33 +206,29 @@ export default function ConfigSidebar({
                                     : defaultConstraints.height.min
                             }
                             max={defaultConstraints.height.max}
+                            className="w-20"
                         />
                     </div>
                 </div>
 
-                {/* Wall Thickness Input */}
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="wallThickness">
-                            Wall Thickness (mm)
-                        </Label>
-                        <span className="text-sm text-muted-foreground">
-                            {wallThickness}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-[1fr_80px] gap-2">
+                    <Label htmlFor="wallThickness">
+                        Wall Thickness (mm): {wallThickness}
+                    </Label>
+                    <div className="flex items-center space-x-2 mt-2">
                         <Slider
                             id="wallThickness-slider"
-                            min={defaultConstraints.wallThickness.min}
-                            max={defaultConstraints.wallThickness.max}
-                            step={0.5}
+                            name="wallThickness"
                             value={[wallThickness]}
                             onValueChange={(value) =>
                                 handleSliderChange('wallThickness', value)
                             }
+                            min={defaultConstraints.wallThickness.min}
+                            max={defaultConstraints.wallThickness.max}
+                            step={0.5}
+                            className="flex-grow"
                         />
                         <Input
-                            id="wallThickness"
                             type="number"
                             name="wallThickness"
                             value={wallThickness}
@@ -211,140 +236,296 @@ export default function ConfigSidebar({
                             min={defaultConstraints.wallThickness.min}
                             max={defaultConstraints.wallThickness.max}
                             step="0.5"
+                            className="w-20"
                         />
                     </div>
                 </div>
 
-                {/* Corner Radius Input */}
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="cornerRadius">Corner Radius (mm)</Label>
-                        <span className="text-sm text-muted-foreground">
-                            {cornerRadius}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-[1fr_80px] gap-2">
+                    <Label htmlFor="cornerRadius">
+                        Corner Radius (mm): {cornerRadius}
+                    </Label>
+                    <div className="flex items-center space-x-2 mt-2">
                         <Slider
                             id="cornerRadius-slider"
-                            min={defaultConstraints.cornerRadius.min}
-                            max={maxCornerRadius}
-                            step={0.5}
+                            name="cornerRadius"
                             value={[cornerRadius]}
                             onValueChange={(value) =>
                                 handleSliderChange('cornerRadius', value)
                             }
+                            min={defaultConstraints.cornerRadius.min}
+                            max={calculateMaxCornerRadius(
+                                width,
+                                depth,
+                                wallThickness,
+                                defaultConstraints.cornerRadius.max,
+                                useMultipleBoxes,
+                                minBoxWidth,
+                                minBoxDepth
+                            )}
+                            step={0.5}
+                            className="flex-grow"
                         />
                         <Input
-                            id="cornerRadius"
                             type="number"
                             name="cornerRadius"
                             value={cornerRadius}
                             onChange={handleInputChange}
                             min={defaultConstraints.cornerRadius.min}
-                            max={maxCornerRadius}
-                            step="0.5"
+                            max={calculateMaxCornerRadius(
+                                width,
+                                depth,
+                                wallThickness,
+                                defaultConstraints.cornerRadius.max,
+                                useMultipleBoxes,
+                                minBoxWidth,
+                                minBoxDepth
+                            )}
+                            className="w-20"
                         />
                     </div>
                 </div>
 
-                {/* Include Bottom Checkbox */}
                 <div className="flex items-center space-x-2 pt-2">
                     <Checkbox
                         id="hasBottom"
                         checked={hasBottom}
-                        onCheckedChange={(checked) =>
-                            handleCheckboxChange('hasBottom', checked === true)
-                        }
+                        onCheckedChange={handleCheckboxChange}
                     />
                     <Label htmlFor="hasBottom">Include Bottom</Label>
                 </div>
 
                 {/* Multi-box settings */}
                 <div className="pt-4 border-t mt-4">
-                    <h3 className="font-medium mb-2">Multi-Box Layout</h3>
+                    <h3 className="font-medium mb-2">Grid Layout</h3>
                     <div className="flex items-center space-x-2 mb-3">
                         <Checkbox
                             id="useMultipleBoxes"
                             checked={useMultipleBoxes}
-                            onCheckedChange={(checked) =>
-                                handleCheckboxChange(
-                                    'useMultipleBoxes',
-                                    checked === true
-                                )
-                            }
+                            onCheckedChange={handleMultiBoxCheckboxChange}
                         />
                         <Label htmlFor="useMultipleBoxes">
-                            Split into multiple boxes
+                            Split into grid of boxes
                         </Label>
                     </div>
 
                     {useMultipleBoxes && (
-                        <>
-                            {/* Min Box Width (fixed to 10 and disabled) */}
-                            <div className="space-y-2 mt-2">
-                                <div className="flex items-center justify-between">
-                                    <Label
-                                        htmlFor="minBoxWidth"
-                                        className="text-muted-foreground"
-                                    >
-                                        Min Box Width (fixed at 10mm)
-                                    </Label>
-                                    <span className="text-sm text-muted-foreground">
-                                        10
-                                    </span>
-                                </div>
-                            </div>
+                        <Tabs defaultValue="width" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="width">
+                                    Width Settings
+                                </TabsTrigger>
+                                <TabsTrigger value="depth">
+                                    Depth Settings
+                                </TabsTrigger>
+                            </TabsList>
 
-                            {/* Max Box Width Input */}
-                            <div className="space-y-2 mt-2">
-                                <div className="flex items-center justify-between">
+                            <TabsContent value="width" className="space-y-4">
+                                <div className="space-y-2 mt-2">
+                                    <Label htmlFor="minBoxWidth">
+                                        Min Box Width (mm): {minBoxWidth}
+                                    </Label>
+                                    <div className="flex items-center space-x-2 mt-2">
+                                        <Slider
+                                            id="minBoxWidth-slider"
+                                            name="minBoxWidth"
+                                            value={[minBoxWidth]}
+                                            onValueChange={(value) =>
+                                                handleSliderChange(
+                                                    'minBoxWidth',
+                                                    value
+                                                )
+                                            }
+                                            min={
+                                                defaultConstraints.minBoxWidth
+                                                    ?.min
+                                            }
+                                            max={maxBoxWidth}
+                                            step={1}
+                                            className="flex-grow"
+                                        />
+                                        <Input
+                                            type="number"
+                                            name="minBoxWidth"
+                                            value={minBoxWidth}
+                                            onChange={handleInputChange}
+                                            min={
+                                                defaultConstraints.minBoxWidth
+                                                    ?.min
+                                            }
+                                            max={maxBoxWidth}
+                                            className="w-20"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 mt-2">
                                     <Label htmlFor="maxBoxWidth">
-                                        Max Box Width (mm)
+                                        Max Box Width (mm): {maxBoxWidth}
                                     </Label>
-                                    <span className="text-sm text-muted-foreground">
-                                        {maxBoxWidth}
+                                    <div className="flex items-center space-x-2 mt-2">
+                                        <Slider
+                                            id="maxBoxWidth-slider"
+                                            name="maxBoxWidth"
+                                            value={[maxBoxWidth]}
+                                            onValueChange={(value) =>
+                                                handleSliderChange(
+                                                    'maxBoxWidth',
+                                                    value
+                                                )
+                                            }
+                                            min={minBoxWidth}
+                                            max={width}
+                                            step={1}
+                                            className="flex-grow"
+                                        />
+                                        <Input
+                                            type="number"
+                                            name="maxBoxWidth"
+                                            value={maxBoxWidth}
+                                            onChange={handleInputChange}
+                                            min={minBoxWidth}
+                                            max={width}
+                                            className="w-20"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Show calculated box widths */}
+                                <div className="mt-3 text-sm">
+                                    <p className="font-medium">
+                                        Width distribution:
+                                    </p>
+                                    <div className="mt-1 bg-muted p-2 rounded max-h-[140px] overflow-y-auto">
+                                        {boxWidths.map((width, i) => (
+                                            <div
+                                                key={`width-${i}`}
+                                                className="flex justify-between"
+                                            >
+                                                <span>Box {i + 1}:</span>
+                                                <span className="font-mono">
+                                                    {width.toFixed(1)} mm
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="depth" className="space-y-4">
+                                <div className="space-y-2 mt-2">
+                                    <Label htmlFor="minBoxDepth">
+                                        Min Box Depth (mm): {minBoxDepth}
+                                    </Label>
+                                    <div className="flex items-center space-x-2 mt-2">
+                                        <Slider
+                                            id="minBoxDepth-slider"
+                                            name="minBoxDepth"
+                                            value={[minBoxDepth]}
+                                            onValueChange={(value) =>
+                                                handleSliderChange(
+                                                    'minBoxDepth',
+                                                    value
+                                                )
+                                            }
+                                            min={
+                                                defaultConstraints.minBoxDepth
+                                                    ?.min
+                                            }
+                                            max={maxBoxDepth}
+                                            step={1}
+                                            className="flex-grow"
+                                        />
+                                        <Input
+                                            type="number"
+                                            name="minBoxDepth"
+                                            value={minBoxDepth}
+                                            onChange={handleInputChange}
+                                            min={
+                                                defaultConstraints.minBoxDepth
+                                                    ?.min
+                                            }
+                                            max={maxBoxDepth}
+                                            className="w-20"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 mt-2">
+                                    <Label htmlFor="maxBoxDepth">
+                                        Max Box Depth (mm): {maxBoxDepth}
+                                    </Label>
+                                    <div className="flex items-center space-x-2 mt-2">
+                                        <Slider
+                                            id="maxBoxDepth-slider"
+                                            name="maxBoxDepth"
+                                            value={[maxBoxDepth]}
+                                            onValueChange={(value) =>
+                                                handleSliderChange(
+                                                    'maxBoxDepth',
+                                                    value
+                                                )
+                                            }
+                                            min={minBoxDepth}
+                                            max={depth}
+                                            step={1}
+                                            className="flex-grow"
+                                        />
+                                        <Input
+                                            type="number"
+                                            name="maxBoxDepth"
+                                            value={maxBoxDepth}
+                                            onChange={handleInputChange}
+                                            min={minBoxDepth}
+                                            max={depth}
+                                            className="w-20"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Show calculated box depths */}
+                                <div className="mt-3 text-sm">
+                                    <p className="font-medium">
+                                        Depth distribution:
+                                    </p>
+                                    <div className="mt-1 bg-muted p-2 rounded max-h-[140px] overflow-y-auto">
+                                        {boxDepths.map((depth, i) => (
+                                            <div
+                                                key={`depth-${i}`}
+                                                className="flex justify-between"
+                                            >
+                                                <span>Row {i + 1}:</span>
+                                                <span className="font-mono">
+                                                    {depth.toFixed(1)} mm
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                    )}
+
+                    {/* Grid summary */}
+                    {useMultipleBoxes &&
+                        boxWidths.length > 0 &&
+                        boxDepths.length > 0 && (
+                            <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20">
+                                <p className="font-medium">Grid Summary:</p>
+                                <div className="flex justify-between mt-1">
+                                    <span>Total Boxes:</span>
+                                    <span className="font-mono">
+                                        {boxWidths.length * boxDepths.length}
                                     </span>
                                 </div>
-                                <div className="grid grid-cols-[1fr_80px] gap-2">
-                                    <Slider
-                                        id="maxBoxWidth-slider"
-                                        min={minBoxWidth}
-                                        max={width}
-                                        step={1}
-                                        value={[maxBoxWidth]}
-                                        onValueChange={(value) =>
-                                            handleSliderChange(
-                                                'maxBoxWidth',
-                                                value
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        id="maxBoxWidth"
-                                        type="number"
-                                        name="maxBoxWidth"
-                                        value={maxBoxWidth}
-                                        onChange={handleInputChange}
-                                        min={minBoxWidth}
-                                        max={width}
-                                    />
+                                <div className="flex justify-between">
+                                    <span>Layout:</span>
+                                    <span className="font-mono">
+                                        {boxWidths.length}×{boxDepths.length}
+                                    </span>
                                 </div>
                             </div>
-
-                            {/* Show calculated box widths */}
-                            <div className="mt-3 text-sm">
-                                <p className="font-medium">Box distribution:</p>
-                                <div className="mt-1 bg-muted p-2 rounded">
-                                    {boxWidths.map((boxWidth, i) => (
-                                        <div key={i}>
-                                            Box {i + 1}: {boxWidth.toFixed(1)}{' '}
-                                            mm
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </>
-                    )}
+                        )}
                 </div>
 
                 {/* Debug Mode */}
@@ -352,9 +533,7 @@ export default function ConfigSidebar({
                     <Checkbox
                         id="debugMode"
                         checked={debugMode}
-                        onCheckedChange={(checked) =>
-                            handleCheckboxChange('debugMode', checked === true)
-                        }
+                        onCheckedChange={handleDebugModeChange}
                     />
                     <Label htmlFor="debugMode">Debug Mode</Label>
                     {debugMode && (
@@ -364,24 +543,7 @@ export default function ConfigSidebar({
                     )}
                 </div>
 
-                <Button
-                    onClick={() => {
-                        const inputs = {
-                            width,
-                            depth,
-                            height,
-                            wallThickness,
-                            cornerRadius,
-                            hasBottom,
-                            minBoxWidth,
-                            maxBoxWidth,
-                            useMultipleBoxes,
-                            debugMode,
-                        };
-                        exportSTL(scene, boxMeshGroup, inputs, boxWidths);
-                    }}
-                    className="w-full mt-6"
-                >
+                <Button onClick={handleExportSTL} className="w-full mt-6">
                     Export STL
                 </Button>
             </div>
