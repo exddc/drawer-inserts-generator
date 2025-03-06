@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import {
@@ -34,14 +34,17 @@ export default function Home() {
     const controlsRef = useRef<OrbitControls | null>(null);
     const boxMeshGroupRef = useRef<THREE.Group | null>(null);
 
+    // Track if scene has been initialized
+    const [isInitialized, setIsInitialized] = useState(false);
+
     // Refs for debug tooltip
     const tooltipRef = useRef<HTMLDivElement | null>(null);
     const raycasterRef = useRef<THREE.Raycaster | null>(null);
     const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
 
-    // Initialize Three.js
+    // Initialize Three.js (only once)
     useEffect(() => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || isInitialized) return;
 
         // Create scene
         const scene = new THREE.Scene();
@@ -161,6 +164,9 @@ export default function Home() {
             hasBottom,
         });
 
+        // Mark as initialized
+        setIsInitialized(true);
+
         // Cleanup
         return () => {
             window.removeEventListener('resize', handleResize);
@@ -174,22 +180,16 @@ export default function Home() {
                 document.body.removeChild(tooltipRef.current);
             }
         };
-    }, [
-        width,
-        depth,
-        height,
-        wallThickness,
-        cornerRadius,
-        hasBottom,
-        boxWidths,
-    ]);
+    }, []); // Empty dependency array - only runs once
 
     // Update grid and box model when dimensions change
     useEffect(() => {
+        if (!isInitialized) return;
+
         // Update grid size
         setupGrid(sceneRef.current, width, depth);
 
-        // Update box model
+        // Update box model without recreating the scene
         createBoxModel(boxMeshGroupRef.current, {
             boxWidths,
             depth,
@@ -199,6 +199,7 @@ export default function Home() {
             hasBottom,
         });
     }, [
+        isInitialized,
         width,
         depth,
         height,
@@ -210,14 +211,16 @@ export default function Home() {
 
     // Update renderer info settings when debug mode changes
     useEffect(() => {
+        if (!isInitialized) return;
+
         if (rendererRef.current) {
             rendererRef.current.info.autoReset = !debugMode;
         }
-    }, [debugMode]);
+    }, [debugMode, isInitialized]);
 
     // Set up event listeners for debug mode
     useEffect(() => {
-        if (!containerRef.current || !debugMode) return;
+        if (!containerRef.current || !debugMode || !isInitialized) return;
 
         // Event handlers for debug interactions
         const handleMouseMove = (event: MouseEvent) => {
@@ -319,7 +322,7 @@ export default function Home() {
                 tooltipRef.current.classList.add('hidden');
             }
         };
-    }, [debugMode, wallThickness]);
+    }, [debugMode, wallThickness, isInitialized]);
 
     return (
         <div className="flex flex-col bg-background flex-grow">

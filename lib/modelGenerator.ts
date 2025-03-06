@@ -24,7 +24,35 @@ export function createBoxModel(
 
   // Clear existing boxes
   while (boxMeshGroup.children.length > 0) {
-    boxMeshGroup.remove(boxMeshGroup.children[0]);
+    const child = boxMeshGroup.children[0];
+    // Properly dispose of geometries and materials to prevent memory leaks
+    if (child instanceof THREE.Mesh) {
+      if (child.geometry) {
+        child.geometry.dispose();
+      }
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(material => material.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    } else if (child instanceof THREE.Group) {
+      // Also dispose all children of nested groups
+      child.traverse(object => {
+        if (object instanceof THREE.Mesh) {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach(material => material.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
+        }
+      });
+    }
+    boxMeshGroup.remove(child);
   }
 
   try {
@@ -79,19 +107,18 @@ export function createBoxModel(
         },
       };
 
-      // Position the box relative to others - ensure no overlap
-      // Important: each box is already modeled with its center at (0,0,0)
+      // Position the box relative to others
       if (box instanceof THREE.Group || box instanceof THREE.Mesh) {
-        // Position the box with:
-        // X: starting point (currentX) plus half the width
-        // Y: 0 (flat on ground)
-        // Z: depth/2 as requested
+        // Use the correct positioning as specified:
+        // - currentX for the X position
+        // - Y position at 0 (on the ground)
+        // - Z position at depth/2 as required
         box.position.set(currentX, 0, depth / 2);
       }
 
-      boxMeshGroup?.add(box);
+      boxMeshGroup.add(box);
 
-      // Update position for next box - move by the full width
+      // Update position for next box
       currentX += boxWidth;
     });
   } catch (error) {
@@ -110,10 +137,12 @@ export function setupGrid(
   if (!scene) return null;
   
   // Remove existing grid helper
-  scene.children.forEach(child => {
+  scene.children = scene.children.filter(child => {
     if (child instanceof THREE.GridHelper) {
-      scene.remove(child);
+      child.dispose();
+      return false;
     }
+    return true;
   });
   
   // Calculate grid size (50 units larger than the maximum of width or depth)
