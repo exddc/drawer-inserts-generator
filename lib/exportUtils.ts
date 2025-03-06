@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter';
-import { FormInputs } from '@/components/ConfigSidebar';
+
+interface ExportInputs {
+    width: number;
+    depth: number;
+    height: number;
+    wallThickness: number;
+    cornerRadius: number;
+    hasBottom: boolean;
+    useMultipleBoxes: boolean;
+    minBoxWidth?: number;
+    maxBoxWidth?: number;
+    debugMode?: boolean;
+}
 
 /**
  * Export the model as an STL file
@@ -8,7 +20,7 @@ import { FormInputs } from '@/components/ConfigSidebar';
 export function exportSTL(
     scene: THREE.Scene | null, 
     boxMeshGroup: THREE.Group | null, 
-    inputs: FormInputs,
+    inputs: ExportInputs,
     boxWidths: number[]
 ): void {
     if (!boxMeshGroup || !scene) return;

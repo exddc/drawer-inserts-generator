@@ -9,32 +9,24 @@ import {
     ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { createBoxWithRoundedEdges } from '@/lib/boxModelGenerator';
-import { validateNumericInput } from '@/lib/validationUtils';
-import { calculateBoxWidths, getBoxInfoFromObject } from '@/lib/boxUtils';
-import ConfigSidebar, { FormInputs } from '@/components/ConfigSidebar';
-
-// Default values
-const defaultInputs: FormInputs = {
-    width: 150,
-    depth: 150,
-    height: 50,
-    wallThickness: 2,
-    cornerRadius: 5,
-    hasBottom: true,
-    // Default values for multi-box feature
-    minBoxWidth: 50,
-    maxBoxWidth: 100,
-    useMultipleBoxes: true,
-    // Debug mode disabled by default
-    debugMode: false,
-};
+import { getBoxInfoFromObject } from '@/lib/boxUtils';
+import ConfigSidebar from '@/components/ConfigSidebar';
+import DebugInfoPanel from '@/components/DebugInfoPanel';
+import { useBoxStore } from '@/lib/store';
 
 export default function Home() {
-    // State for form inputs
-    const [inputs, setInputs] = useState<FormInputs>(defaultInputs);
-
-    // State to store box widths for multiple boxes
-    const [boxWidths, setBoxWidths] = useState<number[]>([]);
+    // Get state from Zustand store
+    const {
+        width,
+        depth,
+        height,
+        wallThickness,
+        cornerRadius,
+        hasBottom,
+        useMultipleBoxes,
+        debugMode,
+        boxWidths,
+    } = useBoxStore();
 
     // Refs for Three.js
     const containerRef = useRef<HTMLDivElement>(null);
@@ -48,88 +40,6 @@ export default function Home() {
     const tooltipRef = useRef<HTMLDivElement | null>(null);
     const raycasterRef = useRef<THREE.Raycaster | null>(null);
     const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
-
-    // Calculate box widths when inputs change
-    useEffect(() => {
-        if (inputs.useMultipleBoxes) {
-            const widths = calculateBoxWidths(
-                inputs.width,
-                inputs.minBoxWidth,
-                inputs.maxBoxWidth
-            );
-            setBoxWidths(widths);
-        } else {
-            setBoxWidths([inputs.width]);
-        }
-    }, [
-        inputs.width,
-        inputs.minBoxWidth,
-        inputs.maxBoxWidth,
-        inputs.useMultipleBoxes,
-    ]);
-
-    // Handle input changes
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        let newValue = parseFloat(value);
-
-        // Apply constraints
-        if (name === 'maxBoxWidth') {
-            // Max box width can't be smaller than min box width
-            // and can't exceed total width minus min box width
-            const minValue = inputs.minBoxWidth;
-            const maxAllowed = inputs.width - minValue;
-            newValue = Math.min(Math.max(minValue, newValue), maxAllowed);
-        } else {
-            newValue = validateNumericInput(name, newValue, inputs);
-        }
-
-        setInputs((prev) => ({
-            ...prev,
-            [name]: newValue,
-        }));
-    };
-
-    // Handle checkbox change for bottom
-    const handleCheckboxChange = (checked: boolean) => {
-        setInputs((prev) => {
-            // If enabling bottom, ensure height is at least wallThickness + 1mm
-            let updatedHeight = prev.height;
-            if (checked && prev.height <= prev.wallThickness) {
-                updatedHeight = prev.wallThickness + 1;
-            }
-
-            return {
-                ...prev,
-                hasBottom: checked,
-                height: updatedHeight,
-            };
-        });
-    };
-
-    // Handle multi-box checkbox change
-    const handleMultiBoxCheckboxChange = (checked: boolean) => {
-        setInputs((prev) => ({
-            ...prev,
-            useMultipleBoxes: checked,
-        }));
-    };
-
-    // Handle slider change
-    const handleSliderChange = (name: string, value: number) => {
-        setInputs((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-    };
-
-    // Handle debug mode checkbox change
-    const handleDebugModeChange = (checked: boolean) => {
-        setInputs((prev) => ({
-            ...prev,
-            debugMode: checked,
-        }));
-    };
 
     // Initialize Three.js
     useEffect(() => {
@@ -161,6 +71,8 @@ export default function Home() {
             containerRef.current.clientHeight
         );
         renderer.shadowMap.enabled = true;
+        // Enable info tracking for debug statistics
+        renderer.info.autoReset = false;
         containerRef.current.appendChild(renderer.domElement);
         rendererRef.current = renderer;
 
@@ -213,6 +125,10 @@ export default function Home() {
             requestAnimationFrame(animate);
             if (controlsRef.current) controlsRef.current.update();
             if (rendererRef.current && sceneRef.current && cameraRef.current) {
+                // Reset renderer info at the beginning of each frame when debug mode is on
+                if (debugMode) {
+                    rendererRef.current.info.reset();
+                }
                 rendererRef.current.render(sceneRef.current, cameraRef.current);
             }
         };
@@ -266,10 +182,6 @@ export default function Home() {
         }
 
         try {
-            // Get input values
-            const { depth, height, wallThickness, cornerRadius, hasBottom } =
-                inputs;
-
             // Guard against invalid dimensions that might cause NaN errors
             if (
                 depth <= 0 ||
@@ -322,14 +234,11 @@ export default function Home() {
                 };
 
                 // Position the box relative to others - ensure no overlap by using exact positions
+                // IMPORTANT: Z position is fixed at 0 as requested
                 if (box instanceof THREE.Group) {
-                    // Position the box at the exact calculated X position
-                    // Because the box is created with the bottom center at the origin,
-                    // we need to move it by the half width
-                    box.position.set(currentX + boxWidth / 2, 0, -depth / 2);
+                    box.position.set(currentX + boxWidth / 2, 0, 0);
                 } else {
-                    // For boxes without bottom, they are also created with origin at center
-                    box.position.set(currentX + boxWidth / 2, 0, -depth / 2);
+                    box.position.set(currentX + boxWidth / 2, 0, 0);
                 }
 
                 boxMeshGroupRef.current?.add(box);
@@ -342,14 +251,29 @@ export default function Home() {
         }
     };
 
-    // Update the box when inputs or box widths change
+    // Update the box when relevant state changes
     useEffect(() => {
         createBoxModel();
-    }, [inputs, boxWidths]);
+    }, [
+        width,
+        depth,
+        height,
+        wallThickness,
+        cornerRadius,
+        hasBottom,
+        boxWidths,
+    ]);
+
+    // Update renderer info settings when debug mode changes
+    useEffect(() => {
+        if (rendererRef.current) {
+            rendererRef.current.info.autoReset = !debugMode;
+        }
+    }, [debugMode]);
 
     // Set up event listeners for debug mode
     useEffect(() => {
-        if (!containerRef.current || !inputs.debugMode) return;
+        if (!containerRef.current || !debugMode) return;
 
         // Event handlers for debug interactions
         const handleMouseMove = (event: MouseEvent) => {
@@ -420,7 +344,7 @@ export default function Home() {
                     <div>Width: ${boxInfo.width.toFixed(2)}</div>
                     <div>Depth: ${boxInfo.depth.toFixed(2)}</div>
                     <div>Height: ${boxInfo.height.toFixed(2)}</div>
-                    <div>Wall Thickness: ${inputs.wallThickness}</div>
+                    <div>Wall Thickness: ${wallThickness}</div>
                 `;
 
                 // Position the tooltip near the mouse
@@ -451,7 +375,7 @@ export default function Home() {
                 tooltipRef.current.classList.add('hidden');
             }
         };
-    }, [inputs.debugMode, inputs.wallThickness]);
+    }, [debugMode, wallThickness]);
 
     return (
         <div className="h-screen flex flex-col bg-background">
@@ -472,15 +396,6 @@ export default function Home() {
                     {/* Settings Panel */}
                     <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
                         <ConfigSidebar
-                            inputs={inputs}
-                            boxWidths={boxWidths}
-                            handleInputChange={handleInputChange}
-                            handleSliderChange={handleSliderChange}
-                            handleCheckboxChange={handleCheckboxChange}
-                            handleMultiBoxCheckboxChange={
-                                handleMultiBoxCheckboxChange
-                            }
-                            handleDebugModeChange={handleDebugModeChange}
                             scene={sceneRef.current}
                             boxMeshGroup={boxMeshGroupRef.current}
                         />
@@ -490,10 +405,21 @@ export default function Home() {
 
                     {/* 3D Preview */}
                     <ResizablePanel defaultSize={80}>
-                        <div ref={containerRef} className="w-full h-full"></div>
+                        <div
+                            ref={containerRef}
+                            className="w-full h-full relative"
+                        ></div>
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </div>
+
+            {/* Debug Info Panel */}
+            <DebugInfoPanel
+                renderer={rendererRef.current}
+                scene={sceneRef.current}
+                boxMeshGroup={boxMeshGroupRef.current}
+                enabled={debugMode}
+            />
 
             <footer className="border-t p-2 text-center text-muted-foreground text-sm">
                 Built with Next.js 15, Three.js, and shadcn/ui

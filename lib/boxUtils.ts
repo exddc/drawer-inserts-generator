@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+
 /**
  * Calculate box widths that fit within total width
  */
@@ -9,6 +10,11 @@ export function calculateBoxWidths(
 ): number[] {
     // Ensure constraints make sense
     if (minWidth <= 0 || maxWidth <= 0 || minWidth > maxWidth || totalWidth <= 0) {
+        return [totalWidth];
+    }
+
+    // Special case: if total width is less than minWidth, return one box of totalWidth
+    if (totalWidth < minWidth) {
         return [totalWidth];
     }
     

@@ -1,5 +1,4 @@
 // src/lib/validationUtils.ts
-import { FormInputs } from '@/components/ConfigSidebar';
 
 export interface InputConstraint {
   min: number;
@@ -33,21 +32,8 @@ export const defaultConstraints: InputConstraints = {
 export function validateNumericInput(
   name: string,
   value: number,
-  currentValues: FormInputs
+  currentValues: any
 ): number {
-  // Handle special cases first
-  if (name === 'minBoxWidth' && currentValues.maxBoxWidth) {
-    // Min box width can't be larger than max box width
-    return Math.min(Math.max(defaultConstraints.minBoxWidth!.min, value), currentValues.maxBoxWidth);
-  }
-
-  if (name === 'maxBoxWidth') {
-    // Max box width can't be smaller than min box width and can't exceed total width minus min box width
-    const minValue = currentValues.minBoxWidth || defaultConstraints.minBoxWidth!.min;
-    const maxAllowed = currentValues.width - minValue;
-    return Math.min(Math.max(minValue, value), maxAllowed);
-  }
-
   // Standard constraints when values exist in the constraints object
   if (defaultConstraints[name as keyof InputConstraints]) {
     const { min, max } = defaultConstraints[name as keyof InputConstraints];
@@ -98,7 +84,13 @@ export function calculateMaxCornerRadius(
   // For multiple boxes, use the smallest box width instead of the total width
   const effectiveWidth = useMultipleBoxes && minBoxWidth ? minBoxWidth : width;
   
+  // Guard against negative or invalid values
+  if (effectiveWidth <= 0 || depth <= 0 || wallThickness <= 0 || 
+      effectiveWidth <= 2 * wallThickness || depth <= 2 * wallThickness) {
+    return 0;
+  }
+  
   const maxCornerX = (effectiveWidth - 2 * wallThickness) / 2;
   const maxCornerY = (depth - 2 * wallThickness) / 2;
-  return Math.min(maxCornerX, maxCornerY, maxConstraint);
+  return Math.max(0, Math.min(maxCornerX, maxCornerY, maxConstraint));
 }

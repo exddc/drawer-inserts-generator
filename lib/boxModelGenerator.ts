@@ -1,4 +1,4 @@
-// src/utils/boxModelGenerator.ts
+// src/lib/boxModelGenerator.ts
 import * as THREE from 'three';
 
 interface BoxParameters {
@@ -121,7 +121,9 @@ export function createBoxWithRoundedEdges({
     
     // Rotate the entire group to lay flat on x-y plane
     meshGroup.rotation.x = -Math.PI / 2;
-    meshGroup.position.set(-width / 2, 0, depth / 2);
+    
+    // Position centered horizontally with z=0 (as requested)
+    meshGroup.position.set(-width / 2, 0, 0);
     
     return meshGroup;
   } else {
@@ -176,8 +178,8 @@ export function createBoxWithRoundedEdges({
     // Rotate to lay flat on the x-y plane
     mesh.rotation.x = -Math.PI / 2;
     
-    // Position the mesh
-    mesh.position.set(-width / 2, 0, depth / 2);
+    // Position centered horizontally with z=0 (as requested)
+    mesh.position.set(-width / 2, 0, 0);
     
     return mesh;
   }
