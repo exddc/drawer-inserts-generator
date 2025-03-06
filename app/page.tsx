@@ -3,46 +3,38 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { STLExporter } from 'three/examples/jsm/exporters/STLExporter';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     ResizableHandle,
     ResizablePanel,
     ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { createBoxWithRoundedEdges } from '@/lib/boxModelGenerator';
-import {
-    defaultConstraints,
-    validateNumericInput,
-    calculateMaxCornerRadius,
-} from '@/lib/validationUtils';
-
-// Define the form input types
-interface FormInputs {
-    width: number;
-    depth: number;
-    height: number;
-    wallThickness: number;
-    cornerRadius: number;
-    hasBottom: boolean;
-}
+import { validateNumericInput } from '@/lib/validationUtils';
+import { calculateBoxWidths, getBoxInfoFromObject } from '@/lib/boxUtils';
+import ConfigSidebar, { FormInputs } from '@/components/ConfigSidebar';
 
 // Default values
 const defaultInputs: FormInputs = {
-    width: 100,
+    width: 150,
     depth: 150,
     height: 50,
     wallThickness: 2,
     cornerRadius: 5,
     hasBottom: true,
+    // Default values for multi-box feature
+    minBoxWidth: 50,
+    maxBoxWidth: 100,
+    useMultipleBoxes: true,
+    // Debug mode disabled by default
+    debugMode: false,
 };
 
 export default function Home() {
     // State for form inputs
     const [inputs, setInputs] = useState<FormInputs>(defaultInputs);
+
+    // State to store box widths for multiple boxes
+    const [boxWidths, setBoxWidths] = useState<number[]>([]);
 
     // Refs for Three.js
     const containerRef = useRef<HTMLDivElement>(null);
@@ -50,7 +42,31 @@ export default function Home() {
     const sceneRef = useRef<THREE.Scene | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
-    const boxMeshRef = useRef<THREE.Mesh | THREE.Group | null>(null);
+    const boxMeshGroupRef = useRef<THREE.Group | null>(null);
+
+    // Refs for debug tooltip
+    const tooltipRef = useRef<HTMLDivElement | null>(null);
+    const raycasterRef = useRef<THREE.Raycaster | null>(null);
+    const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
+
+    // Calculate box widths when inputs change
+    useEffect(() => {
+        if (inputs.useMultipleBoxes) {
+            const widths = calculateBoxWidths(
+                inputs.width,
+                inputs.minBoxWidth,
+                inputs.maxBoxWidth
+            );
+            setBoxWidths(widths);
+        } else {
+            setBoxWidths([inputs.width]);
+        }
+    }, [
+        inputs.width,
+        inputs.minBoxWidth,
+        inputs.maxBoxWidth,
+        inputs.useMultipleBoxes,
+    ]);
 
     // Handle input changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,12 +74,15 @@ export default function Home() {
         let newValue = parseFloat(value);
 
         // Apply constraints
-        newValue = validateNumericInput(
-            name,
-            newValue,
-            defaultConstraints,
-            inputs
-        );
+        if (name === 'maxBoxWidth') {
+            // Max box width can't be smaller than min box width
+            // and can't exceed total width minus min box width
+            const minValue = inputs.minBoxWidth;
+            const maxAllowed = inputs.width - minValue;
+            newValue = Math.min(Math.max(minValue, newValue), maxAllowed);
+        } else {
+            newValue = validateNumericInput(name, newValue, inputs);
+        }
 
         setInputs((prev) => ({
             ...prev,
@@ -71,7 +90,7 @@ export default function Home() {
         }));
     };
 
-    // Handle checkbox change
+    // Handle checkbox change for bottom
     const handleCheckboxChange = (checked: boolean) => {
         setInputs((prev) => {
             // If enabling bottom, ensure height is at least wallThickness + 1mm
@@ -86,6 +105,30 @@ export default function Home() {
                 height: updatedHeight,
             };
         });
+    };
+
+    // Handle multi-box checkbox change
+    const handleMultiBoxCheckboxChange = (checked: boolean) => {
+        setInputs((prev) => ({
+            ...prev,
+            useMultipleBoxes: checked,
+        }));
+    };
+
+    // Handle slider change
+    const handleSliderChange = (name: string, value: number) => {
+        setInputs((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
+    // Handle debug mode checkbox change
+    const handleDebugModeChange = (checked: boolean) => {
+        setInputs((prev) => ({
+            ...prev,
+            debugMode: checked,
+        }));
     };
 
     // Initialize Three.js
@@ -143,12 +186,27 @@ export default function Home() {
         scene.add(directionalLight2);
 
         // Add grid helper
-        const gridHelper = new THREE.GridHelper(200, 20);
+        const gridHelper = new THREE.GridHelper(300, 30);
         scene.add(gridHelper);
 
         // Add axes helper
         const axesHelper = new THREE.AxesHelper(100);
         scene.add(axesHelper);
+
+        // Create a group to hold all boxes
+        const boxGroup = new THREE.Group();
+        scene.add(boxGroup);
+        boxMeshGroupRef.current = boxGroup;
+
+        // Setup raycaster for debug mode
+        raycasterRef.current = new THREE.Raycaster();
+
+        // Create tooltip element for debug info
+        const tooltip = document.createElement('div');
+        tooltip.className =
+            'fixed hidden p-2 bg-black/80 text-white text-xs rounded pointer-events-none z-50';
+        document.body.appendChild(tooltip);
+        tooltipRef.current = tooltip;
 
         // Animation loop
         const animate = () => {
@@ -191,77 +249,209 @@ export default function Home() {
                     rendererRef.current.domElement
                 );
             }
+            // Remove tooltip element
+            if (tooltipRef.current) {
+                document.body.removeChild(tooltipRef.current);
+            }
         };
     }, []);
 
     // Function to create and update the box model
     const createBoxModel = () => {
-        if (!sceneRef.current) return;
+        if (!sceneRef.current || !boxMeshGroupRef.current) return;
 
-        // Remove previous box if it exists
-        if (boxMeshRef.current) {
-            sceneRef.current.remove(boxMeshRef.current);
+        // Clear existing boxes
+        while (boxMeshGroupRef.current.children.length > 0) {
+            boxMeshGroupRef.current.remove(boxMeshGroupRef.current.children[0]);
         }
 
         try {
-            // Create new box based on inputs
-            const {
-                width,
-                depth,
-                height,
-                wallThickness,
-                cornerRadius,
-                hasBottom,
-            } = inputs;
+            // Get input values
+            const { depth, height, wallThickness, cornerRadius, hasBottom } =
+                inputs;
 
             // Guard against invalid dimensions that might cause NaN errors
             if (
-                width <= 0 ||
                 depth <= 0 ||
                 height <= 0 ||
                 wallThickness <= 0 ||
-                cornerRadius < 0 ||
-                wallThickness * 2 >= width ||
-                wallThickness * 2 >= depth
+                cornerRadius < 0
             ) {
                 console.warn('Invalid dimensions, skipping box creation');
                 return;
             }
 
-            const box = createBoxWithRoundedEdges({
-                width,
-                depth,
-                height,
-                wallThickness,
-                cornerRadius,
-                hasBottom,
-            });
+            // Calculate total width of all boxes for positioning
+            const totalWidth = boxWidths.reduce((sum, width) => sum + width, 0);
 
-            sceneRef.current.add(box);
-            boxMeshRef.current = box;
+            // Start position (centered on the scene)
+            let currentX = -totalWidth / 2;
+
+            // Create boxes with calculated widths
+            boxWidths.forEach((boxWidth, index) => {
+                // Skip if box dimensions are invalid
+                if (
+                    boxWidth <= 0 ||
+                    wallThickness * 2 >= boxWidth ||
+                    wallThickness * 2 >= depth
+                ) {
+                    console.warn(
+                        `Invalid dimensions for box ${index}, skipping`
+                    );
+                    currentX += boxWidth;
+                    return;
+                }
+
+                const box = createBoxWithRoundedEdges({
+                    width: boxWidth,
+                    depth,
+                    height,
+                    wallThickness,
+                    cornerRadius,
+                    hasBottom,
+                });
+
+                // Store box dimensions in userData for debug mode
+                box.userData = {
+                    dimensions: {
+                        width: boxWidth,
+                        depth,
+                        height,
+                        index,
+                    },
+                };
+
+                // Position the box relative to others - ensure no overlap by using exact positions
+                if (box instanceof THREE.Group) {
+                    // Position the box at the exact calculated X position
+                    // Because the box is created with the bottom center at the origin,
+                    // we need to move it by the half width
+                    box.position.set(currentX + boxWidth / 2, 0, -depth / 2);
+                } else {
+                    // For boxes without bottom, they are also created with origin at center
+                    box.position.set(currentX + boxWidth / 2, 0, -depth / 2);
+                }
+
+                boxMeshGroupRef.current?.add(box);
+
+                // Update position for next box
+                currentX += boxWidth;
+            });
         } catch (error) {
-            console.error('Error creating box model:', error);
+            console.error('Error creating box models:', error);
         }
     };
 
-    // Update the box when inputs change
+    // Update the box when inputs or box widths change
     useEffect(() => {
         createBoxModel();
-    }, [inputs]);
+    }, [inputs, boxWidths]);
 
-    // Function to export the model as STL
-    const exportSTL = () => {
-        if (!boxMeshRef.current || !sceneRef.current) return;
+    // Set up event listeners for debug mode
+    useEffect(() => {
+        if (!containerRef.current || !inputs.debugMode) return;
 
-        const exporter = new STLExporter();
-        const stlString = exporter.parse(sceneRef.current);
+        // Event handlers for debug interactions
+        const handleMouseMove = (event: MouseEvent) => {
+            if (!containerRef.current) return;
 
-        const blob = new Blob([stlString], { type: 'text/plain' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `drawer-insert-${inputs.width}x${inputs.depth}x${inputs.height}.stl`;
-        link.click();
-    };
+            // Calculate mouse position in normalized device coordinates
+            const rect = containerRef.current.getBoundingClientRect();
+            mouseRef.current.x =
+                ((event.clientX - rect.left) /
+                    containerRef.current.clientWidth) *
+                    2 -
+                1;
+            mouseRef.current.y =
+                -(
+                    (event.clientY - rect.top) /
+                    containerRef.current.clientHeight
+                ) *
+                    2 +
+                1;
+        };
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                !containerRef.current ||
+                !raycasterRef.current ||
+                !sceneRef.current ||
+                !cameraRef.current ||
+                !tooltipRef.current
+            )
+                return;
+
+            // Update the ray with the camera and mouse positions
+            raycasterRef.current.setFromCamera(
+                mouseRef.current,
+                cameraRef.current
+            );
+
+            // Calculate objects intersecting the ray
+            const intersects = raycasterRef.current.intersectObjects(
+                boxMeshGroupRef.current?.children || [],
+                true
+            );
+
+            if (intersects.length > 0) {
+                // Get the first intersected object
+                const object = intersects[0].object;
+
+                // Find the parent box (either the object itself or its parent)
+                let boxObject = object;
+                while (
+                    boxObject.parent &&
+                    boxObject.parent !== boxMeshGroupRef.current
+                ) {
+                    boxObject = boxObject.parent;
+                }
+
+                // Get box dimensions from userData or compute from geometry
+                const boxInfo = getBoxInfoFromObject(boxObject);
+
+                // Show tooltip with box info
+                tooltipRef.current.innerHTML = `
+                    <div><strong>Box Info:</strong></div>
+                    <div>Position: X: ${boxInfo.position.x.toFixed(
+                        2
+                    )}, Y: ${boxInfo.position.y.toFixed(
+                    2
+                )}, Z: ${boxInfo.position.z.toFixed(2)}</div>
+                    <div>Width: ${boxInfo.width.toFixed(2)}</div>
+                    <div>Depth: ${boxInfo.depth.toFixed(2)}</div>
+                    <div>Height: ${boxInfo.height.toFixed(2)}</div>
+                    <div>Wall Thickness: ${inputs.wallThickness}</div>
+                `;
+
+                // Position the tooltip near the mouse
+                tooltipRef.current.style.left = `${event.clientX + 10}px`;
+                tooltipRef.current.style.top = `${event.clientY + 10}px`;
+                tooltipRef.current.classList.remove('hidden');
+            } else {
+                // Hide tooltip if no box was clicked
+                tooltipRef.current.classList.add('hidden');
+            }
+        };
+
+        // Add event listeners
+        containerRef.current.addEventListener('mousemove', handleMouseMove);
+        containerRef.current.addEventListener('click', handleClick);
+
+        // Cleanup
+        return () => {
+            if (containerRef.current) {
+                containerRef.current.removeEventListener(
+                    'mousemove',
+                    handleMouseMove
+                );
+                containerRef.current.removeEventListener('click', handleClick);
+            }
+
+            if (tooltipRef.current) {
+                tooltipRef.current.classList.add('hidden');
+            }
+        };
+    }, [inputs.debugMode, inputs.wallThickness]);
 
     return (
         <div className="h-screen flex flex-col bg-background">
@@ -281,116 +471,19 @@ export default function Home() {
                 <ResizablePanelGroup direction="horizontal">
                     {/* Settings Panel */}
                     <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-                        <div className="h-full overflow-auto p-4">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="width">Width (mm)</Label>
-                                    <Input
-                                        id="width"
-                                        type="number"
-                                        name="width"
-                                        value={inputs.width}
-                                        onChange={handleInputChange}
-                                        min={defaultConstraints.width.min}
-                                        max={defaultConstraints.width.max}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="depth">Depth (mm)</Label>
-                                    <Input
-                                        id="depth"
-                                        type="number"
-                                        name="depth"
-                                        value={inputs.depth}
-                                        onChange={handleInputChange}
-                                        min={defaultConstraints.depth.min}
-                                        max={defaultConstraints.depth.max}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="height">Height (mm)</Label>
-                                    <Input
-                                        id="height"
-                                        type="number"
-                                        name="height"
-                                        value={inputs.height}
-                                        onChange={handleInputChange}
-                                        min={
-                                            inputs.hasBottom
-                                                ? Math.max(
-                                                      defaultConstraints.height
-                                                          .min,
-                                                      inputs.wallThickness + 1
-                                                  )
-                                                : defaultConstraints.height.min
-                                        }
-                                        max={defaultConstraints.height.max}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="wallThickness">
-                                        Wall Thickness (mm)
-                                    </Label>
-                                    <Input
-                                        id="wallThickness"
-                                        type="number"
-                                        name="wallThickness"
-                                        value={inputs.wallThickness}
-                                        onChange={handleInputChange}
-                                        min={
-                                            defaultConstraints.wallThickness.min
-                                        }
-                                        max={
-                                            defaultConstraints.wallThickness.max
-                                        }
-                                        step="0.5"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="cornerRadius">
-                                        Corner Radius (mm)
-                                    </Label>
-                                    <Input
-                                        id="cornerRadius"
-                                        type="number"
-                                        name="cornerRadius"
-                                        value={inputs.cornerRadius}
-                                        onChange={handleInputChange}
-                                        min={
-                                            defaultConstraints.cornerRadius.min
-                                        }
-                                        max={calculateMaxCornerRadius(
-                                            inputs.width,
-                                            inputs.depth,
-                                            inputs.wallThickness,
-                                            defaultConstraints.cornerRadius.max
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="flex items-center space-x-2 pt-2">
-                                    <Checkbox
-                                        id="hasBottom"
-                                        checked={inputs.hasBottom}
-                                        onCheckedChange={handleCheckboxChange}
-                                    />
-                                    <Label htmlFor="hasBottom">
-                                        Include Bottom
-                                    </Label>
-                                </div>
-
-                                <Button
-                                    onClick={exportSTL}
-                                    className="w-full mt-6"
-                                >
-                                    Export STL
-                                </Button>
-                            </div>
-                        </div>
+                        <ConfigSidebar
+                            inputs={inputs}
+                            boxWidths={boxWidths}
+                            handleInputChange={handleInputChange}
+                            handleSliderChange={handleSliderChange}
+                            handleCheckboxChange={handleCheckboxChange}
+                            handleMultiBoxCheckboxChange={
+                                handleMultiBoxCheckboxChange
+                            }
+                            handleDebugModeChange={handleDebugModeChange}
+                            scene={sceneRef.current}
+                            boxMeshGroup={boxMeshGroupRef.current}
+                        />
                     </ResizablePanel>
 
                     <ResizableHandle withHandle />
