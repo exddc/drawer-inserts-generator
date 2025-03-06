@@ -1,6 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import Head from 'next/head';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import {
@@ -8,11 +7,11 @@ import {
     ResizablePanel,
     ResizablePanelGroup,
 } from '@/components/ui/resizable';
-import { createBoxWithRoundedEdges } from '@/lib/boxModelGenerator';
 import { getBoxInfoFromObject } from '@/lib/boxUtils';
 import ConfigSidebar from '@/components/ConfigSidebar';
 import DebugInfoPanel from '@/components/DebugInfoPanel';
 import { useBoxStore } from '@/lib/store';
+import { createBoxModel, setupGrid } from '@/lib/modelGenerator';
 
 export default function Home() {
     // Get state from Zustand store
@@ -23,7 +22,6 @@ export default function Home() {
         wallThickness,
         cornerRadius,
         hasBottom,
-        useMultipleBoxes,
         debugMode,
         boxWidths,
     } = useBoxStore();
@@ -97,9 +95,8 @@ export default function Home() {
         directionalLight2.castShadow = true;
         scene.add(directionalLight2);
 
-        // Add grid helper
-        const gridHelper = new THREE.GridHelper(300, 30);
-        scene.add(gridHelper);
+        // Setup grid based on initial dimensions
+        setupGrid(scene, width, depth);
 
         // Add axes helper
         const axesHelper = new THREE.AxesHelper(100);
@@ -154,8 +151,15 @@ export default function Home() {
         };
         window.addEventListener('resize', handleResize);
 
-        // Create initial box
-        createBoxModel();
+        // Create initial box model
+        createBoxModel(boxMeshGroupRef.current, {
+            boxWidths,
+            depth,
+            height,
+            wallThickness,
+            cornerRadius,
+            hasBottom,
+        });
 
         // Cleanup
         return () => {
@@ -170,92 +174,30 @@ export default function Home() {
                 document.body.removeChild(tooltipRef.current);
             }
         };
-    }, []);
+    }, [
+        width,
+        depth,
+        height,
+        wallThickness,
+        cornerRadius,
+        hasBottom,
+        boxWidths,
+    ]);
 
-    // Function to create and update the box model
-    const createBoxModel = () => {
-        if (!sceneRef.current || !boxMeshGroupRef.current) return;
-
-        // Clear existing boxes
-        while (boxMeshGroupRef.current.children.length > 0) {
-            boxMeshGroupRef.current.remove(boxMeshGroupRef.current.children[0]);
-        }
-
-        try {
-            // Guard against invalid dimensions that might cause NaN errors
-            if (
-                depth <= 0 ||
-                height <= 0 ||
-                wallThickness <= 0 ||
-                cornerRadius < 0
-            ) {
-                console.warn('Invalid dimensions, skipping box creation');
-                return;
-            }
-
-            // Calculate total width of all boxes for positioning
-            const totalWidth = boxWidths.reduce((sum, width) => sum + width, 0);
-
-            // Start position (centered on the scene)
-            let currentX = -totalWidth / 2;
-
-            // Create boxes with calculated widths
-            boxWidths.forEach((boxWidth, index) => {
-                // Skip if box dimensions are invalid
-                if (
-                    boxWidth <= 0 ||
-                    wallThickness * 2 >= boxWidth ||
-                    wallThickness * 2 >= depth
-                ) {
-                    console.warn(
-                        `Invalid dimensions for box ${index}, skipping`
-                    );
-                    currentX += boxWidth;
-                    return;
-                }
-
-                const box = createBoxWithRoundedEdges({
-                    width: boxWidth,
-                    depth,
-                    height,
-                    wallThickness,
-                    cornerRadius,
-                    hasBottom,
-                });
-
-                // Store box dimensions in userData for debug mode
-                box.userData = {
-                    dimensions: {
-                        width: boxWidth,
-                        depth,
-                        height,
-                        index,
-                    },
-                };
-
-                // Position the box relative to others - ensure no overlap
-                // Important: each box is already modeled with its center at (0,0,0)
-                if (box instanceof THREE.Group || box instanceof THREE.Mesh) {
-                    // Position the box with:
-                    // X: starting point (currentX) plus half the width
-                    // Y: 0 (flat on ground)
-                    // Z: depth/2 as requested
-                    box.position.set(currentX, 0, depth / 2);
-                }
-
-                boxMeshGroupRef.current?.add(box);
-
-                // Update position for next box - move by the full width
-                currentX += boxWidth;
-            });
-        } catch (error) {
-            console.error('Error creating box models:', error);
-        }
-    };
-
-    // Update the box when relevant state changes
+    // Update grid and box model when dimensions change
     useEffect(() => {
-        createBoxModel();
+        // Update grid size
+        setupGrid(sceneRef.current, width, depth);
+
+        // Update box model
+        createBoxModel(boxMeshGroupRef.current, {
+            boxWidths,
+            depth,
+            height,
+            wallThickness,
+            cornerRadius,
+            hasBottom,
+        });
     }, [
         width,
         depth,
@@ -380,19 +322,7 @@ export default function Home() {
     }, [debugMode, wallThickness]);
 
     return (
-        <div className="h-screen flex flex-col bg-background">
-            <Head>
-                <title>Drawer Insert Generator</title>
-                <meta
-                    name="description"
-                    content="Generate custom drawer inserts for 3D printing"
-                />
-            </Head>
-
-            <header className="border-b p-4">
-                <h1 className="text-xl font-bold">Drawer Insert Generator</h1>
-            </header>
-
+        <div className="flex flex-col bg-background flex-grow">
             <div className="flex-grow overflow-hidden">
                 <ResizablePanelGroup direction="horizontal">
                     {/* Settings Panel */}
@@ -422,10 +352,6 @@ export default function Home() {
                 boxMeshGroup={boxMeshGroupRef.current}
                 enabled={debugMode}
             />
-
-            <footer className="border-t p-2 text-center text-muted-foreground text-sm">
-                Built with Next.js 15, Three.js, and shadcn/ui
-            </footer>
         </div>
     );
 }

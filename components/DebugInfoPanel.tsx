@@ -144,7 +144,7 @@ export default function DebugInfoPanel({
     if (!enabled) return null;
 
     return (
-        <div className="fixed top-4 right-4 z-50 bg-black/80 text-white p-3 rounded-md text-xs font-mono whitespace-nowrap">
+        <div className="fixed top-20 right-4 z-50 bg-black/80 text-white p-3 rounded-md text-xs font-mono whitespace-nowrap">
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                 <div className="font-semibold">FPS:</div>
                 <div
