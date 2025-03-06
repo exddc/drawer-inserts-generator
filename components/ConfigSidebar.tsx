@@ -114,7 +114,7 @@ export default function ConfigSidebar({
     };
 
     return (
-        <div className="h-full overflow-auto p-4">
+        <div className="p-4">
             <div className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="width">Total Width (mm): {width}</Label>

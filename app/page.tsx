@@ -320,21 +320,28 @@ export default function Home() {
     }, [debugMode, wallThickness]);
 
     return (
-        <div className="flex flex-col bg-background flex-grow">
-            <div className="flex-grow overflow-hidden">
-                <ResizablePanelGroup direction="horizontal">
+        <div className="h-full flex flex-col bg-background">
+            <div className="flex-grow overflow-hidden flex flex-col">
+                <ResizablePanelGroup direction="horizontal" className="h-full">
                     {/* Settings Panel */}
-                    <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-                        <ConfigSidebar
-                            scene={sceneRef.current}
-                            boxMeshGroup={boxMeshGroupRef.current}
-                        />
+                    <ResizablePanel
+                        defaultSize={20}
+                        minSize={15}
+                        maxSize={30}
+                        className="flex flex-col"
+                    >
+                        <div className="flex-grow overflow-auto">
+                            <ConfigSidebar
+                                scene={sceneRef.current}
+                                boxMeshGroup={boxMeshGroupRef.current}
+                            />
+                        </div>
                     </ResizablePanel>
 
                     <ResizableHandle withHandle />
 
                     {/* 3D Preview */}
-                    <ResizablePanel defaultSize={80}>
+                    <ResizablePanel defaultSize={80} className="h-full">
                         <div
                             ref={containerRef}
                             className="w-full h-full relative"
