@@ -64,8 +64,9 @@ export function validateNumericInput(
   }
 
   // Standard constraints when values exist in the constraints object
-  if (defaultConstraints[name as keyof InputConstraints]) {
-    const { min, max } = defaultConstraints[name as keyof InputConstraints];
+  const constraint = defaultConstraints[name as keyof InputConstraints];
+  if (constraint) {
+    const { min, max } = constraint;
     let validatedValue = value;
     
     // Apply basic min/max constraints

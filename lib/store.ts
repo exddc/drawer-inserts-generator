@@ -282,7 +282,11 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     // Apply each valid property from the URL configuration
     Object.entries(urlConfig).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        state.updateInput(key, value);
+        if (typeof value === 'number' || typeof value === 'boolean') {
+          state.updateInput(key, value);
+        } else {
+          console.warn(`Skipping update for key "${key}": value is not a number or boolean`, value);
+        }
       }
     });
   },

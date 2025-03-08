@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { STLExporter } from 'three/examples/jsm/exporters/STLExporter';
-import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter';
+import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
+import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js';
 import { FormInputs } from '@/components/ConfigSidebar';
 
 
