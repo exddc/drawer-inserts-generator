@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useBoxStore } from '@/lib/store';
 import * as THREE from 'three';
+import ShareButton from '@/components/ShareButton';
 
 // Define the form input types
 export interface FormInputs {
@@ -527,6 +528,8 @@ export default function ConfigSidebar({
             </div>
             <div className="pt-4 border-t mt-4">
                 <h3 className="font-medium mb-4">Export</h3>
+
+                <ShareButton />
 
                 {/* Export buttons */}
                 {useMultipleBoxes &&

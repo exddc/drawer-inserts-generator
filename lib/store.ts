@@ -1,7 +1,8 @@
 // lib/store.ts
 import { create } from 'zustand';
-import { calculateBoxWidths, calculateBoxDepths } from '@/lib/boxUtils';
+import { calculateBoxWidths } from '@/lib/boxUtils';
 import { defaultConstraints } from '@/lib/validationUtils';
+import { getConfigFromUrl, shareConfiguration } from '@/lib/urlUtils';
 
 export interface BoxState {
   // Core dimensions
@@ -40,6 +41,12 @@ export interface BoxState {
   
   // Helper method to update all settings at once (for form inputs)
   updateInput: (name: string, value: number | boolean) => void;
+  
+  // Load configuration from URL
+  loadFromUrl: () => void;
+  
+  // Share configuration
+  shareConfiguration: () => Promise<boolean>;
 }
 
 // Helper to recalculate box widths
@@ -65,7 +72,7 @@ const recalculateBoxDepths = (
   if (!useMultiple) {
     return [totalDepth];
   }
-  return calculateBoxDepths(totalDepth, minDepth, maxDepth);
+  return calculateBoxWidths(totalDepth, minDepth, maxDepth);
 };
 
 // Helper to ensure max width is valid
@@ -78,27 +85,17 @@ const validateMinWidth = (minWidth: number, maxWidth: number): number => {
   return Math.min(Math.max(defaultConstraints.minBoxWidth?.min || 10, minWidth), maxWidth);
 };
 
-// Helper to ensure max depth is valid
-const validateMaxDepth = (maxDepth: number, minDepth: number, totalDepth: number): number => {
-  return Math.min(Math.max(minDepth, maxDepth), totalDepth);
-};
-
-// Helper to ensure min depth is valid
-const validateMinDepth = (minDepth: number, maxDepth: number): number => {
-  return Math.min(Math.max(defaultConstraints.minBoxDepth?.min || 10, minDepth), maxDepth);
-};
-
 // Default values
 const defaultValues = {
   width: 150,
   depth: 150,
-  height: 50,
+  height: 30,
   wallThickness: 2,
   cornerRadius: 5,
   hasBottom: true,
   minBoxWidth: 10,
   maxBoxWidth: 100,
-  minBoxDepth: 10,
+  minBoxDepth: 10, 
   maxBoxDepth: 100,
   useMultipleBoxes: true,
   debugMode: false,
@@ -138,7 +135,7 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     const { minBoxDepth, maxBoxDepth, useMultipleBoxes } = get();
     
     // Ensure max depth doesn't exceed total depth
-    const newMaxDepth = validateMaxDepth(maxBoxDepth, minBoxDepth, depth);
+    const newMaxDepth = validateMaxWidth(maxBoxDepth, minBoxDepth, depth);
     
     set({ 
       depth,
@@ -195,7 +192,7 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     const { maxBoxDepth, depth, useMultipleBoxes } = get();
     
     // Validate min depth
-    const newMinDepth = validateMinDepth(minBoxDepth, maxBoxDepth);
+    const newMinDepth = validateMinWidth(minBoxDepth, maxBoxDepth);
     
     // Recalculate box depths
     set({ 
@@ -208,7 +205,7 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     const { minBoxDepth, depth, useMultipleBoxes } = get();
     
     // Validate max depth
-    const newMaxDepth = validateMaxDepth(maxBoxDepth, minBoxDepth, depth);
+    const newMaxDepth = validateMaxWidth(maxBoxDepth, minBoxDepth, depth);
     
     // Recalculate box depths
     set({ 
@@ -274,5 +271,32 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         // Just update the value directly if we don't have a specific handler
         set({ [name]: value } as any);
     }
+  },
+  
+  // Load configuration from URL
+  loadFromUrl: () => {
+    const urlConfig = getConfigFromUrl();
+    if (!urlConfig) return;
+    
+    const state = get();
+    // Apply each valid property from the URL configuration
+    Object.entries(urlConfig).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        state.updateInput(key, value);
+      }
+    });
+  },
+  
+  // Share configuration 
+  shareConfiguration: async () => {
+    return shareConfiguration(get());
   }
 }));
+
+// Initialize URL configuration on first import (client-side only)
+if (typeof window !== 'undefined') {
+  // Use setTimeout to ensure this runs after component initialization
+  setTimeout(() => {
+    useBoxStore.getState().loadFromUrl();
+  }, 0);
+}

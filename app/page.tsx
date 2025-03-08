@@ -26,6 +26,7 @@ export default function Home() {
         debugMode,
         boxWidths,
         boxDepths,
+        loadFromUrl,
     } = useBoxStore();
 
     // Refs for Three.js
@@ -40,6 +41,11 @@ export default function Home() {
     const tooltipRef = useRef<HTMLDivElement | null>(null);
     const raycasterRef = useRef<THREE.Raycaster | null>(null);
     const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
+
+    // Load configuration from URL if present
+    useEffect(() => {
+        loadFromUrl();
+    }, [loadFromUrl]);
 
     // Initialize Three.js
     useEffect(() => {
