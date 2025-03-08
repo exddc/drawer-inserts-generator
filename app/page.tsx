@@ -12,6 +12,7 @@ import ConfigSidebar from '@/components/ConfigSidebar';
 import DebugInfoPanel from '@/components/DebugInfoPanel';
 import { useBoxStore } from '@/lib/store';
 import { createBoxModel, setupGrid } from '@/lib/modelGenerator';
+import ConfigSidebarWrapper from '@/components/ConfigSidebarWrapper';
 
 export default function Home() {
     // Get state from Zustand store
@@ -331,9 +332,10 @@ export default function Home() {
                         className="flex flex-col"
                     >
                         <div className="flex-grow overflow-auto">
-                            <ConfigSidebar
-                                scene={sceneRef.current}
-                                boxMeshGroup={boxMeshGroupRef.current}
+                            {/* Use the wrapper component which will handle the null check */}
+                            <ConfigSidebarWrapper
+                                sceneRef={sceneRef}
+                                boxMeshGroupRef={boxMeshGroupRef}
                             />
                         </div>
                     </ResizablePanel>

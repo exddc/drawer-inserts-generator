@@ -9,7 +9,13 @@ import {
     calculateMaxCornerRadius,
     defaultConstraints,
 } from '@/lib/validationUtils';
-import { exportSTL } from '@/lib/exportUtils';
+import { exportSTL, exportOBJ, exportMultipleSTLs } from '@/lib/exportUtils';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useBoxStore } from '@/lib/store';
 import * as THREE from 'three';
 
@@ -30,8 +36,8 @@ export interface FormInputs {
 }
 
 interface ConfigSidebarProps {
-    scene: THREE.Scene | null;
-    boxMeshGroup: THREE.Group | null;
+    scene: THREE.Scene;
+    boxMeshGroup: THREE.Group;
 }
 
 export default function ConfigSidebar({
@@ -86,32 +92,6 @@ export default function ConfigSidebar({
 
     const handleDebugModeChange = (checked: boolean) => {
         updateInput('debugMode', checked);
-    };
-
-    // Function to handle STL export
-    const handleExportSTL = () => {
-        if (!scene || !boxMeshGroup) return;
-
-        exportSTL(
-            scene,
-            boxMeshGroup,
-            {
-                width,
-                depth,
-                height,
-                wallThickness,
-                cornerRadius,
-                hasBottom,
-                minBoxWidth,
-                maxBoxWidth,
-                minBoxDepth,
-                maxBoxDepth,
-                useMultipleBoxes,
-                debugMode,
-            },
-            boxWidths,
-            boxDepths
-        );
     };
 
     return (
@@ -297,7 +277,7 @@ export default function ConfigSidebar({
                     <Label htmlFor="hasBottom">Include Bottom</Label>
                 </div>
 
-                <div className="flex items-center space-x-2 mb-3">
+                <div className="flex items-center space-x-2">
                     <Checkbox
                         id="useMultipleBoxes"
                         checked={useMultipleBoxes}
@@ -306,6 +286,21 @@ export default function ConfigSidebar({
                     <Label htmlFor="useMultipleBoxes">
                         Split into grid of boxes
                     </Label>
+                </div>
+
+                {/* Debug Mode */}
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id="debugMode"
+                        checked={debugMode}
+                        onCheckedChange={handleDebugModeChange}
+                    />
+                    <Label htmlFor="debugMode">Debug Mode</Label>
+                    {debugMode && (
+                        <div className="mt-1 text-xs text-muted-foreground ml-6">
+                            Click on any box to see its details
+                        </div>
+                    )}
                 </div>
 
                 {/* Multi-box settings */}
@@ -424,7 +419,10 @@ export default function ConfigSidebar({
                                         Width distribution:
                                     </p>
                                     {boxWidths.map((width, i) => (
-                                        <div className="flex justify-between mt-1">
+                                        <div
+                                            className="flex justify-between mt-1"
+                                            key={'width-' + i}
+                                        >
                                             <span>Column {i + 1}:</span>
                                             <span className="font-mono">
                                                 {width.toFixed(1)} mm
@@ -511,7 +509,10 @@ export default function ConfigSidebar({
                                         Depth distribution:
                                     </p>
                                     {boxDepths.map((depth, i) => (
-                                        <div className="flex justify-between mt-1">
+                                        <div
+                                            className="flex justify-between mt-1"
+                                            key={'depth-' + i}
+                                        >
                                             <span>Row {i + 1}:</span>
                                             <span className="font-mono">
                                                 {depth.toFixed(1)} mm
@@ -523,25 +524,137 @@ export default function ConfigSidebar({
                         </Tabs>
                     </div>
                 )}
+            </div>
+            <div className="pt-4 border-t mt-4">
+                <h3 className="font-medium mb-4">Export</h3>
 
-                {/* Debug Mode */}
-                <div className="flex items-center space-x-2 pt-4 border-t mt-4">
-                    <Checkbox
-                        id="debugMode"
-                        checked={debugMode}
-                        onCheckedChange={handleDebugModeChange}
-                    />
-                    <Label htmlFor="debugMode">Debug Mode</Label>
-                    {debugMode && (
-                        <div className="mt-1 text-xs text-muted-foreground ml-6">
-                            Click on any box to see its details
-                        </div>
-                    )}
-                </div>
+                {/* Export buttons */}
+                {useMultipleBoxes &&
+                boxWidths.length > 0 &&
+                boxDepths.length > 0 ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button className="w-full">Export Model</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    exportSTL(
+                                        scene,
+                                        boxMeshGroup,
+                                        {
+                                            width,
+                                            depth,
+                                            height,
+                                            wallThickness,
+                                            cornerRadius,
+                                            hasBottom,
+                                            minBoxWidth,
+                                            maxBoxWidth,
+                                            minBoxDepth,
+                                            maxBoxDepth,
+                                            useMultipleBoxes,
+                                            debugMode,
+                                        },
+                                        boxWidths,
+                                        boxDepths
+                                    )
+                                }
+                            >
+                                Export as STL (Single Object)
+                            </DropdownMenuItem>
+                            {/* <DropdownMenuItem
+                                onClick={() =>
+                                    exportOBJ(
+                                        scene,
+                                        boxMeshGroup,
+                                        {
+                                            width,
+                                            depth,
+                                            height,
+                                            wallThickness,
+                                            cornerRadius,
+                                            hasBottom,
+                                            minBoxWidth,
+                                            maxBoxWidth,
+                                            minBoxDepth,
+                                            maxBoxDepth,
+                                            useMultipleBoxes,
+                                            debugMode,
+                                        },
+                                        boxWidths,
+                                        boxDepths
+                                    )
+                                }
+                            >
+                                Export as OBJ (Multiple Objects)
+                            </DropdownMenuItem> */}
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    exportMultipleSTLs(
+                                        boxMeshGroup,
+                                        {
+                                            width,
+                                            depth,
+                                            height,
+                                            wallThickness,
+                                            cornerRadius,
+                                            hasBottom,
+                                            minBoxWidth,
+                                            maxBoxWidth,
+                                            minBoxDepth,
+                                            maxBoxDepth,
+                                            useMultipleBoxes,
+                                            debugMode,
+                                        },
+                                        boxWidths,
+                                        boxDepths
+                                    )
+                                }
+                            >
+                                Export as ZIP (Separate STL Files)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : (
+                    <Button
+                        onClick={() =>
+                            exportSTL(
+                                scene,
+                                boxMeshGroup,
+                                {
+                                    width,
+                                    depth,
+                                    height,
+                                    wallThickness,
+                                    cornerRadius,
+                                    hasBottom,
+                                    minBoxWidth,
+                                    maxBoxWidth,
+                                    minBoxDepth,
+                                    maxBoxDepth,
+                                    useMultipleBoxes,
+                                    debugMode,
+                                },
+                                boxWidths,
+                                boxDepths
+                            )
+                        }
+                        className="w-full"
+                    >
+                        Export STL
+                    </Button>
+                )}
 
-                <Button onClick={handleExportSTL} className="w-full mt-6">
-                    Export STL
-                </Button>
+                {useMultipleBoxes && (
+                    <div className="mt-4 mb-2 text-xs text-muted-foreground">
+                        <p>
+                            STL files don't support multiple separate objects.
+                            Use OBJ format or the ZIP option to keep objects
+                            separate.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
