@@ -4,13 +4,11 @@ import { useState } from 'react';
 import { useBoxStore } from '@/lib/store';
 import { Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import ShareToast from './ShareToast';
+import { toast } from 'sonner';
 
 export default function ShareButton() {
     const [copied, setCopied] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
-    const [showToast, setShowToast] = useState(false);
-    const [shareSuccess, setShareSuccess] = useState(false);
     const shareConfiguration = useBoxStore((state) => state.shareConfiguration);
 
     const handleShare = async () => {
@@ -20,50 +18,44 @@ export default function ShareButton() {
 
             if (success) {
                 setCopied(true);
-                setShareSuccess(true);
                 // Visual feedback in button for 1 second
-                setTimeout(() => setCopied(false), 1000);
+                setTimeout(() => setCopied(false), 3000);
 
                 // Show toast notification
-                setShowToast(true);
+                toast.success('Configuration link copied to clipboard', {
+                    description: 'Share this URL to let others see your design',
+                    duration: 3000,
+                });
             } else {
-                setShareSuccess(false);
-                setShowToast(true);
+                // Show failure toast
+                toast.error('Failed to copy link', {
+                    description: 'Please try again',
+                });
             }
         } catch (error) {
-            setShareSuccess(false);
-            setShowToast(true);
+            // Show error toast
+            toast.error('Error sharing configuration', {
+                description: 'An unexpected error occurred',
+            });
         } finally {
             setIsSharing(false);
         }
     };
 
-    const closeToast = () => {
-        setShowToast(false);
-    };
-
     return (
-        <>
-            <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                    'flex items-center gap-2 w-full mt-2',
-                    copied &&
-                        'bg-green-500 text-white hover:bg-green-600 hover:text-white'
-                )}
-                onClick={handleShare}
-                disabled={isSharing}
-            >
-                <Share2 className="w-4 h-4" />
-                {copied ? 'Link Copied!' : 'Share Configuration'}
-            </Button>
-
-            <ShareToast
-                show={showToast}
-                success={shareSuccess}
-                onClose={closeToast}
-            />
-        </>
+        <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+                'flex items-center gap-2 w-full mt-2',
+                copied &&
+                    'bg-green-600 text-white hover:bg-green-600 hover:text-white transition-all duration-300'
+            )}
+            onClick={handleShare}
+            disabled={isSharing}
+        >
+            <Share2 className="w-4 h-4" />
+            {copied ? 'Link Copied!' : 'Share Configuration'}
+        </Button>
     );
 }

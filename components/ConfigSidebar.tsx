@@ -526,7 +526,7 @@ export default function ConfigSidebar({
                     </div>
                 )}
             </div>
-            <div className="pt-4 border-t mt-4">
+            <div className="pt-4 border-t mt-4 space-y-2">
                 <h3 className="font-medium mb-4">Export</h3>
 
                 <ShareButton />
