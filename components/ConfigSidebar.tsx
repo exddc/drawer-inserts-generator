@@ -11,6 +11,7 @@ import {
 } from '@/lib/validationUtils';
 import { exportSTL } from '@/lib/exportUtils';
 import { useBoxStore } from '@/lib/store';
+import * as THREE from 'three';
 
 // Define the form input types
 export interface FormInputs {
@@ -116,6 +117,7 @@ export default function ConfigSidebar({
     return (
         <div className="p-4">
             <div className="space-y-4">
+                <h3 className="font-medium mb-2">General</h3>
                 <div className="space-y-2">
                     <Label htmlFor="width">Total Width (mm): {width}</Label>
                     <div className="flex items-center space-x-2 mt-2">
@@ -295,21 +297,45 @@ export default function ConfigSidebar({
                     <Label htmlFor="hasBottom">Include Bottom</Label>
                 </div>
 
-                {/* Multi-box settings */}
-                <div className="pt-4 border-t mt-4">
-                    <h3 className="font-medium mb-2">Grid Layout</h3>
-                    <div className="flex items-center space-x-2 mb-3">
-                        <Checkbox
-                            id="useMultipleBoxes"
-                            checked={useMultipleBoxes}
-                            onCheckedChange={handleMultiBoxCheckboxChange}
-                        />
-                        <Label htmlFor="useMultipleBoxes">
-                            Split into grid of boxes
-                        </Label>
-                    </div>
+                <div className="flex items-center space-x-2 mb-3">
+                    <Checkbox
+                        id="useMultipleBoxes"
+                        checked={useMultipleBoxes}
+                        onCheckedChange={handleMultiBoxCheckboxChange}
+                    />
+                    <Label htmlFor="useMultipleBoxes">
+                        Split into grid of boxes
+                    </Label>
+                </div>
 
-                    {useMultipleBoxes && (
+                {/* Multi-box settings */}
+                {useMultipleBoxes && (
+                    <div className="pt-4 border-t mt-4">
+                        <h3 className="font-medium mb-2">Grid Layout</h3>
+
+                        {/* Grid summary */}
+                        {useMultipleBoxes &&
+                            boxWidths.length > 0 &&
+                            boxDepths.length > 0 && (
+                                <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20 mb-4">
+                                    <p className="font-medium">Grid Summary:</p>
+                                    <div className="flex justify-between mt-1">
+                                        <span>Total Boxes:</span>
+                                        <span className="font-mono">
+                                            {boxWidths.length *
+                                                boxDepths.length}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Layout:</span>
+                                        <span className="font-mono">
+                                            {boxWidths.length}×
+                                            {boxDepths.length}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
                         <Tabs defaultValue="width" className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="width">
@@ -321,7 +347,7 @@ export default function ConfigSidebar({
                             </TabsList>
 
                             <TabsContent value="width" className="space-y-4">
-                                <div className="space-y-2 mt-2">
+                                {/* <div className="space-y-2 mt-2">
                                     <Label htmlFor="minBoxWidth">
                                         Min Box Width (mm): {minBoxWidth}
                                     </Label>
@@ -357,7 +383,7 @@ export default function ConfigSidebar({
                                             className="w-20"
                                         />
                                     </div>
-                                </div>
+                                </div> */}
 
                                 <div className="space-y-2 mt-2">
                                     <Label htmlFor="maxBoxWidth">
@@ -392,28 +418,24 @@ export default function ConfigSidebar({
                                 </div>
 
                                 {/* Show calculated box widths */}
-                                <div className="mt-3 text-sm">
+
+                                <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20">
                                     <p className="font-medium">
                                         Width distribution:
                                     </p>
-                                    <div className="mt-1 bg-muted p-2 rounded max-h-[140px] overflow-y-auto">
-                                        {boxWidths.map((width, i) => (
-                                            <div
-                                                key={`width-${i}`}
-                                                className="flex justify-between"
-                                            >
-                                                <span>Box {i + 1}:</span>
-                                                <span className="font-mono">
-                                                    {width.toFixed(1)} mm
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    {boxWidths.map((width, i) => (
+                                        <div className="flex justify-between mt-1">
+                                            <span>Column {i + 1}:</span>
+                                            <span className="font-mono">
+                                                {width.toFixed(1)} mm
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </TabsContent>
 
                             <TabsContent value="depth" className="space-y-4">
-                                <div className="space-y-2 mt-2">
+                                {/* <div className="space-y-2 mt-2">
                                     <Label htmlFor="minBoxDepth">
                                         Min Box Depth (mm): {minBoxDepth}
                                     </Label>
@@ -449,7 +471,7 @@ export default function ConfigSidebar({
                                             className="w-20"
                                         />
                                     </div>
-                                </div>
+                                </div> */}
 
                                 <div className="space-y-2 mt-2">
                                     <Label htmlFor="maxBoxDepth">
@@ -484,49 +506,23 @@ export default function ConfigSidebar({
                                 </div>
 
                                 {/* Show calculated box depths */}
-                                <div className="mt-3 text-sm">
+                                <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20">
                                     <p className="font-medium">
                                         Depth distribution:
                                     </p>
-                                    <div className="mt-1 bg-muted p-2 rounded max-h-[140px] overflow-y-auto">
-                                        {boxDepths.map((depth, i) => (
-                                            <div
-                                                key={`depth-${i}`}
-                                                className="flex justify-between"
-                                            >
-                                                <span>Row {i + 1}:</span>
-                                                <span className="font-mono">
-                                                    {depth.toFixed(1)} mm
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    {boxDepths.map((depth, i) => (
+                                        <div className="flex justify-between mt-1">
+                                            <span>Row {i + 1}:</span>
+                                            <span className="font-mono">
+                                                {depth.toFixed(1)} mm
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </TabsContent>
                         </Tabs>
-                    )}
-
-                    {/* Grid summary */}
-                    {useMultipleBoxes &&
-                        boxWidths.length > 0 &&
-                        boxDepths.length > 0 && (
-                            <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20">
-                                <p className="font-medium">Grid Summary:</p>
-                                <div className="flex justify-between mt-1">
-                                    <span>Total Boxes:</span>
-                                    <span className="font-mono">
-                                        {boxWidths.length * boxDepths.length}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Layout:</span>
-                                    <span className="font-mono">
-                                        {boxWidths.length}×{boxDepths.length}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                </div>
+                    </div>
+                )}
 
                 {/* Debug Mode */}
                 <div className="flex items-center space-x-2 pt-4 border-t mt-4">

@@ -23,7 +23,7 @@ export const defaultConstraints: InputConstraints = {
   width: { min: 10, max: 500 },
   depth: { min: 10, max: 500 },
   height: { min: 5, max: 300 },
-  wallThickness: { min: 0.5, max: 10 },
+  wallThickness: { min: 1, max: 10 },
   cornerRadius: { min: 0, max: 50 },
   minBoxWidth: { min: 10, max: 500 },
   maxBoxWidth: { min: 10, max: 500 },
@@ -118,11 +118,13 @@ export function calculateMaxCornerRadius(
   minBoxWidth: number | null = null,
   minBoxDepth: number | null = null
 ): number {
-  // For multiple boxes, use the smallest box dimensions
-  const effectiveWidth = useMultipleBoxes && minBoxWidth ? minBoxWidth : width;
-  const effectiveDepth = useMultipleBoxes && minBoxDepth ? minBoxDepth : depth;
+  let maxCornerX = 10;
+  let maxCornerY = 10;
+
+  if (!useMultipleBoxes) {
+    maxCornerX = (width - 2 * wallThickness) / 2;
+    maxCornerY = (depth - 2 * wallThickness) / 2;
+  }
   
-  const maxCornerX = (effectiveWidth - 2 * wallThickness) / 2;
-  const maxCornerY = (effectiveDepth - 2 * wallThickness) / 2;
   return Math.min(maxCornerX, maxCornerY, maxConstraint);
 }

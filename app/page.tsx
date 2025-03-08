@@ -57,7 +57,7 @@ export default function Home() {
             0.1,
             1000
         );
-        camera.position.set(150, 150, 150);
+        camera.position.set(-150, 150, 150);
         cameraRef.current = camera;
 
         // Create renderer with transparent background for glassy look
