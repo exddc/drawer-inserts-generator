@@ -64,7 +64,8 @@ export default function Home() {
             0.1,
             1000
         );
-        camera.position.set(-110, 130, 110);
+        camera.position.set(-110, -130, 110);
+        camera.up.set(0, 0, 1);
         cameraRef.current = camera;
 
         // Create renderer with transparent background for glassy look
@@ -105,6 +106,7 @@ export default function Home() {
 
         // Setup grid based on initial dimensions
         setupGrid(scene, width, depth);
+        scene.rotateX(Math.PI / 2);
 
         // Add axes helper
         const axesHelper = new THREE.AxesHelper(100);

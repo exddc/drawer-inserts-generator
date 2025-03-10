@@ -306,6 +306,7 @@ This ZIP file contains ${uniqueBoxCount} unique box designs out of ${totalBoxes}
 - Box height: ${inputs.height}mm
 - Wall thickness: ${inputs.wallThickness}mm
 
+Thanks for using Box Grid Generator by timoweiss.me!
 Happy printing!
 `;
             
