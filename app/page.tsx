@@ -24,6 +24,8 @@ export default function Home() {
         cornerRadius,
         hasBottom,
         debugMode,
+        showGrid,
+        showAxes,
         boxWidths,
         boxDepths,
         loadFromUrl,
@@ -36,6 +38,10 @@ export default function Home() {
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
     const boxMeshGroupRef = useRef<THREE.Group | null>(null);
+
+    // Refs for helpers
+    const gridHelperRef = useRef<THREE.GridHelper | null>(null);
+    const axesHelperRef = useRef<THREE.AxesHelper | null>(null);
 
     // Refs for debug tooltip
     const tooltipRef = useRef<HTMLDivElement | null>(null);
@@ -105,12 +111,16 @@ export default function Home() {
         scene.add(directionalLight2);
 
         // Setup grid based on initial dimensions
-        setupGrid(scene, width, depth);
-        scene.rotateX(Math.PI / 2);
+        const gridHelper = setupGrid(scene, width, depth);
+        gridHelperRef.current = gridHelper;
+
+        // Rotate scene for proper orientation
+        scene.rotateX(Math.PI / 2); // Make Z the up direction for easier placement in CAD or Slicer Software
 
         // Add axes helper
         const axesHelper = new THREE.AxesHelper(100);
         scene.add(axesHelper);
+        axesHelperRef.current = axesHelper;
 
         // Create a group to hold all boxes
         const boxGroup = new THREE.Group();
@@ -190,7 +200,8 @@ export default function Home() {
     useEffect(() => {
         // Update grid size
         if (sceneRef.current) {
-            setupGrid(sceneRef.current, width, depth);
+            const gridHelper = setupGrid(sceneRef.current, width, depth);
+            gridHelperRef.current = gridHelper;
         }
 
         // Update box model
@@ -214,6 +225,20 @@ export default function Home() {
         boxWidths,
         boxDepths,
     ]);
+
+    // Toggle grid visibility
+    useEffect(() => {
+        if (gridHelperRef.current) {
+            gridHelperRef.current.visible = showGrid;
+        }
+    }, [showGrid]);
+
+    // Toggle axes visibility
+    useEffect(() => {
+        if (axesHelperRef.current) {
+            axesHelperRef.current.visible = showAxes;
+        }
+    }, [showAxes]);
 
     // Update renderer info settings when debug mode changes
     useEffect(() => {

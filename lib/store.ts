@@ -22,8 +22,10 @@ export interface BoxState {
   boxWidths: number[];
   boxDepths: number[];
   
-  // Debug mode
+  // UI settings
   debugMode: boolean;
+  showGrid: boolean;
+  showAxes: boolean;
 
   // Export options
   uniqueBoxesExport: boolean;
@@ -41,6 +43,8 @@ export interface BoxState {
   setMaxBoxDepth: (depth: number) => void;
   setUseMultipleBoxes: (useMultiple: boolean) => void;
   setDebugMode: (debug: boolean) => void;
+  setShowGrid: (show: boolean) => void;
+  setShowAxes: (show: boolean) => void;
   setUniqueBoxesExport: (uniqueExport: boolean) => void;
   
   // Helper method to update all settings at once (for form inputs)
@@ -104,6 +108,8 @@ const defaultValues = {
   useMultipleBoxes: true,
   debugMode: false,
   uniqueBoxesExport: true,
+  showGrid: true,
+  showAxes: false,
 };
 
 export const useBoxStore = create<BoxState>((set, get) => ({
@@ -231,6 +237,10 @@ export const useBoxStore = create<BoxState>((set, get) => ({
   
   setDebugMode: (debugMode: boolean) => set({ debugMode }),
 
+  setShowGrid: (showGrid: boolean) => set({ showGrid }),
+  
+  setShowAxes: (showAxes: boolean) => set({ showAxes }),
+
   // Actions
   setUniqueBoxesExport: (uniqueBoxesExport: boolean) => set({ uniqueBoxesExport }),
   
@@ -278,6 +288,12 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         break;
       case 'uniqueBoxesExport':
         state.setUniqueBoxesExport(value as boolean);
+        break;
+      case 'showGrid':
+        state.setShowGrid(value as boolean);
+        break;
+      case 'showAxes':
+        state.setShowAxes(value as boolean);
         break;
       default:
         // Just update the value directly if we don't have a specific handler

@@ -35,6 +35,8 @@ export interface FormInputs {
     useMultipleBoxes: boolean;
     debugMode: boolean;
     uniqueBoxesExport: boolean;
+    showGrid: boolean;
+    showAxes: boolean;
 }
 
 interface ConfigSidebarProps {
@@ -64,6 +66,8 @@ export default function ConfigSidebar({
         boxWidths,
         boxDepths,
         updateInput,
+        showGrid,
+        showAxes,
     } = useBoxStore();
 
     // Add this function to handle the unique boxes export checkbox
@@ -83,8 +87,8 @@ export default function ConfigSidebar({
     };
 
     // Handle checkbox changes
-    const handleCheckboxChange = (checked: boolean) => {
-        updateInput('hasBottom', checked);
+    const handleCheckboxChange = (name: string, checked: boolean) => {
+        updateInput(name, checked);
     };
 
     // Handle slider changes (shadcn Slider returns an array of values)
@@ -96,10 +100,6 @@ export default function ConfigSidebar({
 
     const handleMultiBoxCheckboxChange = (checked: boolean) => {
         updateInput('useMultipleBoxes', checked);
-    };
-
-    const handleDebugModeChange = (checked: boolean) => {
-        updateInput('debugMode', checked);
     };
 
     return (
@@ -280,7 +280,12 @@ export default function ConfigSidebar({
                     <Checkbox
                         id="hasBottom"
                         checked={hasBottom}
-                        onCheckedChange={handleCheckboxChange}
+                        onCheckedChange={(checked) =>
+                            handleCheckboxChange(
+                                'hasBottom',
+                                checked as boolean
+                            )
+                        }
                     />
                     <Label htmlFor="hasBottom">Include Bottom</Label>
                 </div>
@@ -296,14 +301,62 @@ export default function ConfigSidebar({
                     </Label>
                 </div>
 
-                {/* Debug Mode */}
-                <div className="flex items-center space-x-2">
-                    <Checkbox
-                        id="debugMode"
-                        checked={debugMode}
-                        onCheckedChange={handleDebugModeChange}
-                    />
-                    <Label htmlFor="debugMode">Debug Mode</Label>
+                {/* Display options section */}
+                <div className="pt-4 border-t mt-4">
+                    <h3 className="font-medium mb-3">Display Options</h3>
+
+                    <div className="flex items-center space-x-2 mb-2">
+                        <Checkbox
+                            id="showGrid"
+                            checked={showGrid}
+                            onCheckedChange={(checked) =>
+                                handleCheckboxChange(
+                                    'showGrid',
+                                    checked as boolean
+                                )
+                            }
+                        />
+                        <Label
+                            htmlFor="showGrid"
+                            className="flex items-center gap-2"
+                        >
+                            Show Grid
+                        </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2 mb-2">
+                        <Checkbox
+                            id="showAxes"
+                            checked={showAxes}
+                            onCheckedChange={(checked) =>
+                                handleCheckboxChange(
+                                    'showAxes',
+                                    checked as boolean
+                                )
+                            }
+                        />
+                        <Label
+                            htmlFor="showAxes"
+                            className="flex items-center gap-2"
+                        >
+                            Show Axes
+                        </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="debugMode"
+                            checked={debugMode}
+                            onCheckedChange={(checked) =>
+                                handleCheckboxChange(
+                                    'debugMode',
+                                    checked as boolean
+                                )
+                            }
+                        />
+                        <Label htmlFor="debugMode">Debug Mode</Label>
+                    </div>
+
                     {debugMode && (
                         <div className="mt-1 text-xs text-muted-foreground ml-6">
                             Click on any box to see its details
@@ -579,6 +632,8 @@ export default function ConfigSidebar({
                                             useMultipleBoxes,
                                             debugMode,
                                             uniqueBoxesExport,
+                                            showGrid,
+                                            showAxes,
                                         },
                                         boxWidths,
                                         boxDepths
@@ -605,6 +660,9 @@ export default function ConfigSidebar({
                                             maxBoxDepth,
                                             useMultipleBoxes,
                                             debugMode,
+                                            uniqueBoxesExport,
+                                            showGrid,
+                                            showAxes,
                                         },
                                         boxWidths,
                                         boxDepths
@@ -631,6 +689,8 @@ export default function ConfigSidebar({
                                             useMultipleBoxes,
                                             debugMode,
                                             uniqueBoxesExport,
+                                            showGrid,
+                                            showAxes,
                                         },
                                         boxWidths,
                                         boxDepths
@@ -661,6 +721,8 @@ export default function ConfigSidebar({
                                     useMultipleBoxes,
                                     debugMode,
                                     uniqueBoxesExport,
+                                    showGrid,
+                                    showAxes,
                                 },
                                 boxWidths,
                                 boxDepths
