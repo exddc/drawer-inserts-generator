@@ -1,47 +1,47 @@
-'use client';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+'use client'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Slider } from '@/components/ui/slider'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     calculateMaxCornerRadius,
     defaultConstraints,
-} from '@/lib/validationUtils';
-import { exportSTL, exportOBJ, exportMultipleSTLs } from '@/lib/exportUtils';
+} from '@/lib/validationUtils'
+import { exportSTL, exportOBJ, exportMultipleSTLs } from '@/lib/exportUtils'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useBoxStore } from '@/lib/store';
-import * as THREE from 'three';
-import ShareButton from '@/components/ShareButton';
+} from '@/components/ui/dropdown-menu'
+import { useBoxStore } from '@/lib/store'
+import * as THREE from 'three'
+import ShareButton from '@/components/ShareButton'
 
 // Define the form input types
 export interface FormInputs {
-    width: number;
-    depth: number;
-    height: number;
-    wallThickness: number;
-    cornerRadius: number;
-    hasBottom: boolean;
-    minBoxWidth: number;
-    maxBoxWidth: number;
-    minBoxDepth: number;
-    maxBoxDepth: number;
-    useMultipleBoxes: boolean;
-    debugMode: boolean;
-    uniqueBoxesExport: boolean;
-    showGrid: boolean;
-    showAxes: boolean;
+    width: number
+    depth: number
+    height: number
+    wallThickness: number
+    cornerRadius: number
+    hasBottom: boolean
+    minBoxWidth: number
+    maxBoxWidth: number
+    minBoxDepth: number
+    maxBoxDepth: number
+    useMultipleBoxes: boolean
+    debugMode: boolean
+    uniqueBoxesExport: boolean
+    showGrid: boolean
+    showAxes: boolean
 }
 
 interface ConfigSidebarProps {
-    scene: THREE.Scene;
-    boxMeshGroup: THREE.Group;
+    scene: THREE.Scene
+    boxMeshGroup: THREE.Group
 }
 
 export default function ConfigSidebar({
@@ -68,47 +68,47 @@ export default function ConfigSidebar({
         updateInput,
         showGrid,
         showAxes,
-    } = useBoxStore();
+    } = useBoxStore()
 
     // Add this function to handle the unique boxes export checkbox
     const handleUniqueBoxesExportChange = (checked: boolean) => {
-        updateInput('uniqueBoxesExport', checked);
-    };
+        updateInput('uniqueBoxesExport', checked)
+    }
 
     // Handle input changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value, type } = e.target;
+        const { name, value, type } = e.target
 
         if (type === 'checkbox') {
-            updateInput(name, (e.target as HTMLInputElement).checked);
+            updateInput(name, (e.target as HTMLInputElement).checked)
         } else {
-            updateInput(name, parseFloat(value));
+            updateInput(name, parseFloat(value))
         }
-    };
+    }
 
     // Handle checkbox changes
     const handleCheckboxChange = (name: string, checked: boolean) => {
-        updateInput(name, checked);
-    };
+        updateInput(name, checked)
+    }
 
     // Handle slider changes (shadcn Slider returns an array of values)
     const handleSliderChange = (name: string, value: number[]) => {
         if (value.length > 0) {
-            updateInput(name, value[0]);
+            updateInput(name, value[0])
         }
-    };
+    }
 
     const handleMultiBoxCheckboxChange = (checked: boolean) => {
-        updateInput('useMultipleBoxes', checked);
-    };
+        updateInput('useMultipleBoxes', checked)
+    }
 
     return (
         <div className="p-4">
             <div className="space-y-4">
-                <h3 className="font-medium mb-2">General</h3>
+                <h3 className="mb-2 font-medium">General</h3>
                 <div className="space-y-2">
                     <Label htmlFor="width">Total Width (mm): {width}</Label>
-                    <div className="flex items-center space-x-2 mt-2">
+                    <div className="mt-2 flex items-center space-x-2">
                         <Slider
                             id="width-slider"
                             name="width"
@@ -135,7 +135,7 @@ export default function ConfigSidebar({
 
                 <div className="space-y-2">
                     <Label htmlFor="depth">Total Depth (mm): {depth}</Label>
-                    <div className="flex items-center space-x-2 mt-2">
+                    <div className="mt-2 flex items-center space-x-2">
                         <Slider
                             id="depth-slider"
                             name="depth"
@@ -162,7 +162,7 @@ export default function ConfigSidebar({
 
                 <div className="space-y-2">
                     <Label htmlFor="height">Height (mm): {height}</Label>
-                    <div className="flex items-center space-x-2 mt-2">
+                    <div className="mt-2 flex items-center space-x-2">
                         <Slider
                             id="height-slider"
                             name="height"
@@ -205,7 +205,7 @@ export default function ConfigSidebar({
                     <Label htmlFor="wallThickness">
                         Wall Thickness (mm): {wallThickness}
                     </Label>
-                    <div className="flex items-center space-x-2 mt-2">
+                    <div className="mt-2 flex items-center space-x-2">
                         <Slider
                             id="wallThickness-slider"
                             name="wallThickness"
@@ -235,7 +235,7 @@ export default function ConfigSidebar({
                     <Label htmlFor="cornerRadius">
                         Corner Radius (mm): {cornerRadius}
                     </Label>
-                    <div className="flex items-center space-x-2 mt-2">
+                    <div className="mt-2 flex items-center space-x-2">
                         <Slider
                             id="cornerRadius-slider"
                             name="cornerRadius"
@@ -302,10 +302,10 @@ export default function ConfigSidebar({
                 </div>
 
                 {/* Display options section */}
-                <div className="pt-4 border-t mt-4">
-                    <h3 className="font-medium mb-3">Display Options</h3>
+                <div className="mt-4 border-t pt-4">
+                    <h3 className="mb-3 font-medium">Display Options</h3>
 
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="mb-2 flex items-center space-x-2">
                         <Checkbox
                             id="showGrid"
                             checked={showGrid}
@@ -324,7 +324,7 @@ export default function ConfigSidebar({
                         </Label>
                     </div>
 
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="mb-2 flex items-center space-x-2">
                         <Checkbox
                             id="showAxes"
                             checked={showAxes}
@@ -358,7 +358,7 @@ export default function ConfigSidebar({
                     </div>
 
                     {debugMode && (
-                        <div className="mt-1 text-xs text-muted-foreground ml-6">
+                        <div className="text-muted-foreground mt-1 ml-6 text-xs">
                             Click on any box to see its details
                         </div>
                     )}
@@ -366,16 +366,16 @@ export default function ConfigSidebar({
 
                 {/* Multi-box settings */}
                 {useMultipleBoxes && (
-                    <div className="pt-4 border-t mt-4">
-                        <h3 className="font-medium mb-2">Grid Layout</h3>
+                    <div className="mt-4 border-t pt-4">
+                        <h3 className="mb-2 font-medium">Grid Layout</h3>
 
                         {/* Grid summary */}
                         {useMultipleBoxes &&
                             boxWidths.length > 0 &&
                             boxDepths.length > 0 && (
-                                <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20 mb-4">
+                                <div className="bg-secondary/20 mt-4 mb-4 rounded-md border p-3 text-sm">
                                     <p className="font-medium">Grid Summary:</p>
-                                    <div className="flex justify-between mt-1">
+                                    <div className="mt-1 flex justify-between">
                                         <span>Total Boxes:</span>
                                         <span className="font-mono">
                                             {boxWidths.length *
@@ -441,11 +441,11 @@ export default function ConfigSidebar({
                                     </div>
                                 </div> */}
 
-                                <div className="space-y-2 mt-2">
+                                <div className="mt-2 space-y-2">
                                     <Label htmlFor="maxBoxWidth">
                                         Max Box Width (mm): {maxBoxWidth}
                                     </Label>
-                                    <div className="flex items-center space-x-2 mt-2">
+                                    <div className="mt-2 flex items-center space-x-2">
                                         <Slider
                                             id="maxBoxWidth-slider"
                                             name="maxBoxWidth"
@@ -475,13 +475,13 @@ export default function ConfigSidebar({
 
                                 {/* Show calculated box widths */}
 
-                                <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20">
+                                <div className="bg-secondary/20 mt-4 rounded-md border p-3 text-sm">
                                     <p className="font-medium">
                                         Width distribution:
                                     </p>
                                     {boxWidths.map((width, i) => (
                                         <div
-                                            className="flex justify-between mt-1"
+                                            className="mt-1 flex justify-between"
                                             key={'width-' + i}
                                         >
                                             <span>Column {i + 1}:</span>
@@ -532,11 +532,11 @@ export default function ConfigSidebar({
                                     </div>
                                 </div> */}
 
-                                <div className="space-y-2 mt-2">
+                                <div className="mt-2 space-y-2">
                                     <Label htmlFor="maxBoxDepth">
                                         Max Box Depth (mm): {maxBoxDepth}
                                     </Label>
-                                    <div className="flex items-center space-x-2 mt-2">
+                                    <div className="mt-2 flex items-center space-x-2">
                                         <Slider
                                             id="maxBoxDepth-slider"
                                             name="maxBoxDepth"
@@ -565,13 +565,13 @@ export default function ConfigSidebar({
                                 </div>
 
                                 {/* Show calculated box depths */}
-                                <div className="mt-4 text-sm p-3 border rounded-md bg-secondary/20">
+                                <div className="bg-secondary/20 mt-4 rounded-md border p-3 text-sm">
                                     <p className="font-medium">
                                         Depth distribution:
                                     </p>
                                     {boxDepths.map((depth, i) => (
                                         <div
-                                            className="flex justify-between mt-1"
+                                            className="mt-1 flex justify-between"
                                             key={'depth-' + i}
                                         >
                                             <span>Row {i + 1}:</span>
@@ -586,11 +586,11 @@ export default function ConfigSidebar({
                     </div>
                 )}
             </div>
-            <div className="pt-4 border-t mt-4 space-y-2">
-                <h3 className="font-medium mb-4">Export</h3>
+            <div className="mt-4 space-y-2 border-t pt-4">
+                <h3 className="mb-4 font-medium">Export</h3>
 
                 {useMultipleBoxes && (
-                    <div className="flex items-center space-x-2 my-4">
+                    <div className="my-4 flex items-center space-x-2">
                         <Checkbox
                             id="uniqueBoxesExport"
                             checked={uniqueBoxesExport}
@@ -735,7 +735,7 @@ export default function ConfigSidebar({
                 )}
 
                 {useMultipleBoxes && (
-                    <div className="mt-4 mb-2 text-xs text-muted-foreground">
+                    <div className="text-muted-foreground mt-4 mb-2 text-xs">
                         <p>
                             STL files don't support multiple separate objects.
                             Use OBJ format or the ZIP option to keep objects
@@ -745,5 +745,5 @@ export default function ConfigSidebar({
                 )}
             </div>
         </div>
-    );
+    )
 }

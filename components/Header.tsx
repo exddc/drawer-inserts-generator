@@ -1,7 +1,7 @@
-import React from 'react';
+import React from 'react'
 
 interface HeaderProps {
-    title?: string;
+    title?: string
 }
 
 export default function Header({ title = 'Box Grid Generator' }: HeaderProps) {
@@ -9,5 +9,5 @@ export default function Header({ title = 'Box Grid Generator' }: HeaderProps) {
         <header className="border-b p-4">
             <h1 className="text-xl font-bold">{title}</h1>
         </header>
-    );
+    )
 }

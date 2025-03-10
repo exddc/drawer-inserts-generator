@@ -1,13 +1,13 @@
-import React from 'react';
+import React from 'react'
 
 export default function Footer() {
     return (
-        <footer className="border-t p-2 text-center text-muted-foreground text-sm">
+        <footer className="text-muted-foreground border-t p-2 text-center text-sm">
             Built by{' '}
             <a
                 href="https://timoweiss.me"
                 target="_blank"
-                className="text-blue-900 underline-offset-4 hover:underline-offset-2 hover:underline transition-all duration-200"
+                className="text-blue-900 underline-offset-4 transition-all duration-200 hover:underline hover:underline-offset-2"
             >
                 Timo
             </a>{' '}
@@ -15,7 +15,7 @@ export default function Footer() {
             <a
                 href="https://threejs.org/"
                 target="_blank"
-                className="text-blue-900 underline-offset-4 hover:underline-offset-2 hover:underline transition-all duration-200"
+                className="text-blue-900 underline-offset-4 transition-all duration-200 hover:underline hover:underline-offset-2"
             >
                 Three.js
             </a>{' '}
@@ -23,7 +23,7 @@ export default function Footer() {
             <a
                 href="https://nextjs.org/"
                 target="_blank"
-                className="text-blue-900 underline-offset-4 hover:underline-offset-2 hover:underline transition-all duration-200"
+                className="text-blue-900 underline-offset-4 transition-all duration-200 hover:underline hover:underline-offset-2"
             >
                 Next.js
             </a>
@@ -31,10 +31,10 @@ export default function Footer() {
             <a
                 href="https://gotdoneapp.com/"
                 target="_blank"
-                className="text-blue-900 underline-offset-4 hover:underline-offset-2 hover:underline transition-all duration-200"
+                className="text-blue-900 underline-offset-4 transition-all duration-200 hover:underline hover:underline-offset-2"
             >
                 Got Done
             </a>
         </footer>
-    );
+    )
 }
