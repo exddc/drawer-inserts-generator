@@ -22,7 +22,7 @@ export interface InputConstraints {
 export const defaultConstraints: InputConstraints = {
   width: { min: 10, max: 500 },
   depth: { min: 10, max: 500 },
-  height: { min: 5, max: 300 },
+  height: { min: 5, max: 100 },
   wallThickness: { min: 1, max: 10 },
   cornerRadius: { min: 0, max: 50 },
   minBoxWidth: { min: 10, max: 500 },

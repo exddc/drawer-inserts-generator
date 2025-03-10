@@ -34,6 +34,7 @@ export interface FormInputs {
     maxBoxDepth: number;
     useMultipleBoxes: boolean;
     debugMode: boolean;
+    uniqueBoxesExport: boolean;
 }
 
 interface ConfigSidebarProps {
@@ -59,10 +60,16 @@ export default function ConfigSidebar({
         maxBoxDepth,
         useMultipleBoxes,
         debugMode,
+        uniqueBoxesExport,
         boxWidths,
         boxDepths,
         updateInput,
     } = useBoxStore();
+
+    // Add this function to handle the unique boxes export checkbox
+    const handleUniqueBoxesExportChange = (checked: boolean) => {
+        updateInput('uniqueBoxesExport', checked);
+    };
 
     // Handle input changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -529,6 +536,19 @@ export default function ConfigSidebar({
             <div className="pt-4 border-t mt-4 space-y-2">
                 <h3 className="font-medium mb-4">Export</h3>
 
+                {useMultipleBoxes && (
+                    <div className="flex items-center space-x-2 my-4">
+                        <Checkbox
+                            id="uniqueBoxesExport"
+                            checked={uniqueBoxesExport}
+                            onCheckedChange={handleUniqueBoxesExportChange}
+                        />
+                        <Label htmlFor="uniqueBoxesExport">
+                            Only export unique boxes
+                        </Label>
+                    </div>
+                )}
+
                 <ShareButton />
 
                 {/* Export buttons */}
@@ -558,6 +578,7 @@ export default function ConfigSidebar({
                                             maxBoxDepth,
                                             useMultipleBoxes,
                                             debugMode,
+                                            uniqueBoxesExport,
                                         },
                                         boxWidths,
                                         boxDepths
@@ -609,6 +630,7 @@ export default function ConfigSidebar({
                                             maxBoxDepth,
                                             useMultipleBoxes,
                                             debugMode,
+                                            uniqueBoxesExport,
                                         },
                                         boxWidths,
                                         boxDepths
@@ -638,6 +660,7 @@ export default function ConfigSidebar({
                                     maxBoxDepth,
                                     useMultipleBoxes,
                                     debugMode,
+                                    uniqueBoxesExport,
                                 },
                                 boxWidths,
                                 boxDepths

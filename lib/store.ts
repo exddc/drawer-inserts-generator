@@ -24,6 +24,9 @@ export interface BoxState {
   
   // Debug mode
   debugMode: boolean;
+
+  // Export options
+  uniqueBoxesExport: boolean;
   
   // Actions
   setWidth: (width: number) => void;
@@ -38,6 +41,7 @@ export interface BoxState {
   setMaxBoxDepth: (depth: number) => void;
   setUseMultipleBoxes: (useMultiple: boolean) => void;
   setDebugMode: (debug: boolean) => void;
+  setUniqueBoxesExport: (uniqueExport: boolean) => void;
   
   // Helper method to update all settings at once (for form inputs)
   updateInput: (name: string, value: number | boolean) => void;
@@ -99,6 +103,7 @@ const defaultValues = {
   maxBoxDepth: 100,
   useMultipleBoxes: true,
   debugMode: false,
+  uniqueBoxesExport: true,
 };
 
 export const useBoxStore = create<BoxState>((set, get) => ({
@@ -225,6 +230,10 @@ export const useBoxStore = create<BoxState>((set, get) => ({
   },
   
   setDebugMode: (debugMode: boolean) => set({ debugMode }),
+
+  // Actions
+  setUniqueBoxesExport: (uniqueBoxesExport: boolean) => set({ uniqueBoxesExport }),
+  
   
   // Generic update method for form inputs
   updateInput: (name: string, value: number | boolean) => {
@@ -266,6 +275,9 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         break;
       case 'debugMode':
         state.setDebugMode(value as boolean);
+        break;
+      case 'uniqueBoxesExport':
+        state.setUniqueBoxesExport(value as boolean);
         break;
       default:
         // Just update the value directly if we don't have a specific handler
