@@ -18,9 +18,7 @@ export default function ConfigSidebarWrapper({
 }: ConfigSidebarWrapperProps) {
     const [isSceneReady, setIsSceneReady] = useState(false)
 
-    // Use an effect to monitor when the scene and boxMeshGroup are available
     useEffect(() => {
-        // Check if both refs are available
         const checkRefsAvailable = () => {
             if (sceneRef.current && boxMeshGroupRef.current) {
                 setIsSceneReady(true)
@@ -29,23 +27,19 @@ export default function ConfigSidebarWrapper({
             return false
         }
 
-        // Try immediately first
         if (checkRefsAvailable()) return
 
-        // If not ready, set up a polling mechanism
         const intervalId = setInterval(() => {
             if (checkRefsAvailable()) {
                 clearInterval(intervalId)
             }
-        }, 100) // Check every 100ms
+        }, 100)
 
-        // Clean up
         return () => {
             clearInterval(intervalId)
         }
     }, [sceneRef, boxMeshGroupRef])
 
-    // Only render ConfigSidebar when the scene is ready
     if (!isSceneReady) {
         return (
             <div className="space-y-4 p-4">

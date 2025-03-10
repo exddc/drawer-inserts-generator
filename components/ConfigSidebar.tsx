@@ -20,7 +20,6 @@ import { useBoxStore } from '@/lib/store'
 import * as THREE from 'three'
 import ShareButton from '@/components/ShareButton'
 
-// Define the form input types
 export interface FormInputs {
     width: number
     depth: number
@@ -48,7 +47,6 @@ export default function ConfigSidebar({
     scene,
     boxMeshGroup,
 }: ConfigSidebarProps) {
-    // Get state and actions from Zustand store
     const {
         width,
         depth,
@@ -70,12 +68,10 @@ export default function ConfigSidebar({
         showAxes,
     } = useBoxStore()
 
-    // Add this function to handle the unique boxes export checkbox
     const handleUniqueBoxesExportChange = (checked: boolean) => {
         updateInput('uniqueBoxesExport', checked)
     }
 
-    // Handle input changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target
 
@@ -86,12 +82,12 @@ export default function ConfigSidebar({
         }
     }
 
-    // Handle checkbox changes
+    // Generic Checkbox change handler
     const handleCheckboxChange = (name: string, checked: boolean) => {
         updateInput(name, checked)
     }
 
-    // Handle slider changes (shadcn Slider returns an array of values)
+    // Generic Slider change handler
     const handleSliderChange = (name: string, value: number[]) => {
         if (value.length > 0) {
             updateInput(name, value[0])

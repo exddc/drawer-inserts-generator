@@ -1,4 +1,3 @@
-// components/ShareButton.tsx
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { useBoxStore } from '@/lib/store'
@@ -18,22 +17,18 @@ export default function ShareButton() {
 
             if (success) {
                 setCopied(true)
-                // Visual feedback in button for 1 second
                 setTimeout(() => setCopied(false), 3000)
 
-                // Show toast notification
                 toast.success('Configuration link copied to clipboard', {
                     description: 'Share this URL to let others see your design',
                     duration: 3000,
                 })
             } else {
-                // Show failure toast
                 toast.error('Failed to copy link', {
                     description: 'Please try again',
                 })
             }
         } catch (error) {
-            // Show error toast
             toast.error('Error sharing configuration', {
                 description: 'An unexpected error occurred',
             })

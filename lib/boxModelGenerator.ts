@@ -1,4 +1,3 @@
-// src/lib/boxModelGenerator.ts
 import * as THREE from 'three'
 
 interface BoxParameters {
@@ -21,14 +20,11 @@ export function createBoxWithRoundedEdges({
     cornerRadius,
     hasBottom,
 }: BoxParameters): THREE.Mesh | THREE.Group {
-    // Create a group to hold meshes
     const meshGroup = new THREE.Group()
 
-    // Create geometry based on whether we have a bottom or not
     if (hasBottom) {
-        // Create side walls geometry
         const wallsShape = new THREE.Shape()
-        // Outer path
+
         wallsShape.moveTo(cornerRadius, 0)
         wallsShape.lineTo(width - cornerRadius, 0)
         wallsShape.quadraticCurveTo(width, 0, width, cornerRadius)
@@ -39,7 +35,6 @@ export function createBoxWithRoundedEdges({
         wallsShape.lineTo(0, cornerRadius)
         wallsShape.quadraticCurveTo(0, 0, cornerRadius, 0)
 
-        // Inner path (hole)
         const innerPath = new THREE.Path()
         innerPath.moveTo(wallThickness + cornerRadius, wallThickness)
         innerPath.lineTo(width - wallThickness - cornerRadius, wallThickness)
@@ -76,38 +71,31 @@ export function createBoxWithRoundedEdges({
 
         wallsShape.holes.push(innerPath)
 
-        // Extrude settings for walls
         const wallsExtrudeSettings = {
             steps: 1,
             depth: height,
             bevelEnabled: false,
         }
 
-        // Create the walls geometry
         const wallsGeometry = new THREE.ExtrudeGeometry(
             wallsShape,
             wallsExtrudeSettings
         )
 
-        // Create material
         const material = new THREE.MeshStandardMaterial({
             color: 0x7a9cbf,
             roughness: 0.4,
             metalness: 0.2,
         })
 
-        // Create walls mesh
         const wallsMesh = new THREE.Mesh(wallsGeometry, material)
         wallsMesh.castShadow = true
         wallsMesh.receiveShadow = true
 
-        // Add the walls mesh to the group
         meshGroup.add(wallsMesh)
 
-        // Create bottom with the same corner radius as the box
         const bottomShape = new THREE.Shape()
 
-        // Outer path with rounded corners for bottom
         bottomShape.moveTo(cornerRadius, 0)
         bottomShape.lineTo(width - cornerRadius, 0)
         bottomShape.quadraticCurveTo(width, 0, width, cornerRadius)
@@ -118,7 +106,6 @@ export function createBoxWithRoundedEdges({
         bottomShape.lineTo(0, cornerRadius)
         bottomShape.quadraticCurveTo(0, 0, cornerRadius, 0)
 
-        // Inner path with rounded corners for inner walls
         const bottomInnerPath = new THREE.Path()
         bottomInnerPath.moveTo(wallThickness + cornerRadius, wallThickness)
         bottomInnerPath.lineTo(
@@ -159,7 +146,6 @@ export function createBoxWithRoundedEdges({
             wallThickness
         )
 
-        // Extrude the bottom by wallThickness height
         const bottomExtrudeSettings = {
             steps: 1,
             depth: wallThickness,
@@ -174,18 +160,12 @@ export function createBoxWithRoundedEdges({
         bottomMesh.castShadow = true
         bottomMesh.receiveShadow = true
 
-        // Add bottom mesh to the group
         meshGroup.add(bottomMesh)
 
-        // Rotate the entire group to lay flat on x-y plane
         meshGroup.rotation.x = -Math.PI / 2
-
-        // IMPORTANT: We don't set position here - this is handled by the parent code
-        // This ensures consistent positioning between boxes
 
         return meshGroup
     } else {
-        // For no bottom, create a simple extruded shape with a hole through it
         const outerBox = new THREE.Shape()
         outerBox.moveTo(cornerRadius, 0)
         outerBox.lineTo(width - cornerRadius, 0)
@@ -197,7 +177,6 @@ export function createBoxWithRoundedEdges({
         outerBox.lineTo(0, cornerRadius)
         outerBox.quadraticCurveTo(0, 0, cornerRadius, 0)
 
-        // Create the hole for the inner box
         const innerBox = new THREE.Path()
         innerBox.moveTo(wallThickness + cornerRadius, wallThickness)
         innerBox.lineTo(width - wallThickness - cornerRadius, wallThickness)
@@ -232,10 +211,8 @@ export function createBoxWithRoundedEdges({
             wallThickness
         )
 
-        // Add the inner hole
         outerBox.holes.push(innerBox)
 
-        // Extrude the shape to create a 3D object
         const extrudeSettings = {
             steps: 1,
             depth: height,
@@ -244,23 +221,17 @@ export function createBoxWithRoundedEdges({
 
         const geometry = new THREE.ExtrudeGeometry(outerBox, extrudeSettings)
 
-        // Create material
         const material = new THREE.MeshStandardMaterial({
             color: 0x7a9cbf,
             roughness: 0.4,
             metalness: 0.2,
         })
 
-        // Create and return the mesh
         const mesh = new THREE.Mesh(geometry, material)
         mesh.castShadow = true
         mesh.receiveShadow = true
 
-        // Rotate to lay flat on the x-y plane
         mesh.rotation.x = -Math.PI / 2
-
-        // IMPORTANT: We don't set position here - this is handled by the parent code
-        // This ensures consistent positioning between boxes
 
         return mesh
     }

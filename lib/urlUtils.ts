@@ -1,11 +1,9 @@
-// lib/urlUtils.ts
 import { BoxState } from '@/lib/store'
 
 /**
  * Encode the current box configuration into a URL parameter
  */
 export function encodeBoxConfig(config: BoxState): string {
-    // Extract relevant values from the config
     const {
         width,
         depth,
@@ -20,7 +18,6 @@ export function encodeBoxConfig(config: BoxState): string {
         useMultipleBoxes,
     } = config
 
-    // Create simplified object with all the values we want to encode
     const configToEncode = {
         w: width,
         d: depth,
@@ -35,7 +32,6 @@ export function encodeBoxConfig(config: BoxState): string {
         mb: useMultipleBoxes ? 1 : 0,
     }
 
-    // Convert to JSON and encode
     const jsonConfig = JSON.stringify(configToEncode)
     return btoa(jsonConfig)
 }
@@ -45,11 +41,9 @@ export function encodeBoxConfig(config: BoxState): string {
  */
 export function decodeBoxConfig(encoded: string): Partial<BoxState> {
     try {
-        // Decode base64 string and parse JSON
         const jsonConfig = atob(encoded)
         const config = JSON.parse(jsonConfig)
 
-        // Map back to BoxState format
         return {
             width: config.w,
             depth: config.d,
@@ -74,12 +68,10 @@ export function decodeBoxConfig(encoded: string): Partial<BoxState> {
  */
 export async function shareConfiguration(config: BoxState): Promise<boolean> {
     try {
-        // Create URL with encoded configuration
         const encoded = encodeBoxConfig(config)
         const url = new URL(window.location.href)
         url.searchParams.set('config', encoded)
 
-        // Copy to clipboard
         await navigator.clipboard.writeText(url.toString())
         return true
     } catch (error) {

@@ -29,37 +29,30 @@ export default function DebugInfoPanel({
     const lastTimeRef = useRef<number>(performance.now())
     const frameTimeRef = useRef<number[]>([])
 
-    // Get grid info from store
     const { boxWidths, boxDepths } = useBoxStore()
 
-    // Update FPS counter
     useEffect(() => {
         if (!enabled) return
 
-        // Function to update FPS counter
         const updateFps = () => {
             frameCountRef.current++
 
             const now = performance.now()
             const elapsed = now - lastTimeRef.current
 
-            // Update FPS every 500ms
             if (elapsed >= 500) {
                 const fps = Math.round((frameCountRef.current * 1000) / elapsed)
                 setFps(fps)
 
-                // Track last 20 frame times for smoother FPS calculation
                 frameTimeRef.current.push(elapsed / frameCountRef.current)
                 if (frameTimeRef.current.length > 20) {
                     frameTimeRef.current.shift()
                 }
 
-                // Reset counter
                 frameCountRef.current = 0
                 lastTimeRef.current = now
             }
 
-            // Update renderer info if available
             if (renderer) {
                 const info = renderer.info
                 setRenderInfo({
@@ -78,12 +71,10 @@ export default function DebugInfoPanel({
         }
     }, [enabled, renderer])
 
-    // Update memory usage and page size
     useEffect(() => {
         if (!enabled) return
 
         const updateMemory = () => {
-            // Get memory info if available
             if ((performance as any).memory) {
                 const memoryInfo = (performance as any).memory
                 const usedHeapSize = memoryInfo.usedJSHeapSize / (1024 * 1024)
@@ -95,7 +86,6 @@ export default function DebugInfoPanel({
                 setMemory('Not available')
             }
 
-            // Estimate page size by checking document size
             try {
                 const pageSize =
                     new Blob([document.documentElement.outerHTML]).size /
@@ -106,7 +96,6 @@ export default function DebugInfoPanel({
             }
         }
 
-        // Update triangle count
         const countTriangles = () => {
             if (boxMeshGroup) {
                 let count = 0
@@ -126,11 +115,9 @@ export default function DebugInfoPanel({
             }
         }
 
-        // Initial update
         updateMemory()
         countTriangles()
 
-        // Set interval for updates
         const memoryInterval = setInterval(updateMemory, 2000)
         const triangleInterval = setInterval(countTriangles, 5000)
 
@@ -142,7 +129,6 @@ export default function DebugInfoPanel({
 
     if (!enabled) return null
 
-    // Calculate the total number of boxes in the grid
     const totalBoxes = boxWidths.length * boxDepths.length
 
     return (
@@ -178,7 +164,7 @@ export default function DebugInfoPanel({
                     {boxWidths.length}×{boxDepths.length} ({totalBoxes} boxes)
                 </div>
 
-                {/* Box grid debug - show first 5 boxes */}
+                {/* Box grid debug */}
                 <div className="col-span-2 mt-2 border-t border-gray-600 pt-2">
                     <div className="mb-1 font-semibold">
                         Box Grid (first 5):

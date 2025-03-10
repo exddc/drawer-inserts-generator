@@ -1,4 +1,3 @@
-// lib/store.ts
 import { create } from 'zustand'
 import { calculateBoxWidths } from '@/lib/boxUtils'
 import { defaultConstraints } from '@/lib/validationUtils'
@@ -46,18 +45,11 @@ export interface BoxState {
     setShowGrid: (show: boolean) => void
     setShowAxes: (show: boolean) => void
     setUniqueBoxesExport: (uniqueExport: boolean) => void
-
-    // Helper method to update all settings at once (for form inputs)
     updateInput: (name: string, value: number | boolean) => void
-
-    // Load configuration from URL
     loadFromUrl: () => void
-
-    // Share configuration
     shareConfiguration: () => Promise<boolean>
 }
 
-// Helper to recalculate box widths
 const recalculateBoxWidths = (
     totalWidth: number,
     minWidth: number,
@@ -70,7 +62,6 @@ const recalculateBoxWidths = (
     return calculateBoxWidths(totalWidth, minWidth, maxWidth)
 }
 
-// Helper to recalculate box depths
 const recalculateBoxDepths = (
     totalDepth: number,
     minDepth: number,
@@ -83,7 +74,6 @@ const recalculateBoxDepths = (
     return calculateBoxWidths(totalDepth, minDepth, maxDepth)
 }
 
-// Helper to ensure max width is valid
 const validateMaxWidth = (
     maxWidth: number,
     minWidth: number,
@@ -92,7 +82,6 @@ const validateMaxWidth = (
     return Math.min(Math.max(minWidth, maxWidth), totalWidth)
 }
 
-// Helper to ensure min width is valid
 const validateMinWidth = (minWidth: number, maxWidth: number): number => {
     return Math.min(
         Math.max(defaultConstraints.minBoxWidth?.min || 10, minWidth),
@@ -100,7 +89,6 @@ const validateMinWidth = (minWidth: number, maxWidth: number): number => {
     )
 }
 
-// Default values
 const defaultValues = {
     width: 150,
     depth: 150,
@@ -120,7 +108,6 @@ const defaultValues = {
 }
 
 export const useBoxStore = create<BoxState>((set, get) => ({
-    // Initial state
     ...defaultValues,
     boxWidths: recalculateBoxWidths(
         defaultValues.width,
@@ -135,11 +122,8 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         defaultValues.useMultipleBoxes
     ),
 
-    // Actions
     setWidth: (width: number) => {
         const { minBoxWidth, maxBoxWidth, useMultipleBoxes } = get()
-
-        // Ensure max width doesn't exceed total width
         const newMaxWidth = validateMaxWidth(maxBoxWidth, minBoxWidth, width)
 
         set({
@@ -156,8 +140,6 @@ export const useBoxStore = create<BoxState>((set, get) => ({
 
     setDepth: (depth: number) => {
         const { minBoxDepth, maxBoxDepth, useMultipleBoxes } = get()
-
-        // Ensure max depth doesn't exceed total depth
         const newMaxDepth = validateMaxWidth(maxBoxDepth, minBoxDepth, depth)
 
         set({
@@ -182,7 +164,6 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         const { wallThickness, height } = get()
         let newHeight = height
 
-        // If enabling bottom, ensure height is at least wallThickness + 1mm
         if (hasBottom && height <= wallThickness) {
             newHeight = wallThickness + 1
         }
@@ -192,11 +173,8 @@ export const useBoxStore = create<BoxState>((set, get) => ({
 
     setMinBoxWidth: (minBoxWidth: number) => {
         const { maxBoxWidth, width, useMultipleBoxes } = get()
-
-        // Validate min width
         const newMinWidth = validateMinWidth(minBoxWidth, maxBoxWidth)
 
-        // Recalculate box widths
         set({
             minBoxWidth: newMinWidth,
             boxWidths: recalculateBoxWidths(
@@ -210,11 +188,8 @@ export const useBoxStore = create<BoxState>((set, get) => ({
 
     setMaxBoxWidth: (maxBoxWidth: number) => {
         const { minBoxWidth, width, useMultipleBoxes } = get()
-
-        // Validate max width
         const newMaxWidth = validateMaxWidth(maxBoxWidth, minBoxWidth, width)
 
-        // Recalculate box widths
         set({
             maxBoxWidth: newMaxWidth,
             boxWidths: recalculateBoxWidths(
@@ -228,11 +203,8 @@ export const useBoxStore = create<BoxState>((set, get) => ({
 
     setMinBoxDepth: (minBoxDepth: number) => {
         const { maxBoxDepth, depth, useMultipleBoxes } = get()
-
-        // Validate min depth
         const newMinDepth = validateMinWidth(minBoxDepth, maxBoxDepth)
 
-        // Recalculate box depths
         set({
             minBoxDepth: newMinDepth,
             boxDepths: recalculateBoxDepths(
@@ -246,11 +218,8 @@ export const useBoxStore = create<BoxState>((set, get) => ({
 
     setMaxBoxDepth: (maxBoxDepth: number) => {
         const { minBoxDepth, depth, useMultipleBoxes } = get()
-
-        // Validate max depth
         const newMaxDepth = validateMaxWidth(maxBoxDepth, minBoxDepth, depth)
 
-        // Recalculate box depths
         set({
             maxBoxDepth: newMaxDepth,
             boxDepths: recalculateBoxDepths(
@@ -295,11 +264,9 @@ export const useBoxStore = create<BoxState>((set, get) => ({
 
     setShowAxes: (showAxes: boolean) => set({ showAxes }),
 
-    // Actions
     setUniqueBoxesExport: (uniqueBoxesExport: boolean) =>
         set({ uniqueBoxesExport }),
 
-    // Generic update method for form inputs
     updateInput: (name: string, value: number | boolean) => {
         const state = get()
 
@@ -350,18 +317,15 @@ export const useBoxStore = create<BoxState>((set, get) => ({
                 state.setShowAxes(value as boolean)
                 break
             default:
-                // Just update the value directly if we don't have a specific handler
                 set({ [name]: value } as any)
         }
     },
 
-    // Load configuration from URL
     loadFromUrl: () => {
         const urlConfig = getConfigFromUrl()
         if (!urlConfig) return
 
         const state = get()
-        // Apply each valid property from the URL configuration
         Object.entries(urlConfig).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
                 if (typeof value === 'number' || typeof value === 'boolean') {
@@ -376,15 +340,12 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         })
     },
 
-    // Share configuration
     shareConfiguration: async () => {
         return shareConfiguration(get())
     },
 }))
 
-// Initialize URL configuration on first import (client-side only)
 if (typeof window !== 'undefined') {
-    // Use setTimeout to ensure this runs after component initialization
     setTimeout(() => {
         useBoxStore.getState().loadFromUrl()
     }, 0)
