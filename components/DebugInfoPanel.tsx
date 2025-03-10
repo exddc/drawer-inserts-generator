@@ -1,13 +1,13 @@
-'use client';
-import { useState, useEffect, useRef } from 'react';
-import * as THREE from 'three';
-import { useBoxStore } from '@/lib/store';
+'use client'
+import { useState, useEffect, useRef } from 'react'
+import * as THREE from 'three'
+import { useBoxStore } from '@/lib/store'
 
 interface DebugInfoProps {
-    renderer: THREE.WebGLRenderer | null;
-    scene: THREE.Scene | null;
-    boxMeshGroup: THREE.Group | null;
-    enabled: boolean;
+    renderer: THREE.WebGLRenderer | null
+    scene: THREE.Scene | null
+    boxMeshGroup: THREE.Group | null
+    enabled: boolean
 }
 
 export default function DebugInfoPanel({
@@ -16,142 +16,123 @@ export default function DebugInfoPanel({
     boxMeshGroup,
     enabled,
 }: DebugInfoProps) {
-    const [fps, setFps] = useState<number>(0);
-    const [memory, setMemory] = useState<string>('');
-    const [triangleCount, setTriangleCount] = useState<number>(0);
-    const [pageSize, setPageSize] = useState<string>('');
+    const [fps, setFps] = useState<number>(0)
+    const [memory, setMemory] = useState<string>('')
+    const [triangleCount, setTriangleCount] = useState<number>(0)
+    const [pageSize, setPageSize] = useState<string>('')
     const [renderInfo, setRenderInfo] = useState<{
-        calls: number;
-        triangles: number;
-    }>({ calls: 0, triangles: 0 });
+        calls: number
+        triangles: number
+    }>({ calls: 0, triangles: 0 })
 
-    const frameCountRef = useRef<number>(0);
-    const lastTimeRef = useRef<number>(performance.now());
-    const frameTimeRef = useRef<number[]>([]);
+    const frameCountRef = useRef<number>(0)
+    const lastTimeRef = useRef<number>(performance.now())
+    const frameTimeRef = useRef<number[]>([])
 
-    // Get grid info from store
-    const { boxWidths, boxDepths } = useBoxStore();
+    const { boxWidths, boxDepths } = useBoxStore()
 
-    // Update FPS counter
     useEffect(() => {
-        if (!enabled) return;
+        if (!enabled) return
 
-        // Function to update FPS counter
         const updateFps = () => {
-            frameCountRef.current++;
+            frameCountRef.current++
 
-            const now = performance.now();
-            const elapsed = now - lastTimeRef.current;
+            const now = performance.now()
+            const elapsed = now - lastTimeRef.current
 
-            // Update FPS every 500ms
             if (elapsed >= 500) {
-                const fps = Math.round(
-                    (frameCountRef.current * 1000) / elapsed
-                );
-                setFps(fps);
+                const fps = Math.round((frameCountRef.current * 1000) / elapsed)
+                setFps(fps)
 
-                // Track last 20 frame times for smoother FPS calculation
-                frameTimeRef.current.push(elapsed / frameCountRef.current);
+                frameTimeRef.current.push(elapsed / frameCountRef.current)
                 if (frameTimeRef.current.length > 20) {
-                    frameTimeRef.current.shift();
+                    frameTimeRef.current.shift()
                 }
 
-                // Reset counter
-                frameCountRef.current = 0;
-                lastTimeRef.current = now;
+                frameCountRef.current = 0
+                lastTimeRef.current = now
             }
 
-            // Update renderer info if available
             if (renderer) {
-                const info = renderer.info;
+                const info = renderer.info
                 setRenderInfo({
                     calls: info.render.calls,
                     triangles: info.render.triangles,
-                });
+                })
             }
 
-            requestAnimationFrame(updateFps);
-        };
+            requestAnimationFrame(updateFps)
+        }
 
-        const animationId = requestAnimationFrame(updateFps);
+        const animationId = requestAnimationFrame(updateFps)
 
         return () => {
-            cancelAnimationFrame(animationId);
-        };
-    }, [enabled, renderer]);
+            cancelAnimationFrame(animationId)
+        }
+    }, [enabled, renderer])
 
-    // Update memory usage and page size
     useEffect(() => {
-        if (!enabled) return;
+        if (!enabled) return
 
         const updateMemory = () => {
-            // Get memory info if available
             if ((performance as any).memory) {
-                const memoryInfo = (performance as any).memory;
-                const usedHeapSize = memoryInfo.usedJSHeapSize / (1024 * 1024);
-                const totalHeapSize =
-                    memoryInfo.totalJSHeapSize / (1024 * 1024);
+                const memoryInfo = (performance as any).memory
+                const usedHeapSize = memoryInfo.usedJSHeapSize / (1024 * 1024)
+                const totalHeapSize = memoryInfo.totalJSHeapSize / (1024 * 1024)
                 setMemory(
-                    `${usedHeapSize.toFixed(1)}MB / ${totalHeapSize.toFixed(
-                        1
-                    )}MB`
-                );
+                    `${usedHeapSize.toFixed(1)}MB / ${totalHeapSize.toFixed(1)}MB`
+                )
             } else {
-                setMemory('Not available');
+                setMemory('Not available')
             }
 
-            // Estimate page size by checking document size
             try {
                 const pageSize =
                     new Blob([document.documentElement.outerHTML]).size /
-                    (1024 * 1024);
-                setPageSize(`${pageSize.toFixed(2)}MB`);
+                    (1024 * 1024)
+                setPageSize(`${pageSize.toFixed(2)}MB`)
             } catch (e) {
-                setPageSize('N/A');
+                setPageSize('N/A')
             }
-        };
+        }
 
-        // Update triangle count
         const countTriangles = () => {
             if (boxMeshGroup) {
-                let count = 0;
+                let count = 0
                 boxMeshGroup.traverse((obj) => {
                     if (obj instanceof THREE.Mesh) {
-                        const geometry = obj.geometry;
+                        const geometry = obj.geometry
                         if (geometry instanceof THREE.BufferGeometry) {
                             if (geometry.index) {
-                                count += geometry.index.count / 3;
+                                count += geometry.index.count / 3
                             } else if (geometry.attributes.position) {
-                                count += geometry.attributes.position.count / 3;
+                                count += geometry.attributes.position.count / 3
                             }
                         }
                     }
-                });
-                setTriangleCount(Math.round(count));
+                })
+                setTriangleCount(Math.round(count))
             }
-        };
+        }
 
-        // Initial update
-        updateMemory();
-        countTriangles();
+        updateMemory()
+        countTriangles()
 
-        // Set interval for updates
-        const memoryInterval = setInterval(updateMemory, 2000);
-        const triangleInterval = setInterval(countTriangles, 5000);
+        const memoryInterval = setInterval(updateMemory, 2000)
+        const triangleInterval = setInterval(countTriangles, 5000)
 
         return () => {
-            clearInterval(memoryInterval);
-            clearInterval(triangleInterval);
-        };
-    }, [enabled, boxMeshGroup]);
+            clearInterval(memoryInterval)
+            clearInterval(triangleInterval)
+        }
+    }, [enabled, boxMeshGroup])
 
-    if (!enabled) return null;
+    if (!enabled) return null
 
-    // Calculate the total number of boxes in the grid
-    const totalBoxes = boxWidths.length * boxDepths.length;
+    const totalBoxes = boxWidths.length * boxDepths.length
 
     return (
-        <div className="fixed top-20 right-4 z-50 bg-black/80 text-white p-3 rounded-md text-xs font-mono whitespace-nowrap">
+        <div className="fixed top-20 right-4 z-50 rounded-md bg-black/80 p-3 font-mono text-xs whitespace-nowrap text-white">
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                 <div className="font-semibold">FPS:</div>
                 <div
@@ -159,8 +140,8 @@ export default function DebugInfoPanel({
                         fps < 30
                             ? 'text-red-400'
                             : fps < 50
-                            ? 'text-yellow-400'
-                            : 'text-green-400'
+                              ? 'text-yellow-400'
+                              : 'text-green-400'
                     }`}
                 >
                     {fps}
@@ -183,13 +164,13 @@ export default function DebugInfoPanel({
                     {boxWidths.length}×{boxDepths.length} ({totalBoxes} boxes)
                 </div>
 
-                {/* Box grid debug - show first 5 boxes */}
-                <div className="col-span-2 mt-2 pt-2 border-t border-gray-600">
-                    <div className="font-semibold mb-1">
+                {/* Box grid debug */}
+                <div className="col-span-2 mt-2 border-t border-gray-600 pt-2">
+                    <div className="mb-1 font-semibold">
                         Box Grid (first 5):
                     </div>
                     {boxMeshGroup?.children.slice(0, 5).map((child, index) => {
-                        const pos = child.position;
+                        const pos = child.position
                         return (
                             <div key={index} className="text-xs">
                                 Box {index + 1}: x: {pos.x.toFixed(1)}, z:{' '}
@@ -202,27 +183,27 @@ export default function DebugInfoPanel({
                                     1
                                 ) || 'N/A'}
                             </div>
-                        );
+                        )
                     })}
 
                     {boxMeshGroup && boxMeshGroup.children.length > 5 && (
-                        <div className="text-xs text-gray-400 mt-1">
+                        <div className="mt-1 text-xs text-gray-400">
                             ...and {boxMeshGroup.children.length - 5} more boxes
                         </div>
                     )}
                 </div>
 
                 {/* Grid summary */}
-                <div className="col-span-2 mt-2 pt-2 border-t border-gray-600">
-                    <div className="font-semibold mb-1">Grid Details:</div>
+                <div className="col-span-2 mt-2 border-t border-gray-600 pt-2">
+                    <div className="mb-1 font-semibold">Grid Details:</div>
 
-                    <div className="text-xs mt-1">
+                    <div className="mt-1 text-xs">
                         <div className="mb-1">Width Distribution:</div>
-                        <div className="flex flex-wrap gap-1 mb-2">
+                        <div className="mb-2 flex flex-wrap gap-1">
                             {boxWidths.slice(0, 5).map((w, i) => (
                                 <span
                                     key={`w-${i}`}
-                                    className="bg-blue-900/50 px-1 rounded"
+                                    className="rounded bg-blue-900/50 px-1"
                                 >
                                     {w.toFixed(1)}
                                 </span>
@@ -235,7 +216,7 @@ export default function DebugInfoPanel({
                             {boxDepths.slice(0, 5).map((d, i) => (
                                 <span
                                     key={`d-${i}`}
-                                    className="bg-green-900/50 px-1 rounded"
+                                    className="rounded bg-green-900/50 px-1"
                                 >
                                     {d.toFixed(1)}
                                 </span>
@@ -246,5 +227,5 @@ export default function DebugInfoPanel({
                 </div>
             </div>
         </div>
-    );
+    )
 }
