@@ -26,6 +26,7 @@ export interface BoxState {
     showGrid: boolean
     showAxes: boolean
     selectedBoxIndex: number | null
+    hiddenBoxes: Set<number>
 
     // Export options
     uniqueBoxesExport: boolean
@@ -47,6 +48,8 @@ export interface BoxState {
     setShowAxes: (show: boolean) => void
     setUniqueBoxesExport: (uniqueExport: boolean) => void
     setSelectedBoxIndex: (index: number | null) => void
+    toggleBoxVisibility: (index: number) => void
+    isBoxVisible: (index: number) => boolean
     updateInput: (name: string, value: number | boolean) => void
     loadFromUrl: () => void
     shareConfiguration: () => Promise<boolean>
@@ -124,6 +127,7 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         defaultValues.maxBoxDepth,
         defaultValues.useMultipleBoxes
     ),
+    hiddenBoxes: new Set<number>(),
 
     setWidth: (width: number) => {
         const { minBoxWidth, maxBoxWidth, useMultipleBoxes } = get()
@@ -259,13 +263,14 @@ export const useBoxStore = create<BoxState>((set, get) => ({
                 useMultipleBoxes
             ),
             selectedBoxIndex: null,
+            hiddenBoxes: new Set<number>(),
         })
     },
 
     setDebugMode: (debugMode: boolean) => set({ 
         debugMode,
         // Reset selected box when debug mode is turned off
-        selectedBoxIndex: debugMode ? get().selectedBoxIndex : null
+        selectedBoxIndex: debugMode ? get().selectedBoxIndex : null,
     }),
 
     setShowGrid: (showGrid: boolean) => set({ showGrid }),
@@ -276,6 +281,22 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         set({ uniqueBoxesExport }),
         
     setSelectedBoxIndex: (selectedBoxIndex: number | null) => set({ selectedBoxIndex }),
+    
+    toggleBoxVisibility: (index: number) => {
+        const hiddenBoxes = new Set(get().hiddenBoxes);
+        
+        if (hiddenBoxes.has(index)) {
+            hiddenBoxes.delete(index);
+        } else {
+            hiddenBoxes.add(index);
+        }
+        
+        set({ hiddenBoxes });
+    },
+    
+    isBoxVisible: (index: number) => {
+        return !get().hiddenBoxes.has(index);
+    },
 
     updateInput: (name: string, value: number | boolean) => {
         const state = get()

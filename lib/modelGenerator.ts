@@ -10,6 +10,7 @@ interface BoxModelParams {
     cornerRadius: number
     hasBottom: boolean
     selectedBoxIndex?: number | null
+    hiddenBoxes?: Set<number>
 }
 
 /**
@@ -29,6 +30,7 @@ export function createBoxModel(
         cornerRadius,
         hasBottom,
         selectedBoxIndex,
+        hiddenBoxes = new Set<number>(),
     } = params
 
     while (boxMeshGroup.children.length > 0) {
@@ -62,6 +64,25 @@ export function createBoxModel(
                 return
             }
 
+            // Skip hidden boxes in debug mode
+            if (hiddenBoxes.has(index)) {
+                // Still create a placeholder with userData so indexes remain consistent
+                const placeholder = new THREE.Group();
+                placeholder.visible = false;
+                placeholder.userData = {
+                    dimensions: {
+                        width,
+                        depth,
+                        height,
+                        index,
+                        isHidden: true
+                    },
+                };
+                placeholder.position.set(x + width / 2, 0, z + depth / 2);
+                boxMeshGroup?.add(placeholder);
+                return;
+            }
+
             const isSelected = selectedBoxIndex === index
 
             const box = createBoxWithRoundedEdges({
@@ -80,6 +101,7 @@ export function createBoxModel(
                     depth,
                     height,
                     index,
+                    isHidden: false
                 },
             }
 

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import {
@@ -13,6 +13,8 @@ import DebugInfoPanel from '@/components/DebugInfoPanel'
 import { useBoxStore } from '@/lib/store'
 import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
 import ConfigSidebarWrapper from '@/components/ConfigSidebarWrapper'
+import { Button } from '@/components/ui/button'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function Home() {
     const {
@@ -30,6 +32,9 @@ export default function Home() {
         loadFromUrl,
         selectedBoxIndex,
         setSelectedBoxIndex,
+        hiddenBoxes,
+        toggleBoxVisibility,
+        isBoxVisible,
     } = useBoxStore()
 
     const containerRef = useRef<HTMLDivElement>(null)
@@ -158,6 +163,7 @@ export default function Home() {
             cornerRadius,
             hasBottom,
             selectedBoxIndex,
+            hiddenBoxes,
         })
 
         return () => {
@@ -186,6 +192,7 @@ export default function Home() {
                 cornerRadius,
                 hasBottom,
                 selectedBoxIndex,
+                hiddenBoxes,
             })
         }
     }, [
@@ -198,6 +205,7 @@ export default function Home() {
         boxWidths,
         boxDepths,
         selectedBoxIndex,
+        hiddenBoxes,
     ])
 
     // Toggle grid visibility
@@ -224,6 +232,31 @@ export default function Home() {
     useEffect(() => {
         if (!containerRef.current || !debugMode) return
 
+        // Create a non-interactive tooltip element for the info panel
+        const createTooltipContent = (boxInfo: any, index: number) => {
+            const isVisible = isBoxVisible(index)
+
+            return `
+                <div class="tooltip-content">
+                    <div><strong>Box Info:</strong></div>
+                    <div>Position: X: ${boxInfo.position.x.toFixed(
+                        2
+                    )}, Y: ${boxInfo.position.y.toFixed(
+                        2
+                    )}, Z: ${boxInfo.position.z.toFixed(2)}</div>
+                    <div>Width: ${boxInfo.width.toFixed(2)}</div>
+                    <div>Depth: ${boxInfo.depth.toFixed(2)}</div>
+                    <div>Height: ${boxInfo.height.toFixed(2)}</div>
+                    <div>Wall Thickness: ${wallThickness}</div>
+                    <div class="mt-2 tooltip-button-container" data-box-index="${index}">
+                        <button class="tooltip-button toggle-visibility-btn" data-action="toggle-visibility">
+                            ${isVisible ? 'Hide Box' : 'Show Box'}
+                        </button>
+                    </div>
+                </div>
+            `
+        }
+
         const handleMouseMove = (event: MouseEvent) => {
             if (!containerRef.current) return
 
@@ -242,6 +275,34 @@ export default function Home() {
                 1
         }
 
+        // This is needed to make the tooltip interactive
+        const handleTooltipClick = (event: MouseEvent) => {
+            if (!tooltipRef.current) return
+
+            const target = event.target as HTMLElement
+
+            if (target.classList.contains('toggle-visibility-btn')) {
+                event.stopPropagation()
+
+                // Find the container with the data attribute
+                const container = target.closest('.tooltip-button-container')
+                if (container) {
+                    const boxIndex = parseInt(
+                        container.getAttribute('data-box-index') || '-1'
+                    )
+                    if (boxIndex !== -1) {
+                        toggleBoxVisibility(boxIndex)
+
+                        // Update button text immediately
+                        const isNowVisible = !isBoxVisible(boxIndex)
+                        target.textContent = isNowVisible
+                            ? 'Hide Box'
+                            : 'Show Box'
+                    }
+                }
+            }
+        }
+
         const handleClick = (event: MouseEvent) => {
             if (
                 !containerRef.current ||
@@ -252,6 +313,11 @@ export default function Home() {
                 !boxMeshGroupRef.current
             )
                 return
+
+            // Check if we clicked on the tooltip itself
+            if (tooltipRef.current.contains(event.target as Node)) {
+                return // Don't process the click if it's inside the tooltip
+            }
 
             raycasterRef.current.setFromCamera(
                 mouseRef.current,
@@ -284,19 +350,14 @@ export default function Home() {
 
                 const boxInfo = getBoxInfoFromObject(boxObject)
 
-                // Show tooltip with box info
-                tooltipRef.current.innerHTML = `
-                    <div><strong>Box Info:</strong></div>
-                    <div>Position: X: ${boxInfo.position.x.toFixed(
-                        2
-                    )}, Y: ${boxInfo.position.y.toFixed(
-                        2
-                    )}, Z: ${boxInfo.position.z.toFixed(2)}</div>
-                    <div>Width: ${boxInfo.width.toFixed(2)}</div>
-                    <div>Depth: ${boxInfo.depth.toFixed(2)}</div>
-                    <div>Height: ${boxInfo.height.toFixed(2)}</div>
-                    <div>Wall Thickness: ${wallThickness}</div>
-                `
+                // Show tooltip with box info and visibility toggle button
+                tooltipRef.current.innerHTML = createTooltipContent(
+                    boxInfo,
+                    boxIndex
+                )
+
+                // Make the tooltip interactive
+                tooltipRef.current.style.pointerEvents = 'auto'
 
                 // Position the tooltip near the mouse
                 tooltipRef.current.style.left = `${event.clientX + 10}px`
@@ -305,11 +366,44 @@ export default function Home() {
             } else {
                 setSelectedBoxIndex(null)
                 tooltipRef.current.classList.add('hidden')
+                tooltipRef.current.style.pointerEvents = 'none'
             }
         }
 
         containerRef.current.addEventListener('mousemove', handleMouseMove)
         containerRef.current.addEventListener('click', handleClick)
+
+        // Add the tooltip click handler
+        if (tooltipRef.current) {
+            tooltipRef.current.addEventListener('click', handleTooltipClick)
+
+            // Add some basic CSS to make the buttons look better
+            const style = document.createElement('style')
+            style.textContent = `
+                .tooltip-button {
+                    background-color: #444;
+                    border: none;
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    margin-top: 6px;
+                    font-size: 11px;
+                }
+                .tooltip-button:hover {
+                    background-color: #555;
+                }
+                .tooltip-content {
+                    max-width: 200px;
+                }
+                .tooltip-button-container {
+                    display: flex;
+                    justify-content: center;
+                    margin-top: 6px;
+                }
+            `
+            document.head.appendChild(style)
+        }
 
         return () => {
             if (containerRef.current) {
@@ -322,9 +416,28 @@ export default function Home() {
 
             if (tooltipRef.current) {
                 tooltipRef.current.classList.add('hidden')
+                tooltipRef.current.style.pointerEvents = 'none'
+                tooltipRef.current.removeEventListener(
+                    'click',
+                    handleTooltipClick
+                )
+            }
+
+            // Remove the style element we added
+            const styleElement = document.querySelector(
+                'style[data-for="tooltip-styles"]'
+            )
+            if (styleElement) {
+                styleElement.remove()
             }
         }
-    }, [debugMode, wallThickness, setSelectedBoxIndex])
+    }, [
+        debugMode,
+        wallThickness,
+        setSelectedBoxIndex,
+        toggleBoxVisibility,
+        isBoxVisible,
+    ])
 
     return (
         <div className="bg-background flex h-full flex-col">
