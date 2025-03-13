@@ -28,6 +28,8 @@ export default function Home() {
         boxWidths,
         boxDepths,
         loadFromUrl,
+        selectedBoxIndex,
+        setSelectedBoxIndex,
     } = useBoxStore()
 
     const containerRef = useRef<HTMLDivElement>(null)
@@ -155,6 +157,7 @@ export default function Home() {
             wallThickness,
             cornerRadius,
             hasBottom,
+            selectedBoxIndex,
         })
 
         return () => {
@@ -182,6 +185,7 @@ export default function Home() {
                 wallThickness,
                 cornerRadius,
                 hasBottom,
+                selectedBoxIndex,
             })
         }
     }, [
@@ -193,6 +197,7 @@ export default function Home() {
         hasBottom,
         boxWidths,
         boxDepths,
+        selectedBoxIndex,
     ])
 
     // Toggle grid visibility
@@ -243,7 +248,8 @@ export default function Home() {
                 !raycasterRef.current ||
                 !sceneRef.current ||
                 !cameraRef.current ||
-                !tooltipRef.current
+                !tooltipRef.current ||
+                !boxMeshGroupRef.current
             )
                 return
 
@@ -253,7 +259,7 @@ export default function Home() {
             )
 
             const intersects = raycasterRef.current.intersectObjects(
-                boxMeshGroupRef.current?.children || [],
+                boxMeshGroupRef.current.children || [],
                 true
             )
 
@@ -267,6 +273,14 @@ export default function Home() {
                 ) {
                     boxObject = boxObject.parent
                 }
+
+                // Find box index in the group
+                const boxIndex = boxMeshGroupRef.current.children.findIndex(
+                    (child) => child === boxObject
+                )
+
+                // Set the selected box index in the store
+                setSelectedBoxIndex(boxIndex)
 
                 const boxInfo = getBoxInfoFromObject(boxObject)
 
@@ -289,6 +303,7 @@ export default function Home() {
                 tooltipRef.current.style.top = `${event.clientY + 10}px`
                 tooltipRef.current.classList.remove('hidden')
             } else {
+                setSelectedBoxIndex(null)
                 tooltipRef.current.classList.add('hidden')
             }
         }
@@ -309,7 +324,7 @@ export default function Home() {
                 tooltipRef.current.classList.add('hidden')
             }
         }
-    }, [debugMode, wallThickness])
+    }, [debugMode, wallThickness, setSelectedBoxIndex])
 
     return (
         <div className="bg-background flex h-full flex-col">

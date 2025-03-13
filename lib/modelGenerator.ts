@@ -9,6 +9,7 @@ interface BoxModelParams {
     wallThickness: number
     cornerRadius: number
     hasBottom: boolean
+    selectedBoxIndex?: number | null
 }
 
 /**
@@ -27,6 +28,7 @@ export function createBoxModel(
         wallThickness,
         cornerRadius,
         hasBottom,
+        selectedBoxIndex,
     } = params
 
     while (boxMeshGroup.children.length > 0) {
@@ -60,6 +62,8 @@ export function createBoxModel(
                 return
             }
 
+            const isSelected = selectedBoxIndex === index
+
             const box = createBoxWithRoundedEdges({
                 width,
                 depth,
@@ -67,6 +71,7 @@ export function createBoxModel(
                 wallThickness,
                 cornerRadius,
                 hasBottom,
+                isSelected,
             })
 
             box.userData = {

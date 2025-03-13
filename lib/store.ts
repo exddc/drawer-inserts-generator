@@ -25,6 +25,7 @@ export interface BoxState {
     debugMode: boolean
     showGrid: boolean
     showAxes: boolean
+    selectedBoxIndex: number | null
 
     // Export options
     uniqueBoxesExport: boolean
@@ -45,6 +46,7 @@ export interface BoxState {
     setShowGrid: (show: boolean) => void
     setShowAxes: (show: boolean) => void
     setUniqueBoxesExport: (uniqueExport: boolean) => void
+    setSelectedBoxIndex: (index: number | null) => void
     updateInput: (name: string, value: number | boolean) => void
     loadFromUrl: () => void
     shareConfiguration: () => Promise<boolean>
@@ -105,6 +107,7 @@ const defaultValues = {
     uniqueBoxesExport: true,
     showGrid: true,
     showAxes: false,
+    selectedBoxIndex: null,
 }
 
 export const useBoxStore = create<BoxState>((set, get) => ({
@@ -255,10 +258,15 @@ export const useBoxStore = create<BoxState>((set, get) => ({
                 maxBoxDepth,
                 useMultipleBoxes
             ),
+            selectedBoxIndex: null,
         })
     },
 
-    setDebugMode: (debugMode: boolean) => set({ debugMode }),
+    setDebugMode: (debugMode: boolean) => set({ 
+        debugMode,
+        // Reset selected box when debug mode is turned off
+        selectedBoxIndex: debugMode ? get().selectedBoxIndex : null
+    }),
 
     setShowGrid: (showGrid: boolean) => set({ showGrid }),
 
@@ -266,6 +274,8 @@ export const useBoxStore = create<BoxState>((set, get) => ({
 
     setUniqueBoxesExport: (uniqueBoxesExport: boolean) =>
         set({ uniqueBoxesExport }),
+        
+    setSelectedBoxIndex: (selectedBoxIndex: number | null) => set({ selectedBoxIndex }),
 
     updateInput: (name: string, value: number | boolean) => {
         const state = get()

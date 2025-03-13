@@ -29,7 +29,7 @@ export default function DebugInfoPanel({
     const lastTimeRef = useRef<number>(performance.now())
     const frameTimeRef = useRef<number[]>([])
 
-    const { boxWidths, boxDepths } = useBoxStore()
+    const { boxWidths, boxDepths, selectedBoxIndex } = useBoxStore()
 
     useEffect(() => {
         if (!enabled) return
@@ -131,6 +131,13 @@ export default function DebugInfoPanel({
 
     const totalBoxes = boxWidths.length * boxDepths.length
 
+    const selectedBoxDetails =
+        selectedBoxIndex !== null &&
+        boxMeshGroup &&
+        boxMeshGroup.children[selectedBoxIndex]
+            ? boxMeshGroup.children[selectedBoxIndex].userData?.dimensions
+            : null
+
     return (
         <div className="fixed top-20 right-4 z-50 rounded-md bg-black/80 p-3 font-mono text-xs whitespace-nowrap text-white">
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
@@ -164,6 +171,34 @@ export default function DebugInfoPanel({
                     {boxWidths.length}×{boxDepths.length} ({totalBoxes} boxes)
                 </div>
 
+                {/* Selected Box Info */}
+                {selectedBoxIndex !== null && selectedBoxDetails && (
+                    <div className="col-span-2 mt-2 border-t border-orange-600 pt-2">
+                        <div className="mb-1 font-semibold text-orange-400">
+                            Selected Box #{selectedBoxIndex + 1}:
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                            <div>Width:</div>
+                            <div>
+                                {selectedBoxDetails.width?.toFixed(1) || 'N/A'}{' '}
+                                mm
+                            </div>
+
+                            <div>Depth:</div>
+                            <div>
+                                {selectedBoxDetails.depth?.toFixed(1) || 'N/A'}{' '}
+                                mm
+                            </div>
+
+                            <div>Height:</div>
+                            <div>
+                                {selectedBoxDetails.height?.toFixed(1) || 'N/A'}{' '}
+                                mm
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Box grid debug */}
                 <div className="col-span-2 mt-2 border-t border-gray-600 pt-2">
                     <div className="mb-1 font-semibold">
@@ -172,7 +207,10 @@ export default function DebugInfoPanel({
                     {boxMeshGroup?.children.slice(0, 5).map((child, index) => {
                         const pos = child.position
                         return (
-                            <div key={index} className="text-xs">
+                            <div
+                                key={index}
+                                className={`text-xs ${selectedBoxIndex === index ? 'font-semibold text-orange-400' : ''}`}
+                            >
                                 Box {index + 1}: x: {pos.x.toFixed(1)}, z:{' '}
                                 {pos.z.toFixed(1)}, w:{' '}
                                 {child.userData?.dimensions?.width?.toFixed(
@@ -182,6 +220,7 @@ export default function DebugInfoPanel({
                                 {child.userData?.dimensions?.depth?.toFixed(
                                     1
                                 ) || 'N/A'}
+                                {selectedBoxIndex === index && ' ★'}
                             </div>
                         )
                     })}
@@ -189,6 +228,14 @@ export default function DebugInfoPanel({
                     {boxMeshGroup && boxMeshGroup.children.length > 5 && (
                         <div className="mt-1 text-xs text-gray-400">
                             ...and {boxMeshGroup.children.length - 5} more boxes
+                            {selectedBoxIndex !== null &&
+                                selectedBoxIndex >= 5 && (
+                                    <span className="text-orange-400">
+                                        {' '}
+                                        (including selected box #
+                                        {selectedBoxIndex + 1})
+                                    </span>
+                                )}
                         </div>
                     )}
                 </div>
