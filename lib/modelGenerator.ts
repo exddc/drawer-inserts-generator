@@ -9,6 +9,9 @@ interface BoxModelParams {
     wallThickness: number
     cornerRadius: number
     hasBottom: boolean
+    selectedBoxIndex?: number | null
+    selectedBoxIndices?: Set<number>
+    hiddenBoxes?: Set<number>
 }
 
 /**
@@ -27,6 +30,9 @@ export function createBoxModel(
         wallThickness,
         cornerRadius,
         hasBottom,
+        selectedBoxIndex,
+        selectedBoxIndices = new Set<number>(),
+        hiddenBoxes = new Set<number>(),
     } = params
 
     while (boxMeshGroup.children.length > 0) {
@@ -60,6 +66,28 @@ export function createBoxModel(
                 return
             }
 
+            // Skip hidden boxes in debug mode
+            if (hiddenBoxes.has(index)) {
+                // Still create a placeholder with userData so indexes remain consistent
+                const placeholder = new THREE.Group();
+                placeholder.visible = false;
+                placeholder.userData = {
+                    dimensions: {
+                        width,
+                        depth,
+                        height,
+                        index,
+                        isHidden: true,
+                        isSelected: false
+                    },
+                };
+                placeholder.position.set(x + width / 2, 0, z + depth / 2);
+                boxMeshGroup?.add(placeholder);
+                return;
+            }
+
+            const isSelected = selectedBoxIndices.has(index);
+
             const box = createBoxWithRoundedEdges({
                 width,
                 depth,
@@ -67,6 +95,7 @@ export function createBoxModel(
                 wallThickness,
                 cornerRadius,
                 hasBottom,
+                isSelected,
             })
 
             box.userData = {
@@ -75,6 +104,8 @@ export function createBoxModel(
                     depth,
                     height,
                     index,
+                    isHidden: false,
+                    isSelected
                 },
             }
 

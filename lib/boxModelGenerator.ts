@@ -7,7 +7,12 @@ interface BoxParameters {
     wallThickness: number
     cornerRadius: number
     hasBottom: boolean
+    isSelected?: boolean
 }
+
+// Box colors
+const DEFAULT_BOX_COLOR = 0x7a9cbf;
+const SELECTED_BOX_COLOR = 0xf5a742;
 
 /**
  * Create a box with rounded edges and optional bottom
@@ -19,8 +24,11 @@ export function createBoxWithRoundedEdges({
     wallThickness,
     cornerRadius,
     hasBottom,
+    isSelected = false,
 }: BoxParameters): THREE.Mesh | THREE.Group {
     const meshGroup = new THREE.Group()
+    
+    const boxColor = isSelected ? SELECTED_BOX_COLOR : DEFAULT_BOX_COLOR;
 
     if (hasBottom) {
         const wallsShape = new THREE.Shape()
@@ -83,7 +91,7 @@ export function createBoxWithRoundedEdges({
         )
 
         const material = new THREE.MeshStandardMaterial({
-            color: 0x7a9cbf,
+            color: boxColor,
             roughness: 0.4,
             metalness: 0.2,
         })
@@ -222,7 +230,7 @@ export function createBoxWithRoundedEdges({
         const geometry = new THREE.ExtrudeGeometry(outerBox, extrudeSettings)
 
         const material = new THREE.MeshStandardMaterial({
-            color: 0x7a9cbf,
+            color: boxColor,
             roughness: 0.4,
             metalness: 0.2,
         })
@@ -234,5 +242,4 @@ export function createBoxWithRoundedEdges({
         mesh.rotation.x = -Math.PI / 2
 
         return mesh
-    }
-}
+    }}

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useBoxStore } from '@/lib/store'
+import { Eye, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 
 interface DebugInfoProps {
     renderer: THREE.WebGLRenderer | null
@@ -24,12 +25,25 @@ export default function DebugInfoPanel({
         calls: number
         triangles: number
     }>({ calls: 0, triangles: 0 })
+    const [showAllBoxes, setShowAllBoxes] = useState<boolean>(false)
 
     const frameCountRef = useRef<number>(0)
     const lastTimeRef = useRef<number>(performance.now())
     const frameTimeRef = useRef<number[]>([])
 
-    const { boxWidths, boxDepths } = useBoxStore()
+    const {
+        boxWidths,
+        boxDepths,
+        selectedBoxIndex,
+        selectedBoxIndices,
+        toggleBoxSelection,
+        clearSelectedBoxes,
+        hiddenBoxes,
+        toggleBoxVisibility,
+        toggleSelectedBoxesVisibility,
+        isBoxVisible,
+        isBoxSelected,
+    } = useBoxStore()
 
     useEffect(() => {
         if (!enabled) return
@@ -127,12 +141,50 @@ export default function DebugInfoPanel({
         }
     }, [enabled, boxMeshGroup])
 
+    // Function to handle visibility toggle
+    const handleToggleVisibility = (index: number) => {
+        toggleBoxVisibility(index)
+    }
+
+    // Toggle showing all boxes
+    const toggleShowAllBoxes = () => {
+        setShowAllBoxes(!showAllBoxes)
+    }
+
+    // Handle box click in the list (for selection)
+    const handleBoxClick = (index: number, event: React.MouseEvent) => {
+        event.stopPropagation()
+        // Use meta/ctrl key for multi-select
+        toggleBoxSelection(index, event.metaKey || event.ctrlKey)
+    }
+
+    // Toggle visibility for all selected boxes
+    const handleToggleSelectedVisibility = () => {
+        toggleSelectedBoxesVisibility()
+    }
+
+    // Clear all selections
+    const handleClearSelection = () => {
+        clearSelectedBoxes()
+    }
+
     if (!enabled) return null
 
     const totalBoxes = boxWidths.length * boxDepths.length
+    const hiddenBoxCount = hiddenBoxes.size
+    const visibleBoxCount = totalBoxes - hiddenBoxCount
+    const selectedCount = selectedBoxIndices.size
+
+    // Get the box details for the selected box
+    const selectedBoxDetails =
+        selectedBoxIndex !== null &&
+        boxMeshGroup &&
+        boxMeshGroup.children[selectedBoxIndex]
+            ? boxMeshGroup.children[selectedBoxIndex].userData?.dimensions
+            : null
 
     return (
-        <div className="fixed top-20 right-4 z-50 rounded-md bg-black/80 p-3 font-mono text-xs whitespace-nowrap text-white">
+        <div className="fixed top-20 right-4 z-50 max-h-[80vh] overflow-auto rounded-md bg-black/80 p-3 font-mono text-xs whitespace-nowrap text-white">
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                 <div className="font-semibold">FPS:</div>
                 <div
@@ -161,36 +213,212 @@ export default function DebugInfoPanel({
 
                 <div className="font-semibold">Grid Size:</div>
                 <div>
-                    {boxWidths.length}×{boxDepths.length} ({totalBoxes} boxes)
+                    {boxWidths.length}×{boxDepths.length} ({visibleBoxCount}/
+                    {totalBoxes} visible)
                 </div>
 
-                {/* Box grid debug */}
-                <div className="col-span-2 mt-2 border-t border-gray-600 pt-2">
-                    <div className="mb-1 font-semibold">
-                        Box Grid (first 5):
-                    </div>
-                    {boxMeshGroup?.children.slice(0, 5).map((child, index) => {
-                        const pos = child.position
-                        return (
-                            <div key={index} className="text-xs">
-                                Box {index + 1}: x: {pos.x.toFixed(1)}, z:{' '}
-                                {pos.z.toFixed(1)}, w:{' '}
-                                {child.userData?.dimensions?.width?.toFixed(
-                                    1
-                                ) || 'N/A'}
-                                , d:{' '}
-                                {child.userData?.dimensions?.depth?.toFixed(
-                                    1
-                                ) || 'N/A'}
+                {/* Selected Boxes Section */}
+                {selectedCount > 0 && (
+                    <div className="col-span-2 mt-2 border-t border-orange-600 pt-2">
+                        <div className="mb-1 flex items-center justify-between font-semibold text-orange-400">
+                            <span>
+                                {selectedCount} Box
+                                {selectedCount > 1 ? 'es' : ''} Selected
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleToggleSelectedVisibility}
+                                    className="ml-2 flex items-center rounded bg-gray-700 px-1 py-0.5 text-xs hover:bg-gray-600"
+                                    title="Toggle Visibility"
+                                >
+                                    <Eye size={12} className="mr-1" />
+                                    <EyeOff size={12} />
+                                </button>
+                                <button
+                                    onClick={handleClearSelection}
+                                    className="flex items-center rounded bg-gray-700 px-1 py-0.5 text-xs hover:bg-gray-600"
+                                    title="Clear Selection"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
                             </div>
-                        )
-                    })}
-
-                    {boxMeshGroup && boxMeshGroup.children.length > 5 && (
-                        <div className="mt-1 text-xs text-gray-400">
-                            ...and {boxMeshGroup.children.length - 5} more boxes
                         </div>
-                    )}
+
+                        {/* If single box selected - show details */}
+                        {selectedCount === 1 && selectedBoxDetails && (
+                            <div className="grid grid-cols-2 gap-1">
+                                <div>Width:</div>
+                                <div>
+                                    {selectedBoxDetails.width?.toFixed(1) ||
+                                        'N/A'}{' '}
+                                    mm
+                                </div>
+
+                                <div>Depth:</div>
+                                <div>
+                                    {selectedBoxDetails.depth?.toFixed(1) ||
+                                        'N/A'}{' '}
+                                    mm
+                                </div>
+
+                                <div>Height:</div>
+                                <div>
+                                    {selectedBoxDetails.height?.toFixed(1) ||
+                                        'N/A'}{' '}
+                                    mm
+                                </div>
+
+                                <div>Status:</div>
+                                <div
+                                    className={
+                                        isBoxVisible(selectedBoxIndex as number)
+                                            ? 'text-green-400'
+                                            : 'text-red-400'
+                                    }
+                                >
+                                    {isBoxVisible(selectedBoxIndex as number)
+                                        ? 'Visible'
+                                        : 'Hidden'}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* If multiple boxes selected - show summary */}
+                        {selectedCount > 1 && (
+                            <div className="mt-1 text-xs">
+                                <div>
+                                    Selected indices:{' '}
+                                    {Array.from(selectedBoxIndices)
+                                        .sort((a, b) => a - b)
+                                        .join(', ')}
+                                </div>
+                                <div className="mt-1">
+                                    <span className="text-green-400">
+                                        {
+                                            Array.from(
+                                                selectedBoxIndices
+                                            ).filter((idx) => isBoxVisible(idx))
+                                                .length
+                                        }
+                                    </span>{' '}
+                                    visible,
+                                    <span className="ml-1 text-red-400">
+                                        {
+                                            Array.from(
+                                                selectedBoxIndices
+                                            ).filter(
+                                                (idx) => !isBoxVisible(idx)
+                                            ).length
+                                        }
+                                    </span>{' '}
+                                    hidden
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Box grid debug - with toggle to show all boxes */}
+                <div className="col-span-2 mt-2 border-t border-gray-600 pt-2">
+                    <div className="mb-1 flex items-center justify-between">
+                        <div className="font-semibold">Box Grid:</div>
+                        <button
+                            onClick={toggleShowAllBoxes}
+                            className="flex items-center rounded bg-gray-700 px-1 py-0.5 text-xs hover:bg-gray-600"
+                        >
+                            {showAllBoxes ? (
+                                <>
+                                    <ChevronUp size={10} className="mr-1" />
+                                    <span>Collapse</span>
+                                </>
+                            ) : (
+                                <>
+                                    <ChevronDown size={10} className="mr-1" />
+                                    <span>Show All</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+
+                    <div
+                        className={`${showAllBoxes ? 'max-h-64 overflow-y-auto pr-1' : ''}`}
+                    >
+                        {boxMeshGroup?.children
+                            .slice(0, showAllBoxes ? undefined : 5)
+                            .map((child, index) => {
+                                const pos = child.position
+                                const isVisible = isBoxVisible(index)
+                                const isSelected = isBoxSelected(index)
+                                return (
+                                    <div
+                                        key={index}
+                                        onClick={(e) =>
+                                            handleBoxClick(index, e)
+                                        }
+                                        className={`flex cursor-pointer items-center justify-between rounded px-1 py-0.5 text-xs hover:bg-gray-700/50 ${
+                                            isSelected
+                                                ? 'bg-orange-800/20 font-semibold text-orange-400'
+                                                : !isVisible
+                                                  ? 'opacity-50'
+                                                  : ''
+                                        }`}
+                                        title={`Click to ${isSelected ? 'deselect' : 'select'} (Cmd/Ctrl+click for multi-select)`}
+                                    >
+                                        <span>
+                                            Box {index + 1}: x:{' '}
+                                            {pos.x.toFixed(1)}, z:{' '}
+                                            {pos.z.toFixed(1)}, w:{' '}
+                                            {child.userData?.dimensions?.width?.toFixed(
+                                                1
+                                            ) || 'N/A'}
+                                            , d:{' '}
+                                            {child.userData?.dimensions?.depth?.toFixed(
+                                                1
+                                            ) || 'N/A'}
+                                            {isSelected && ' ★'}
+                                        </span>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleToggleVisibility(index)
+                                            }}
+                                            className="ml-1 opacity-70 hover:opacity-100"
+                                            title={
+                                                isVisible
+                                                    ? 'Hide Box'
+                                                    : 'Show Box'
+                                            }
+                                        >
+                                            {isVisible ? (
+                                                <EyeOff size={10} />
+                                            ) : (
+                                                <Eye size={10} />
+                                            )}
+                                        </button>
+                                    </div>
+                                )
+                            })}
+
+                        {!showAllBoxes &&
+                            boxMeshGroup &&
+                            boxMeshGroup.children.length > 5 && (
+                                <div className="mt-1 text-xs text-gray-400">
+                                    ...and {boxMeshGroup.children.length - 5}{' '}
+                                    more boxes
+                                    {selectedCount > 0 && (
+                                        <span className="ml-1 text-orange-400">
+                                            (including {selectedBoxIndices.size}{' '}
+                                            selected)
+                                        </span>
+                                    )}
+                                    {hiddenBoxCount > 0 && (
+                                        <span className="ml-1">
+                                            ({hiddenBoxCount} hidden)
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                    </div>
                 </div>
 
                 {/* Grid summary */}
@@ -223,6 +451,23 @@ export default function DebugInfoPanel({
                             ))}
                             {boxDepths.length > 5 && <span>...</span>}
                         </div>
+                    </div>
+                </div>
+
+                {/* Keyboard shortcuts help */}
+                <div className="col-span-2 mt-2 border-t border-gray-600 pt-2 text-xs">
+                    <div className="mb-1 font-semibold">
+                        Keyboard Shortcuts:
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                        <div className="text-gray-400">Cmd/Ctrl+Click:</div>
+                        <div>Multi-select boxes</div>
+
+                        <div className="text-gray-400">Delete/Backspace:</div>
+                        <div>Toggle visibility of selected</div>
+
+                        <div className="text-gray-400">Escape:</div>
+                        <div>Clear selection</div>
                     </div>
                 </div>
             </div>
