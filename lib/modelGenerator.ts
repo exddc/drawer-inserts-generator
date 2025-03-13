@@ -10,6 +10,7 @@ interface BoxModelParams {
     cornerRadius: number
     hasBottom: boolean
     selectedBoxIndex?: number | null
+    selectedBoxIndices?: Set<number>
     hiddenBoxes?: Set<number>
 }
 
@@ -30,6 +31,7 @@ export function createBoxModel(
         cornerRadius,
         hasBottom,
         selectedBoxIndex,
+        selectedBoxIndices = new Set<number>(),
         hiddenBoxes = new Set<number>(),
     } = params
 
@@ -75,7 +77,8 @@ export function createBoxModel(
                         depth,
                         height,
                         index,
-                        isHidden: true
+                        isHidden: true,
+                        isSelected: false
                     },
                 };
                 placeholder.position.set(x + width / 2, 0, z + depth / 2);
@@ -83,7 +86,7 @@ export function createBoxModel(
                 return;
             }
 
-            const isSelected = selectedBoxIndex === index
+            const isSelected = selectedBoxIndices.has(index);
 
             const box = createBoxWithRoundedEdges({
                 width,
@@ -101,7 +104,8 @@ export function createBoxModel(
                     depth,
                     height,
                     index,
-                    isHidden: false
+                    isHidden: false,
+                    isSelected
                 },
             }
 

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useBoxStore } from '@/lib/store'
-import { Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react'
+import { Eye, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 
 interface DebugInfoProps {
     renderer: THREE.WebGLRenderer | null
@@ -35,9 +35,14 @@ export default function DebugInfoPanel({
         boxWidths,
         boxDepths,
         selectedBoxIndex,
+        selectedBoxIndices,
+        toggleBoxSelection,
+        clearSelectedBoxes,
         hiddenBoxes,
         toggleBoxVisibility,
+        toggleSelectedBoxesVisibility,
         isBoxVisible,
+        isBoxSelected,
     } = useBoxStore()
 
     useEffect(() => {
@@ -146,11 +151,29 @@ export default function DebugInfoPanel({
         setShowAllBoxes(!showAllBoxes)
     }
 
+    // Handle box click in the list (for selection)
+    const handleBoxClick = (index: number, event: React.MouseEvent) => {
+        event.stopPropagation()
+        // Use meta/ctrl key for multi-select
+        toggleBoxSelection(index, event.metaKey || event.ctrlKey)
+    }
+
+    // Toggle visibility for all selected boxes
+    const handleToggleSelectedVisibility = () => {
+        toggleSelectedBoxesVisibility()
+    }
+
+    // Clear all selections
+    const handleClearSelection = () => {
+        clearSelectedBoxes()
+    }
+
     if (!enabled) return null
 
     const totalBoxes = boxWidths.length * boxDepths.length
     const hiddenBoxCount = hiddenBoxes.size
     const visibleBoxCount = totalBoxes - hiddenBoxCount
+    const selectedCount = selectedBoxIndices.size
 
     // Get the box details for the selected box
     const selectedBoxDetails =
@@ -194,67 +217,104 @@ export default function DebugInfoPanel({
                     {totalBoxes} visible)
                 </div>
 
-                {/* Selected Box Info */}
-                {selectedBoxIndex !== null && selectedBoxDetails && (
+                {/* Selected Boxes Section */}
+                {selectedCount > 0 && (
                     <div className="col-span-2 mt-2 border-t border-orange-600 pt-2">
                         <div className="mb-1 flex items-center justify-between font-semibold text-orange-400">
-                            <span>Selected Box #{selectedBoxIndex + 1}:</span>
-                            <button
-                                onClick={() =>
-                                    handleToggleVisibility(selectedBoxIndex)
-                                }
-                                className="ml-2 flex items-center rounded bg-gray-700 px-1 py-0.5 text-xs hover:bg-gray-600"
-                                title={
-                                    isBoxVisible(selectedBoxIndex)
-                                        ? 'Hide Box'
-                                        : 'Show Box'
-                                }
-                            >
-                                {isBoxVisible(selectedBoxIndex) ? (
-                                    <>
-                                        <EyeOff size={12} className="mr-1" />
-                                        <span>Hide</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Eye size={12} className="mr-1" />
-                                        <span>Show</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-1">
-                            <div>Width:</div>
-                            <div>
-                                {selectedBoxDetails.width?.toFixed(1) || 'N/A'}{' '}
-                                mm
-                            </div>
-
-                            <div>Depth:</div>
-                            <div>
-                                {selectedBoxDetails.depth?.toFixed(1) || 'N/A'}{' '}
-                                mm
-                            </div>
-
-                            <div>Height:</div>
-                            <div>
-                                {selectedBoxDetails.height?.toFixed(1) || 'N/A'}{' '}
-                                mm
-                            </div>
-
-                            <div>Status:</div>
-                            <div
-                                className={
-                                    isBoxVisible(selectedBoxIndex)
-                                        ? 'text-green-400'
-                                        : 'text-red-400'
-                                }
-                            >
-                                {isBoxVisible(selectedBoxIndex)
-                                    ? 'Visible'
-                                    : 'Hidden'}
+                            <span>
+                                {selectedCount} Box
+                                {selectedCount > 1 ? 'es' : ''} Selected
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleToggleSelectedVisibility}
+                                    className="ml-2 flex items-center rounded bg-gray-700 px-1 py-0.5 text-xs hover:bg-gray-600"
+                                    title="Toggle Visibility"
+                                >
+                                    <Eye size={12} className="mr-1" />
+                                    <EyeOff size={12} />
+                                </button>
+                                <button
+                                    onClick={handleClearSelection}
+                                    className="flex items-center rounded bg-gray-700 px-1 py-0.5 text-xs hover:bg-gray-600"
+                                    title="Clear Selection"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
                             </div>
                         </div>
+
+                        {/* If single box selected - show details */}
+                        {selectedCount === 1 && selectedBoxDetails && (
+                            <div className="grid grid-cols-2 gap-1">
+                                <div>Width:</div>
+                                <div>
+                                    {selectedBoxDetails.width?.toFixed(1) ||
+                                        'N/A'}{' '}
+                                    mm
+                                </div>
+
+                                <div>Depth:</div>
+                                <div>
+                                    {selectedBoxDetails.depth?.toFixed(1) ||
+                                        'N/A'}{' '}
+                                    mm
+                                </div>
+
+                                <div>Height:</div>
+                                <div>
+                                    {selectedBoxDetails.height?.toFixed(1) ||
+                                        'N/A'}{' '}
+                                    mm
+                                </div>
+
+                                <div>Status:</div>
+                                <div
+                                    className={
+                                        isBoxVisible(selectedBoxIndex as number)
+                                            ? 'text-green-400'
+                                            : 'text-red-400'
+                                    }
+                                >
+                                    {isBoxVisible(selectedBoxIndex as number)
+                                        ? 'Visible'
+                                        : 'Hidden'}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* If multiple boxes selected - show summary */}
+                        {selectedCount > 1 && (
+                            <div className="mt-1 text-xs">
+                                <div>
+                                    Selected indices:{' '}
+                                    {Array.from(selectedBoxIndices)
+                                        .sort((a, b) => a - b)
+                                        .join(', ')}
+                                </div>
+                                <div className="mt-1">
+                                    <span className="text-green-400">
+                                        {
+                                            Array.from(
+                                                selectedBoxIndices
+                                            ).filter((idx) => isBoxVisible(idx))
+                                                .length
+                                        }
+                                    </span>{' '}
+                                    visible,
+                                    <span className="ml-1 text-red-400">
+                                        {
+                                            Array.from(
+                                                selectedBoxIndices
+                                            ).filter(
+                                                (idx) => !isBoxVisible(idx)
+                                            ).length
+                                        }
+                                    </span>{' '}
+                                    hidden
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -269,7 +329,7 @@ export default function DebugInfoPanel({
                             {showAllBoxes ? (
                                 <>
                                     <ChevronUp size={10} className="mr-1" />
-                                    <span>Show Less</span>
+                                    <span>Collapse</span>
                                 </>
                             ) : (
                                 <>
@@ -281,17 +341,28 @@ export default function DebugInfoPanel({
                     </div>
 
                     <div
-                        className={`${showAllBoxes ? 'max-h-64 overflow-y-auto pr-1' : 'pr-1'}`}
+                        className={`${showAllBoxes ? 'max-h-64 overflow-y-auto pr-1' : ''}`}
                     >
                         {boxMeshGroup?.children
                             .slice(0, showAllBoxes ? undefined : 5)
                             .map((child, index) => {
                                 const pos = child.position
                                 const isVisible = isBoxVisible(index)
+                                const isSelected = isBoxSelected(index)
                                 return (
                                     <div
                                         key={index}
-                                        className={`flex items-center justify-between text-xs ${selectedBoxIndex === index ? 'font-semibold text-orange-400' : ''} ${!isVisible ? 'opacity-50' : ''}`}
+                                        onClick={(e) =>
+                                            handleBoxClick(index, e)
+                                        }
+                                        className={`flex cursor-pointer items-center justify-between rounded px-1 py-0.5 text-xs hover:bg-gray-700/50 ${
+                                            isSelected
+                                                ? 'bg-orange-800/20 font-semibold text-orange-400'
+                                                : !isVisible
+                                                  ? 'opacity-50'
+                                                  : ''
+                                        }`}
+                                        title={`Click to ${isSelected ? 'deselect' : 'select'} (Cmd/Ctrl+click for multi-select)`}
                                     >
                                         <span>
                                             Box {index + 1}: x:{' '}
@@ -304,12 +375,13 @@ export default function DebugInfoPanel({
                                             {child.userData?.dimensions?.depth?.toFixed(
                                                 1
                                             ) || 'N/A'}
-                                            {selectedBoxIndex === index && ' ★'}
+                                            {isSelected && ' ★'}
                                         </span>
                                         <button
-                                            onClick={() =>
+                                            onClick={(e) => {
+                                                e.stopPropagation()
                                                 handleToggleVisibility(index)
-                                            }
+                                            }}
                                             className="ml-1 opacity-70 hover:opacity-100"
                                             title={
                                                 isVisible
@@ -333,16 +405,16 @@ export default function DebugInfoPanel({
                                 <div className="mt-1 text-xs text-gray-400">
                                     ...and {boxMeshGroup.children.length - 5}{' '}
                                     more boxes
-                                    {selectedBoxIndex !== null &&
-                                        selectedBoxIndex >= 5 && (
-                                            <span className="text-orange-400">
-                                                {' '}
-                                                (including selected box #
-                                                {selectedBoxIndex + 1})
-                                            </span>
-                                        )}
+                                    {selectedCount > 0 && (
+                                        <span className="ml-1 text-orange-400">
+                                            (including {selectedBoxIndices.size}{' '}
+                                            selected)
+                                        </span>
+                                    )}
                                     {hiddenBoxCount > 0 && (
-                                        <span> ({hiddenBoxCount} hidden)</span>
+                                        <span className="ml-1">
+                                            ({hiddenBoxCount} hidden)
+                                        </span>
                                     )}
                                 </div>
                             )}
@@ -379,6 +451,23 @@ export default function DebugInfoPanel({
                             ))}
                             {boxDepths.length > 5 && <span>...</span>}
                         </div>
+                    </div>
+                </div>
+
+                {/* Keyboard shortcuts help */}
+                <div className="col-span-2 mt-2 border-t border-gray-600 pt-2 text-xs">
+                    <div className="mb-1 font-semibold">
+                        Keyboard Shortcuts:
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                        <div className="text-gray-400">Cmd/Ctrl+Click:</div>
+                        <div>Multi-select boxes</div>
+
+                        <div className="text-gray-400">Delete/Backspace:</div>
+                        <div>Toggle visibility of selected</div>
+
+                        <div className="text-gray-400">Escape:</div>
+                        <div>Clear selection</div>
                     </div>
                 </div>
             </div>

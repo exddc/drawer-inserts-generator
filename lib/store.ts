@@ -26,6 +26,7 @@ export interface BoxState {
     showGrid: boolean
     showAxes: boolean
     selectedBoxIndex: number | null
+    selectedBoxIndices: Set<number>
     hiddenBoxes: Set<number>
 
     // Export options
@@ -48,8 +49,12 @@ export interface BoxState {
     setShowAxes: (show: boolean) => void
     setUniqueBoxesExport: (uniqueExport: boolean) => void
     setSelectedBoxIndex: (index: number | null) => void
+    toggleBoxSelection: (index: number, isMultiSelect: boolean) => void
+    clearSelectedBoxes: () => void
     toggleBoxVisibility: (index: number) => void
+    toggleSelectedBoxesVisibility: () => void
     isBoxVisible: (index: number) => boolean
+    isBoxSelected: (index: number) => boolean
     updateInput: (name: string, value: number | boolean) => void
     loadFromUrl: () => void
     shareConfiguration: () => Promise<boolean>
@@ -128,6 +133,7 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         defaultValues.useMultipleBoxes
     ),
     hiddenBoxes: new Set<number>(),
+    selectedBoxIndices: new Set<number>(),
 
     setWidth: (width: number) => {
         const { minBoxWidth, maxBoxWidth, useMultipleBoxes } = get()
@@ -263,6 +269,7 @@ export const useBoxStore = create<BoxState>((set, get) => ({
                 useMultipleBoxes
             ),
             selectedBoxIndex: null,
+            selectedBoxIndices: new Set<number>(),
             hiddenBoxes: new Set<number>(),
         })
     },
@@ -271,6 +278,7 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         debugMode,
         // Reset selected box when debug mode is turned off
         selectedBoxIndex: debugMode ? get().selectedBoxIndex : null,
+        selectedBoxIndices: debugMode ? get().selectedBoxIndices : new Set<number>(),
     }),
 
     setShowGrid: (showGrid: boolean) => set({ showGrid }),
@@ -280,7 +288,58 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     setUniqueBoxesExport: (uniqueBoxesExport: boolean) =>
         set({ uniqueBoxesExport }),
         
-    setSelectedBoxIndex: (selectedBoxIndex: number | null) => set({ selectedBoxIndex }),
+    setSelectedBoxIndex: (selectedBoxIndex: number | null) => set({ 
+        selectedBoxIndex,
+        selectedBoxIndices: selectedBoxIndex !== null 
+            ? new Set([selectedBoxIndex]) 
+            : new Set<number>()
+    }),
+    
+    toggleBoxSelection: (index: number, isMultiSelect: boolean) => {
+        const selectedBoxIndices = new Set(get().selectedBoxIndices);
+        
+        if (!isMultiSelect) {
+            selectedBoxIndices.clear();
+            selectedBoxIndices.add(index);
+            set({ 
+                selectedBoxIndices,
+                selectedBoxIndex: index
+            });
+        } else {
+            if (selectedBoxIndices.has(index)) {
+                selectedBoxIndices.delete(index);
+                
+                if (get().selectedBoxIndex === index) {
+                    const nextSelected = selectedBoxIndices.size > 0 
+                        ? selectedBoxIndices.values().next().value 
+                        : null;
+                    set({
+                        selectedBoxIndices,
+                        selectedBoxIndex: nextSelected
+                    });
+                } else {
+                    set({ selectedBoxIndices });
+                }
+            } else {
+                selectedBoxIndices.add(index);
+                if (get().selectedBoxIndex === null) {
+                    set({
+                        selectedBoxIndices,
+                        selectedBoxIndex: index
+                    });
+                } else {
+                    set({ selectedBoxIndices });
+                }
+            }
+        }
+    },
+    
+    clearSelectedBoxes: () => {
+        set({ 
+            selectedBoxIndices: new Set<number>(),
+            selectedBoxIndex: null
+        });
+    },
     
     toggleBoxVisibility: (index: number) => {
         const hiddenBoxes = new Set(get().hiddenBoxes);
@@ -293,9 +352,33 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         
         set({ hiddenBoxes });
     },
+
+    toggleSelectedBoxesVisibility: () => {
+        const { selectedBoxIndices, hiddenBoxes } = get();
+        const newHiddenBoxes = new Set(hiddenBoxes);
+        const anyVisible = Array.from(selectedBoxIndices).some(idx => !hiddenBoxes.has(idx));
+        
+        if (anyVisible) {
+            // Hide all selected boxes
+            selectedBoxIndices.forEach(idx => {
+                newHiddenBoxes.add(idx);
+            });
+        } else {
+            // Show all selected boxes
+            selectedBoxIndices.forEach(idx => {
+                newHiddenBoxes.delete(idx);
+            });
+        }
+        
+        set({ hiddenBoxes: newHiddenBoxes });
+    },
     
     isBoxVisible: (index: number) => {
         return !get().hiddenBoxes.has(index);
+    },
+    
+    isBoxSelected: (index: number) => {
+        return get().selectedBoxIndices.has(index);
     },
 
     updateInput: (name: string, value: number | boolean) => {
