@@ -17,24 +17,6 @@ import {
 import { useBoxStore } from '@/lib/store'
 import { ChevronsUpDown, InfoIcon } from 'lucide-react'
 
-export interface FormInputs {
-    width: number
-    depth: number
-    height: number
-    wallThickness: number
-    cornerRadius: number
-    hasBottom: boolean
-    minBoxWidth: number
-    maxBoxWidth: number
-    minBoxDepth: number
-    maxBoxDepth: number
-    useMultipleBoxes: boolean
-    debugMode: boolean
-    uniqueBoxesExport: boolean
-    showGrid: boolean
-    showAxes: boolean
-}
-
 export default function ModelSettings() {
     const {
         width,
