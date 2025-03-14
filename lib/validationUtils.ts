@@ -1,4 +1,4 @@
-import { FormInputs } from '@/components/ConfigSidebar'
+import { FormInputs } from '@/lib/exportUtils'
 
 export interface InputConstraint {
     min: number

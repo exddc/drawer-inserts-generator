@@ -1,7 +1,24 @@
 import * as THREE from 'three'
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js'
-import { FormInputs } from '@/components/ConfigSidebar'
+
+export interface FormInputs {
+    width: number
+    depth: number
+    height: number
+    wallThickness: number
+    cornerRadius: number
+    hasBottom: boolean
+    minBoxWidth: number
+    maxBoxWidth: number
+    minBoxDepth: number
+    maxBoxDepth: number
+    useMultipleBoxes: boolean
+    debugMode: boolean
+    uniqueBoxesExport: boolean
+    showGrid: boolean
+    showAxes: boolean
+}
 
 /**
  * Generate a unique key for a box based on its dimensions

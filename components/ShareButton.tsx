@@ -42,7 +42,7 @@ export default function ShareButton() {
             variant="outline"
             size="sm"
             className={cn(
-                'mt-2 flex w-full items-center gap-2',
+                'flex w-full items-center gap-2',
                 copied &&
                     'bg-green-600 text-white transition-all duration-300 hover:bg-green-600 hover:text-white'
             )}
