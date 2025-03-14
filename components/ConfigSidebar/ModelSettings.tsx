@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/collapsible'
 
 import { useBoxStore } from '@/lib/store'
-import { ChevronsUpDown } from 'lucide-react'
+import { ChevronsUpDown, InfoIcon } from 'lucide-react'
 
 export interface FormInputs {
     width: number
@@ -51,6 +51,7 @@ export default function ModelSettings() {
         boxWidths,
         boxDepths,
         updateInput,
+        uniqueBoxesExport,
     } = useBoxStore()
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,6 +62,10 @@ export default function ModelSettings() {
         } else {
             updateInput(name, parseFloat(value))
         }
+    }
+
+    const handleUniqueBoxesExportChange = (checked: boolean) => {
+        updateInput('uniqueBoxesExport', checked)
     }
 
     // Generic Checkbox change handler
@@ -284,6 +289,30 @@ export default function ModelSettings() {
                             Split into grid of boxes
                         </Label>
                     </div>
+
+                    {useMultipleBoxes && (
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="uniqueBoxesExport"
+                                checked={uniqueBoxesExport}
+                                onCheckedChange={handleUniqueBoxesExportChange}
+                            />
+                            <Label htmlFor="uniqueBoxesExport">
+                                Only export unique boxes
+                            </Label>
+                        </div>
+                    )}
+
+                    {uniqueBoxesExport && (
+                        <div className="text-muted-foreground mb-2 flex items-center space-x-4 text-xs">
+                            <InfoIcon className="h-6 w-6" />
+                            <p>
+                                STL files don't support multiple separate
+                                objects. Use the ZIP option to keep objects
+                                separate.
+                            </p>
+                        </div>
+                    )}
                 </CollapsibleContent>
             </Collapsible>
 

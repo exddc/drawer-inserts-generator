@@ -10,7 +10,8 @@ import {
 import DebugInfoPanel from '@/components/DebugInfoPanel'
 import { useBoxStore } from '@/lib/store'
 import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
-import ConfigSidebarWrapper from '@/components/ConfigSidebarWrapper'
+import ConfigSidebar from '@/components/ConfigSidebar'
+import Header from '@/components/Header'
 
 export default function Home() {
     const {
@@ -329,42 +330,45 @@ export default function Home() {
     ])
 
     return (
-        <div className="bg-background flex h-full flex-col">
-            <div className="flex flex-grow flex-col overflow-hidden">
-                <ResizablePanelGroup direction="horizontal" className="h-full">
-                    {/* Settings Panel */}
-                    <ResizablePanel
-                        defaultSize={20}
-                        minSize={15}
-                        maxSize={30}
-                        className="flex flex-col"
+        <div className="flex h-full flex-col overflow-hidden">
+            <Header sceneRef={sceneRef} boxMeshGroupRef={boxMeshGroupRef} />
+            <div className="bg-background flex h-full flex-col">
+                <div className="flex flex-grow flex-col overflow-hidden">
+                    <ResizablePanelGroup
+                        direction="horizontal"
+                        className="h-full"
                     >
-                        <div className="flex-grow overflow-auto">
-                            <ConfigSidebarWrapper
-                                sceneRef={sceneRef}
-                                boxMeshGroupRef={boxMeshGroupRef}
-                            />
-                        </div>
-                    </ResizablePanel>
+                        {/* Settings Panel */}
+                        <ResizablePanel
+                            defaultSize={20}
+                            minSize={15}
+                            maxSize={30}
+                            className="flex flex-col"
+                        >
+                            <div className="flex-grow overflow-auto">
+                                <ConfigSidebar />
+                            </div>
+                        </ResizablePanel>
 
-                    <ResizableHandle withHandle />
+                        <ResizableHandle withHandle />
 
-                    {/* 3D Preview */}
-                    <ResizablePanel defaultSize={80} className="h-full">
-                        <div
-                            ref={containerRef}
-                            className="relative h-full w-full"
-                        ></div>
-                    </ResizablePanel>
-                </ResizablePanelGroup>
+                        {/* 3D Preview */}
+                        <ResizablePanel defaultSize={80} className="h-full">
+                            <div
+                                ref={containerRef}
+                                className="relative h-full w-full"
+                            ></div>
+                        </ResizablePanel>
+                    </ResizablePanelGroup>
+                </div>
+
+                <DebugInfoPanel
+                    renderer={rendererRef.current}
+                    scene={sceneRef.current}
+                    boxMeshGroup={boxMeshGroupRef.current}
+                    enabled={debugMode}
+                />
             </div>
-
-            <DebugInfoPanel
-                renderer={rendererRef.current}
-                scene={sceneRef.current}
-                boxMeshGroup={boxMeshGroupRef.current}
-                enabled={debugMode}
-            />
         </div>
     )
 }
