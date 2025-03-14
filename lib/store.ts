@@ -28,6 +28,10 @@ export interface BoxState {
     selectedBoxIndex: number | null
     selectedBoxIndices: Set<number>
     hiddenBoxes: Set<number>
+    
+    // Color settings
+    boxColor: string
+    highlightColor: string
 
     // Export options
     uniqueBoxesExport: boolean
@@ -55,7 +59,11 @@ export interface BoxState {
     toggleSelectedBoxesVisibility: () => void
     isBoxVisible: (index: number) => boolean
     isBoxSelected: (index: number) => boolean
-    updateInput: (name: string, value: number | boolean) => void
+    updateInput: (name: string, value: number | boolean | string) => void
+    setBoxColor: (color: string) => void
+    setHighlightColor: (color: string) => void
+    getBoxHexColor: () => number
+    getHighlightHexColor: () => number
     loadFromUrl: () => void
     shareConfiguration: () => Promise<boolean>
 }
@@ -116,6 +124,8 @@ const defaultValues = {
     showGrid: true,
     showAxes: false,
     selectedBoxIndex: null,
+    boxColor: '#7a9cbf',
+    highlightColor: '#f59e0b',
 }
 
 export const useBoxStore = create<BoxState>((set, get) => ({
@@ -274,6 +284,26 @@ export const useBoxStore = create<BoxState>((set, get) => ({
         })
     },
 
+    setBoxColor: (color: string) => {
+        set({ boxColor: color })
+    },
+    
+    setHighlightColor: (color: string) => {
+        set({ highlightColor: color })
+    },
+    
+    // Convert hex color string to THREE.js hex format (number)
+    getBoxHexColor: () => {
+        const color = get().boxColor.replace('#', '0x')
+        return parseInt(color, 16)
+    },
+    
+    // Convert highlight hex color string to THREE.js hex format (number)
+    getHighlightHexColor: () => {
+        const color = get().highlightColor.replace('#', '0x')
+        return parseInt(color, 16)
+    },
+
     setDebugMode: (debugMode: boolean) => set({ 
         debugMode,
         // Reset selected box when debug mode is turned off
@@ -380,8 +410,8 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     isBoxSelected: (index: number) => {
         return get().selectedBoxIndices.has(index);
     },
-
-    updateInput: (name: string, value: number | boolean) => {
+    
+    updateInput: (name: string, value: number | boolean | string) => {
         const state = get()
 
         switch (name) {
@@ -429,6 +459,12 @@ export const useBoxStore = create<BoxState>((set, get) => ({
                 break
             case 'showAxes':
                 state.setShowAxes(value as boolean)
+                break
+            case 'boxColor':
+                state.setBoxColor(value as string)
+                break
+            case 'highlightColor':
+                state.setHighlightColor(value as string)
                 break
             default:
                 set({ [name]: value } as any)

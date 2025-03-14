@@ -1,16 +1,33 @@
 'use client'
+import { useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TabsContent } from '@/components/ui/tabs'
-
+import { ColorPicker } from '@/components/ColorPicker'
 import { useBoxStore } from '@/lib/store'
 
 export default function GeneralSettings() {
-    const { debugMode, updateInput, showGrid, showAxes } = useBoxStore()
+    const {
+        debugMode,
+        updateInput,
+        showGrid,
+        showAxes,
+        boxColor,
+        highlightColor,
+    } = useBoxStore()
 
     // Generic Checkbox change handler
     const handleCheckboxChange = (name: string, checked: boolean) => {
         updateInput(name, checked)
+    }
+
+    // Handle color changes
+    const handleBoxColorChange = (newColor: string) => {
+        updateInput('boxColor', newColor)
+    }
+
+    const handleHighlightColorChange = (newColor: string) => {
+        updateInput('highlightColor', newColor)
     }
 
     return (
@@ -60,6 +77,20 @@ export default function GeneralSettings() {
                     Click on any box to see its details
                 </div>
             )}
+
+            <h3 className="mb-3 font-medium">Color Options</h3>
+            <div className="flex items-center space-x-2">
+                <ColorPicker color={boxColor} onChange={handleBoxColorChange} />
+                <Label>Model Color</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+                <ColorPicker
+                    color={highlightColor}
+                    onChange={handleHighlightColorChange}
+                    defaultColor="#f59e0b"
+                />
+                <Label>Highlight Color</Label>
+            </div>
         </TabsContent>
     )
 }

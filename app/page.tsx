@@ -33,6 +33,8 @@ export default function Home() {
         clearSelectedBoxes,
         hiddenBoxes,
         toggleSelectedBoxesVisibility,
+        getBoxHexColor,
+        getHighlightHexColor,
     } = useBoxStore()
 
     const containerRef = useRef<HTMLDivElement>(null)
@@ -156,6 +158,8 @@ export default function Home() {
             selectedBoxIndex,
             selectedBoxIndices,
             hiddenBoxes,
+            boxColor: getBoxHexColor(),
+            highlightColor: getHighlightHexColor(),
         })
 
         return () => {
@@ -183,6 +187,8 @@ export default function Home() {
                 selectedBoxIndex,
                 selectedBoxIndices,
                 hiddenBoxes,
+                boxColor: getBoxHexColor(),
+                highlightColor: getHighlightHexColor(),
             })
         }
     }, [
@@ -197,6 +203,10 @@ export default function Home() {
         selectedBoxIndex,
         selectedBoxIndices,
         hiddenBoxes,
+        getBoxHexColor,
+        getHighlightHexColor,
+        useBoxStore((state) => state.boxColor),
+        useBoxStore((state) => state.highlightColor),
     ])
 
     // Toggle grid visibility

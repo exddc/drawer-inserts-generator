@@ -12,6 +12,8 @@ interface BoxModelParams {
     selectedBoxIndex?: number | null
     selectedBoxIndices?: Set<number>
     hiddenBoxes?: Set<number>
+    boxColor?: number
+    highlightColor?: number
 }
 
 /**
@@ -33,6 +35,8 @@ export function createBoxModel(
         selectedBoxIndex,
         selectedBoxIndices = new Set<number>(),
         hiddenBoxes = new Set<number>(),
+        boxColor,
+        highlightColor
     } = params
 
     while (boxMeshGroup.children.length > 0) {
@@ -96,6 +100,8 @@ export function createBoxModel(
                 cornerRadius,
                 hasBottom,
                 isSelected,
+                boxColor,
+                highlightColor
             })
 
             box.userData = {
