@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import {
@@ -7,8 +7,6 @@ import {
     ResizablePanel,
     ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { getBoxInfoFromObject } from '@/lib/boxUtils'
-import ConfigSidebar from '@/components/ConfigSidebar'
 import DebugInfoPanel from '@/components/DebugInfoPanel'
 import { useBoxStore } from '@/lib/store'
 import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
@@ -28,6 +26,12 @@ export default function Home() {
         boxWidths,
         boxDepths,
         loadFromUrl,
+        selectedBoxIndex,
+        selectedBoxIndices,
+        toggleBoxSelection,
+        clearSelectedBoxes,
+        hiddenBoxes,
+        toggleSelectedBoxesVisibility,
     } = useBoxStore()
 
     const containerRef = useRef<HTMLDivElement>(null)
@@ -38,7 +42,6 @@ export default function Home() {
     const boxMeshGroupRef = useRef<THREE.Group | null>(null)
     const gridHelperRef = useRef<THREE.GridHelper | null>(null)
     const axesHelperRef = useRef<THREE.AxesHelper | null>(null)
-    const tooltipRef = useRef<HTMLDivElement | null>(null)
     const raycasterRef = useRef<THREE.Raycaster | null>(null)
     const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2())
 
@@ -111,12 +114,6 @@ export default function Home() {
 
         raycasterRef.current = new THREE.Raycaster()
 
-        const tooltip = document.createElement('div')
-        tooltip.className =
-            'fixed hidden p-2 bg-black/80 text-white text-xs rounded pointer-events-none z-50'
-        document.body.appendChild(tooltip)
-        tooltipRef.current = tooltip
-
         const animate = () => {
             requestAnimationFrame(animate)
             if (controlsRef.current) controlsRef.current.update()
@@ -155,15 +152,15 @@ export default function Home() {
             wallThickness,
             cornerRadius,
             hasBottom,
+            selectedBoxIndex,
+            selectedBoxIndices,
+            hiddenBoxes,
         })
 
         return () => {
             window.removeEventListener('resize', handleResize)
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement)
-            }
-            if (tooltipRef.current) {
-                document.body.removeChild(tooltipRef.current)
             }
         }
     }, [])
@@ -182,6 +179,9 @@ export default function Home() {
                 wallThickness,
                 cornerRadius,
                 hasBottom,
+                selectedBoxIndex,
+                selectedBoxIndices,
+                hiddenBoxes,
             })
         }
     }, [
@@ -193,6 +193,9 @@ export default function Home() {
         hasBottom,
         boxWidths,
         boxDepths,
+        selectedBoxIndex,
+        selectedBoxIndices,
+        hiddenBoxes,
     ])
 
     // Toggle grid visibility
@@ -243,7 +246,7 @@ export default function Home() {
                 !raycasterRef.current ||
                 !sceneRef.current ||
                 !cameraRef.current ||
-                !tooltipRef.current
+                !boxMeshGroupRef.current
             )
                 return
 
@@ -253,9 +256,12 @@ export default function Home() {
             )
 
             const intersects = raycasterRef.current.intersectObjects(
-                boxMeshGroupRef.current?.children || [],
+                boxMeshGroupRef.current.children || [],
                 true
             )
+
+            // metaKey is Cmd on Mac, Ctrl on Windows
+            const isMultiSelect = event.metaKey || event.ctrlKey
 
             if (intersects.length > 0) {
                 const object = intersects[0].object
@@ -268,33 +274,40 @@ export default function Home() {
                     boxObject = boxObject.parent
                 }
 
-                const boxInfo = getBoxInfoFromObject(boxObject)
+                // Find box index in the group
+                const boxIndex = boxMeshGroupRef.current.children.findIndex(
+                    (child) => child === boxObject
+                )
 
-                // Show tooltip with box info
-                tooltipRef.current.innerHTML = `
-                    <div><strong>Box Info:</strong></div>
-                    <div>Position: X: ${boxInfo.position.x.toFixed(
-                        2
-                    )}, Y: ${boxInfo.position.y.toFixed(
-                        2
-                    )}, Z: ${boxInfo.position.z.toFixed(2)}</div>
-                    <div>Width: ${boxInfo.width.toFixed(2)}</div>
-                    <div>Depth: ${boxInfo.depth.toFixed(2)}</div>
-                    <div>Height: ${boxInfo.height.toFixed(2)}</div>
-                    <div>Wall Thickness: ${wallThickness}</div>
-                `
-
-                // Position the tooltip near the mouse
-                tooltipRef.current.style.left = `${event.clientX + 10}px`
-                tooltipRef.current.style.top = `${event.clientY + 10}px`
-                tooltipRef.current.classList.remove('hidden')
+                // Handle selection with multi-select capability
+                toggleBoxSelection(boxIndex, isMultiSelect)
             } else {
-                tooltipRef.current.classList.add('hidden')
+                // Only clear selection if not multi-selecting
+                if (!isMultiSelect) {
+                    clearSelectedBoxes()
+                }
             }
         }
 
         containerRef.current.addEventListener('mousemove', handleMouseMove)
         containerRef.current.addEventListener('click', handleClick)
+
+        // Handle keyboard shortcuts for selection
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Escape key to clear selection
+            if (event.key === 'Escape') {
+                clearSelectedBoxes()
+            }
+
+            // 'h' key to toggle visibility of selected boxes
+            if (event.key === 'h' || event.key === 'H') {
+                if (selectedBoxIndices.size > 0) {
+                    toggleSelectedBoxesVisibility()
+                }
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
 
         return () => {
             if (containerRef.current) {
@@ -305,11 +318,15 @@ export default function Home() {
                 containerRef.current.removeEventListener('click', handleClick)
             }
 
-            if (tooltipRef.current) {
-                tooltipRef.current.classList.add('hidden')
-            }
+            window.removeEventListener('keydown', handleKeyDown)
         }
-    }, [debugMode, wallThickness])
+    }, [
+        debugMode,
+        toggleBoxSelection,
+        clearSelectedBoxes,
+        toggleSelectedBoxesVisibility,
+        selectedBoxIndices,
+    ])
 
     return (
         <div className="bg-background flex h-full flex-col">
