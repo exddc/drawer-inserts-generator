@@ -463,7 +463,7 @@ export default function DebugInfoPanel({
                         <div className="text-gray-400">Cmd/Ctrl+Click:</div>
                         <div>Multi-select boxes</div>
 
-                        <div className="text-gray-400">Delete/Backspace:</div>
+                        <div className="text-gray-400">H:</div>
                         <div>Toggle visibility of selected</div>
 
                         <div className="text-gray-400">Escape:</div>
