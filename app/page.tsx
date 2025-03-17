@@ -12,6 +12,7 @@ import { useBoxStore } from '@/lib/store'
 import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
 import ConfigSidebar from '@/components/ConfigSidebar'
 import Header from '@/components/Header'
+import ActionsBar from '@/components/ActionsBar'
 
 export default function Home() {
     const {
@@ -368,6 +369,10 @@ export default function Home() {
                                 ref={containerRef}
                                 className="relative h-full w-full"
                             ></div>
+                            <ActionsBar
+                                camera={cameraRef}
+                                controls={controlsRef}
+                            />
                         </ResizablePanel>
                     </ResizablePanelGroup>
                 </div>
