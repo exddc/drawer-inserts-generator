@@ -28,6 +28,7 @@ export interface BoxState {
     selectedBoxIndex: number | null
     selectedBoxIndices: Set<number>
     hiddenBoxes: Set<number>
+    actionsBarPosition: string
     
     // Color settings
     boxColor: string
@@ -51,6 +52,7 @@ export interface BoxState {
     setDebugMode: (debug: boolean) => void
     setShowGrid: (show: boolean) => void
     setShowAxes: (show: boolean) => void
+    setActionsBarPosition: (position: 'top' | 'bottom') => void
     setUniqueBoxesExport: (uniqueExport: boolean) => void
     setSelectedBoxIndex: (index: number | null) => void
     toggleBoxSelection: (index: number, isMultiSelect: boolean) => void
@@ -126,6 +128,7 @@ const defaultValues = {
     selectedBoxIndex: null,
     boxColor: '#7a9cbf',
     highlightColor: '#f59e0b',
+    actionsBarPosition: 'bottom',
 }
 
 export const useBoxStore = create<BoxState>((set, get) => ({
@@ -314,6 +317,9 @@ export const useBoxStore = create<BoxState>((set, get) => ({
     setShowGrid: (showGrid: boolean) => set({ showGrid }),
 
     setShowAxes: (showAxes: boolean) => set({ showAxes }),
+
+    setActionsBarPosition: (position: 'top' | 'bottom') => 
+        set({ actionsBarPosition: position }),
 
     setUniqueBoxesExport: (uniqueBoxesExport: boolean) =>
         set({ uniqueBoxesExport }),

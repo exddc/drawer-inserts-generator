@@ -5,6 +5,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { TabsContent } from '@/components/ui/tabs'
 import { ColorPicker } from '@/components/ColorPicker'
 import { useBoxStore } from '@/lib/store'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 
 export default function GeneralSettings() {
     const {
@@ -12,6 +19,8 @@ export default function GeneralSettings() {
         updateInput,
         showGrid,
         showAxes,
+        actionsBarPosition,
+        setActionsBarPosition,
         boxColor,
         highlightColor,
     } = useBoxStore()
@@ -34,6 +43,24 @@ export default function GeneralSettings() {
         <TabsContent value="generalSettings" className="space-y-4">
             {/* Display options section */}
             <h3 className="mb-3 font-medium">Display Options</h3>
+
+            <div className="mb-4 space-y-2">
+                <Label htmlFor="actionsBarPosition">Actions Bar Position</Label>
+                <Select
+                    value={actionsBarPosition}
+                    onValueChange={(value) =>
+                        setActionsBarPosition(value as 'top' | 'bottom')
+                    }
+                >
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="top">Top</SelectItem>
+                        <SelectItem value="bottom">Bottom</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
 
             <div className="mb-2 flex items-center space-x-2">
                 <Checkbox
