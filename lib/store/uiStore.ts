@@ -10,6 +10,7 @@ export const uiDefaults = {
   boxColor: '#7a9cbf',
   highlightColor: '#f59e0b',
   actionsBarPosition: 'bottom',
+  combinedBoxes: new Map<number, number[]>(),
 }
 
 // UI state interface
@@ -24,6 +25,9 @@ export interface UIState {
   selectedBoxIndex: number | null
   selectedBoxIndices: Set<number>
   hiddenBoxes: Set<number>
+  
+  // Combined boxes tracking (primary box index -> array of secondary box indexes)
+  combinedBoxes: Map<number, number[]>
   
   // Color settings
   boxColor: string
@@ -46,6 +50,14 @@ export interface UIState {
   getBoxHexColor: () => number
   getHighlightHexColor: () => number
   updateUIInput: (name: string, value: number | boolean | string) => void
+  
+  // Box combining actions
+  canCombineSelectedBoxes: () => boolean
+  combineSelectedBoxes: () => void
+  isCombinedBox: (index: number) => boolean
+  isPrimaryBox: (index: number) => boolean
+  getCombinedBoxIndices: (index: number) => number[]
+  resetCombinedBoxes: () => void
 }
 
 // Create UI store slice
@@ -59,6 +71,7 @@ export const createUISlice: StateCreator<
   ...uiDefaults,
   hiddenBoxes: new Set<number>(),
   selectedBoxIndices: new Set<number>(),
+  combinedBoxes: new Map<number, number[]>(),
 
   // UI setting actions
   setDebugMode: (debugMode: boolean) => set({ 
@@ -152,16 +165,62 @@ export const createUISlice: StateCreator<
   
   // Visibility actions
   toggleBoxVisibility: (index: number) => {
-    const hiddenBoxes = new Set(get().hiddenBoxes);
+    const { hiddenBoxes, combinedBoxes } = get();
+    const newHiddenBoxes = new Set(hiddenBoxes);
     
-    if (hiddenBoxes.has(index)) {
-      hiddenBoxes.delete(index);
+    // If this is a primary box in a combined group, toggle visibility for all boxes in the group
+    if (combinedBoxes.has(index)) {
+        const secondaryIndices = combinedBoxes.get(index) || [];
+        const allIndices = [index, ...secondaryIndices];
+        
+        const currentlyHidden = hiddenBoxes.has(index);
+        
+        if (currentlyHidden) {
+            // Show all boxes in the group
+            allIndices.forEach(idx => newHiddenBoxes.delete(idx));
+        } else {
+            // Hide all boxes in the group
+            allIndices.forEach(idx => newHiddenBoxes.add(idx));
+        }
     } else {
-      hiddenBoxes.add(index);
+        // Check if this box is part of a combined group (as a secondary box)
+        let isSecondary = false;
+        let primaryIndex = -1;
+        
+        for (const [primary, secondaries] of combinedBoxes.entries()) {
+            if (secondaries.includes(index)) {
+                isSecondary = true;
+                primaryIndex = primary;
+                break;
+            }
+        }
+        
+        if (isSecondary && primaryIndex !== -1) {
+            // Toggle visibility for the entire combined group
+            const secondaries = combinedBoxes.get(primaryIndex) || [];
+            const allIndices = [primaryIndex, ...secondaries];
+            
+            const currentlyHidden = hiddenBoxes.has(primaryIndex);
+            
+            if (currentlyHidden) {
+                // Show all boxes in the group
+                allIndices.forEach(idx => newHiddenBoxes.delete(idx));
+            } else {
+                // Hide all boxes in the group
+                allIndices.forEach(idx => newHiddenBoxes.add(idx));
+            }
+        } else {
+            // Regular box, just toggle its visibility
+            if (hiddenBoxes.has(index)) {
+                newHiddenBoxes.delete(index);
+            } else {
+                newHiddenBoxes.add(index);
+            }
+        }
     }
     
-    set({ hiddenBoxes });
-  },
+    set({ hiddenBoxes: newHiddenBoxes });
+},
 
   toggleSelectedBoxesVisibility: () => {
     const { selectedBoxIndices, hiddenBoxes } = get();
@@ -214,5 +273,105 @@ export const createUISlice: StateCreator<
       default:
         set({ [name]: value } as any)
     }
+  },
+  
+  // Box combining methods
+  canCombineSelectedBoxes: () => {
+    const { selectedBoxIndices, boxWidths, boxDepths } = get();
+    const indices = Array.from(selectedBoxIndices);
+    
+    // Need at least 2 boxes to combine
+    if (indices.length < 2) return false;
+    
+    // For now, we'll focus on combining boxes along the width
+    // We need to check if the boxes are adjacent along the width
+    
+    // First, convert indices to grid positions (row, column)
+    const boxGrid = [];
+    const numCols = boxWidths.length;
+    
+    for (const index of indices) {
+      const row = Math.floor(index / numCols);
+      const col = index % numCols;
+      boxGrid.push({ index, row, col });
+    }
+    
+    // Sort boxes by row, then column
+    boxGrid.sort((a, b) => {
+      if (a.row !== b.row) return a.row - b.row;
+      return a.col - b.col;
+    });
+    
+    // For now, we only support boxes in the same row
+    const firstRow = boxGrid[0].row;
+    const sameRow = boxGrid.every(box => box.row === firstRow);
+    
+    if (!sameRow) return false;
+    
+    // Check if boxes are adjacent
+    for (let i = 1; i < boxGrid.length; i++) {
+      if (boxGrid[i].col !== boxGrid[i-1].col + 1) {
+        return false;
+      }
+    }
+    
+    return true;
+  },
+  
+  combineSelectedBoxes: () => {
+    const { selectedBoxIndices, canCombineSelectedBoxes, combinedBoxes, boxWidths } = get();
+    
+    if (!canCombineSelectedBoxes()) return;
+    
+    const indices = Array.from(selectedBoxIndices).sort((a, b) => {
+      const numCols = boxWidths.length;
+      const rowA = Math.floor(a / numCols);
+      const colA = a % numCols;
+      const rowB = Math.floor(b / numCols);
+      const colB = b % numCols;
+      
+      if (rowA !== rowB) return rowA - rowB;
+      return colA - colB;
+    });
+    
+    const primaryBoxIndex = indices[0]; // Use the first (leftmost) box as the primary
+    const secondaryIndices = indices.slice(1);
+    
+    // Record the boxes being combined
+    combinedBoxes.set(primaryBoxIndex, secondaryIndices);
+    
+    // Update the state
+    set({ 
+      combinedBoxes: new Map(combinedBoxes),
+      selectedBoxIndices: new Set([primaryBoxIndex]),
+      selectedBoxIndex: primaryBoxIndex
+    });
+  },
+  
+  isCombinedBox: (index: number) => {
+    const { combinedBoxes } = get();
+    
+    for (const [_, combinedIndices] of combinedBoxes.entries()) {
+      if (combinedIndices.includes(index)) {
+        return true;
+      }
+    }
+    
+    return false;
+  },
+  
+  isPrimaryBox: (index: number) => {
+    const { combinedBoxes } = get();
+    return combinedBoxes.has(index);
+  },
+  
+  getCombinedBoxIndices: (primaryIndex: number) => {
+    const { combinedBoxes } = get();
+    const combined = combinedBoxes.get(primaryIndex);
+    return combined ? [primaryIndex, ...combined] : [primaryIndex];
+  },
+  
+  resetCombinedBoxes: () => {
+    set({ combinedBoxes: new Map() });
   },
 })

@@ -36,6 +36,11 @@ export default function Home() {
         toggleSelectedBoxesVisibility,
         getBoxHexColor,
         getHighlightHexColor,
+        canCombineSelectedBoxes,
+        combineSelectedBoxes,
+        isPrimaryBox,
+        resetCombinedBoxes,
+        combinedBoxes,
     } = useBoxStore()
 
     const containerRef = useRef<HTMLDivElement>(null)
@@ -190,6 +195,7 @@ export default function Home() {
                 hiddenBoxes,
                 boxColor: getBoxHexColor(),
                 highlightColor: getHighlightHexColor(),
+                combinedBoxes, // Added combinedBoxes parameter
             })
         }
     }, [
@@ -208,6 +214,7 @@ export default function Home() {
         getHighlightHexColor,
         useBoxStore((state) => state.boxColor),
         useBoxStore((state) => state.highlightColor),
+        useBoxStore((state) => state.combinedBoxes), // Added combinedBoxes dependency
     ])
 
     // Toggle grid visibility
@@ -232,7 +239,7 @@ export default function Home() {
     }, [debugMode])
 
     useEffect(() => {
-        if (!containerRef.current || !debugMode) return
+        if (!containerRef.current) return
 
         const handleMouseMove = (event: MouseEvent) => {
             if (!containerRef.current) return
@@ -287,12 +294,18 @@ export default function Home() {
                 }
 
                 // Find box index in the group
-                const boxIndex = boxMeshGroupRef.current.children.findIndex(
-                    (child) => child === boxObject
-                )
+                const boxIndex =
+                    boxMeshGroupRef.current.children.indexOf(boxObject)
 
-                // Handle selection with multi-select capability
-                toggleBoxSelection(boxIndex, isMultiSelect)
+                if (boxIndex !== -1) {
+                    // Get the actual index from userData
+                    const actualIndex = boxObject.userData?.dimensions?.index
+
+                    if (actualIndex !== undefined) {
+                        // Handle selection with multi-select capability
+                        toggleBoxSelection(actualIndex, isMultiSelect)
+                    }
+                }
             } else {
                 // Only clear selection if not multi-selecting
                 if (!isMultiSelect) {
@@ -317,6 +330,23 @@ export default function Home() {
                     toggleSelectedBoxesVisibility()
                 }
             }
+
+            // 'c' key to combine selected boxes
+            if (event.key === 'c' && !event.shiftKey) {
+                if (canCombineSelectedBoxes()) {
+                    combineSelectedBoxes()
+                }
+            }
+
+            // 'Shift+C' to split a combined box
+            if (event.key === 'C' || (event.key === 'c' && event.shiftKey)) {
+                if (selectedBoxIndices.size === 1) {
+                    const index = Array.from(selectedBoxIndices)[0]
+                    if (isPrimaryBox(index)) {
+                        resetCombinedBoxes()
+                    }
+                }
+            }
         }
 
         window.addEventListener('keydown', handleKeyDown)
@@ -329,15 +359,17 @@ export default function Home() {
                 )
                 containerRef.current.removeEventListener('click', handleClick)
             }
-
             window.removeEventListener('keydown', handleKeyDown)
         }
     }, [
-        debugMode,
         toggleBoxSelection,
         clearSelectedBoxes,
         toggleSelectedBoxesVisibility,
         selectedBoxIndices,
+        canCombineSelectedBoxes,
+        combineSelectedBoxes,
+        isPrimaryBox,
+        resetCombinedBoxes,
     ])
 
     return (

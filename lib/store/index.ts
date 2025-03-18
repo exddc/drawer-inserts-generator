@@ -5,9 +5,18 @@ import { UIState, createUISlice } from './uiStore'
 
 // Combine the BoxState and UIState interfaces
 export interface StoreState extends BoxState, UIState {
+  // Existing methods
   loadFromUrl: () => void
   shareConfiguration: () => Promise<boolean>
   updateInput: (name: string, value: number | boolean | string) => void
+  
+  // Adding box combining methods to make them available from the store
+  canCombineSelectedBoxes: () => boolean
+  combineSelectedBoxes: () => void
+  isCombinedBox: (index: number) => boolean
+  isPrimaryBox: (index: number) => boolean
+  getCombinedBoxIndices: (index: number) => number[]
+  resetCombinedBoxes: () => void
 }
 
 // Create the combined store with all slices
@@ -59,6 +68,25 @@ export const useBoxStore = create<StoreState>((set, get, store) => ({
     
     // Default case - just set the property
     set({ [name]: value } as any)
+  },
+  
+  // When reset combined boxes, ensure we also reset selection
+  resetCombinedBoxes: () => {
+    const { combinedBoxes, selectedBoxIndices } = get();
+    
+    // If nothing is selected, no need to do anything
+    if (selectedBoxIndices.size === 0) {
+      set({ combinedBoxes: new Map() });
+      return;
+    }
+    
+    // If a combined box is selected, clear selection
+    const newCombinedBoxes = new Map();
+    set({ 
+      combinedBoxes: newCombinedBoxes,
+      selectedBoxIndices: new Set(), 
+      selectedBoxIndex: null 
+    });
   }
 }))
 
