@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand'
-import { StoreState } from './index'
+import { StoreState } from '@/lib/store/index'
+import { CombinedBoxInfo } from '@/lib/types';
 
 // Default values for UI state
 export const uiDefaults = {
@@ -10,7 +11,7 @@ export const uiDefaults = {
   boxColor: '#7a9cbf',
   highlightColor: '#f59e0b',
   actionsBarPosition: 'bottom',
-  combinedBoxes: new Map<number, number[]>(),
+  combinedBoxes: new Map<number, CombinedBoxInfo>(),
 }
 
 // UI state interface
@@ -27,7 +28,7 @@ export interface UIState {
   hiddenBoxes: Set<number>
   
   // Combined boxes tracking (primary box index -> array of secondary box indexes)
-  combinedBoxes: Map<number, number[]>
+  combinedBoxes: Map<number, CombinedBoxInfo>
   
   // Color settings
   boxColor: string
@@ -71,7 +72,7 @@ export const createUISlice: StateCreator<
   ...uiDefaults,
   hiddenBoxes: new Set<number>(),
   selectedBoxIndices: new Set<number>(),
-  combinedBoxes: new Map<number, number[]>(),
+  combinedBoxes: new Map<number, CombinedBoxInfo>(),
 
   // UI setting actions
   setDebugMode: (debugMode: boolean) => set({ 
@@ -283,10 +284,7 @@ export const createUISlice: StateCreator<
     // Need at least 2 boxes to combine
     if (indices.length < 2) return false;
     
-    // For now, we'll focus on combining boxes along the width
-    // We need to check if the boxes are adjacent along the width
-    
-    // First, convert indices to grid positions (row, column)
+    // Convert indices to grid positions (row, column)
     const boxGrid = [];
     const numCols = boxWidths.length;
     
@@ -296,53 +294,93 @@ export const createUISlice: StateCreator<
       boxGrid.push({ index, row, col });
     }
     
-    // Sort boxes by row, then column
-    boxGrid.sort((a, b) => {
-      if (a.row !== b.row) return a.row - b.row;
-      return a.col - b.col;
-    });
-    
-    // For now, we only support boxes in the same row
+    // First check if boxes are in the same row (width combination)
     const firstRow = boxGrid[0].row;
     const sameRow = boxGrid.every(box => box.row === firstRow);
     
-    if (!sameRow) return false;
-    
-    // Check if boxes are adjacent
-    for (let i = 1; i < boxGrid.length; i++) {
-      if (boxGrid[i].col !== boxGrid[i-1].col + 1) {
-        return false;
+    if (sameRow) {
+      // Sort by column for horizontal adjacency check
+      boxGrid.sort((a, b) => a.col - b.col);
+      
+      // Check if boxes are adjacent horizontally
+      for (let i = 1; i < boxGrid.length; i++) {
+        if (boxGrid[i].col !== boxGrid[i-1].col + 1) {
+          return false;
+        }
       }
+      
+      return true;
     }
     
-    return true;
+    // If not same row, check if they're in the same column (depth combination)
+    const firstCol = boxGrid[0].col;
+    const sameCol = boxGrid.every(box => box.col === firstCol);
+    
+    if (sameCol) {
+      // Sort by row for vertical adjacency check
+      boxGrid.sort((a, b) => a.row - b.row);
+      
+      // Check if boxes are adjacent vertically
+      for (let i = 1; i < boxGrid.length; i++) {
+        if (boxGrid[i].row !== boxGrid[i-1].row + 1) {
+          return false;
+        }
+      }
+      
+      return true;
+    }
+    
+    // Neither in same row nor same column
+    return false;
   },
+  
   
   combineSelectedBoxes: () => {
     const { selectedBoxIndices, canCombineSelectedBoxes, combinedBoxes, boxWidths } = get();
     
     if (!canCombineSelectedBoxes()) return;
     
-    const indices = Array.from(selectedBoxIndices).sort((a, b) => {
-      const numCols = boxWidths.length;
-      const rowA = Math.floor(a / numCols);
-      const colA = a % numCols;
-      const rowB = Math.floor(b / numCols);
-      const colB = b % numCols;
-      
-      if (rowA !== rowB) return rowA - rowB;
-      return colA - colB;
+    const indices = Array.from(selectedBoxIndices);
+    const numCols = boxWidths.length;
+    
+    // Convert indices to grid positions
+    const boxGrid = indices.map(index => ({
+      index,
+      row: Math.floor(index / numCols),
+      col: index % numCols
+    }));
+    
+    // Check if boxes are in same row (width combination) or same column (depth combination)
+    const firstRow = boxGrid[0].row;
+    const sameRow = boxGrid.every(box => box.row === firstRow);
+    
+    const firstCol = boxGrid[0].col;
+    const sameCol = boxGrid.every(box => box.col === firstCol);
+    
+    if (sameRow) {
+      // Width combination - sort by column (left to right)
+      boxGrid.sort((a, b) => a.col - b.col);
+    } else if (sameCol) {
+      // Depth combination - sort by row (top to bottom)
+      boxGrid.sort((a, b) => a.row - b.row);
+    }
+    
+    // Use the first (topmost or leftmost) box as primary
+    const primaryBoxIndex = boxGrid[0].index;
+    const secondaryIndices = boxGrid.slice(1).map(box => box.index);
+    
+    // Create a new map to avoid mutation issues
+    const newCombinedBoxes = new Map(combinedBoxes);
+    
+    // Add the new combined box info
+    newCombinedBoxes.set(primaryBoxIndex, {
+      indices: secondaryIndices,
+      direction: sameRow ? 'width' : 'depth'
     });
-    
-    const primaryBoxIndex = indices[0]; // Use the first (leftmost) box as the primary
-    const secondaryIndices = indices.slice(1);
-    
-    // Record the boxes being combined
-    combinedBoxes.set(primaryBoxIndex, secondaryIndices);
     
     // Update the state
     set({ 
-      combinedBoxes: new Map(combinedBoxes),
+      combinedBoxes: newCombinedBoxes,
       selectedBoxIndices: new Set([primaryBoxIndex]),
       selectedBoxIndex: primaryBoxIndex
     });
@@ -351,8 +389,8 @@ export const createUISlice: StateCreator<
   isCombinedBox: (index: number) => {
     const { combinedBoxes } = get();
     
-    for (const [_, combinedIndices] of combinedBoxes.entries()) {
-      if (combinedIndices.includes(index)) {
+    for (const [_, combinedInfo] of combinedBoxes.entries()) {
+      if (combinedInfo.indices.includes(index)) {
         return true;
       }
     }
@@ -368,10 +406,10 @@ export const createUISlice: StateCreator<
   getCombinedBoxIndices: (primaryIndex: number) => {
     const { combinedBoxes } = get();
     const combined = combinedBoxes.get(primaryIndex);
-    return combined ? [primaryIndex, ...combined] : [primaryIndex];
+    return combined ? [primaryIndex, ...combined.indices] : [primaryIndex];
   },
   
   resetCombinedBoxes: () => {
-    set({ combinedBoxes: new Map() });
+    set({ combinedBoxes: new Map<number, CombinedBoxInfo>() });
   },
 })

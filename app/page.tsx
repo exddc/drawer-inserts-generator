@@ -13,6 +13,7 @@ import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
 import ConfigSidebar from '@/components/ConfigSidebar'
 import Header from '@/components/Header'
 import ActionsBar from '@/components/ActionsBar'
+import { CombinedBoxInfo } from '@/lib/types'
 
 export default function Home() {
     const {
@@ -195,7 +196,7 @@ export default function Home() {
                 hiddenBoxes,
                 boxColor: getBoxHexColor(),
                 highlightColor: getHighlightHexColor(),
-                combinedBoxes, // Added combinedBoxes parameter
+                combinedBoxes: combinedBoxes as Map<number, CombinedBoxInfo>,
             })
         }
     }, [
@@ -214,7 +215,7 @@ export default function Home() {
         getHighlightHexColor,
         useBoxStore((state) => state.boxColor),
         useBoxStore((state) => state.highlightColor),
-        useBoxStore((state) => state.combinedBoxes), // Added combinedBoxes dependency
+        combinedBoxes,
     ])
 
     // Toggle grid visibility
