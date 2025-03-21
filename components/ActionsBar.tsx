@@ -15,8 +15,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Camera, Crosshair, Frame, EyeOff, X } from 'lucide-react'
+import { Camera, EyeOff, X, Grid2X2, Box } from 'lucide-react'
 import { useBoxStore } from '@/lib/store'
+import CombineBoxesButton from './CombineBoxesButton'
 
 interface ActionsBarProps {
     camera: React.MutableRefObject<THREE.PerspectiveCamera | null>
@@ -55,7 +56,7 @@ export default function ActionsBar({ camera, controls }: ActionsBarProps) {
         // Set top-down view
         const distance = camera.current.position.length()
         camera.current.position.set(0, 0, distance)
-        camera.current.up.set(0, 1, 0)
+        camera.current.up.set(0, 0, 1)
 
         // Look at center
         controls.current.target.set(0, 0, 0)
@@ -66,7 +67,7 @@ export default function ActionsBar({ camera, controls }: ActionsBarProps) {
 
     return (
         <div
-            className={`fixed ${position === 'top' ? 'top-14' : 'bottom-14'} left-1/2 z-10 -translate-x-1/2 transform`}
+            className={`fixed ${position === 'top' ? 'top-20' : 'bottom-14'} left-1/2 z-10 -translate-x-1/2 transform`}
         >
             <TooltipProvider>
                 <div className="flex rounded-lg border border-neutral-300 bg-white p-1 shadow-md">
@@ -81,11 +82,11 @@ export default function ActionsBar({ camera, controls }: ActionsBarProps) {
                             </MenubarTrigger>
                             <MenubarContent>
                                 <MenubarItem onClick={resetCamera}>
-                                    <Crosshair className="h-4 w-4" />
+                                    <Box className="h-4 w-4" />
                                     <p>Inital View</p>
                                 </MenubarItem>
                                 <MenubarItem onClick={setTopView}>
-                                    <Frame className="h-4 w-4" />
+                                    <Grid2X2 className="h-4 w-4" />
                                     <p>Top View</p>
                                 </MenubarItem>
                             </MenubarContent>
@@ -130,6 +131,11 @@ export default function ActionsBar({ camera, controls }: ActionsBarProps) {
                             <p>Clear Selection (Esc)</p>
                         </TooltipContent>
                     </Tooltip>
+
+                    <div className="mx-1 h-8 w-px self-center bg-gray-300 dark:bg-gray-600" />
+
+                    {/* Add CombineBoxesButton */}
+                    <CombineBoxesButton />
                 </div>
             </TooltipProvider>
         </div>

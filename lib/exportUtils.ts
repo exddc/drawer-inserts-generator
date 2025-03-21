@@ -27,7 +27,14 @@ export interface FormInputs {
  */
 function getBoxKey(box: THREE.Object3D): string {
     if (box.userData && box.userData.dimensions) {
-        const { width, depth, height } = box.userData.dimensions
+        const { width, depth, height, isCombined } = box.userData.dimensions
+        
+        // For combined boxes, use exact dimensions to create the key
+        if (isCombined) {
+            return `combined_${width.toFixed(2)}_${depth.toFixed(2)}_${height.toFixed(2)}`
+        }
+        
+        // For regular boxes, treat boxes with swapped width/depth as the same
         const [smallerDimension, largerDimension] = [width, depth].sort(
             (a, b) => a - b
         )
@@ -157,7 +164,6 @@ export async function exportMultipleSTLs(
     boxWidths: number[],
     boxDepths: number[]
 ): Promise<void> {
-
     try {
         const JSZip = (await import('jszip')).default
         const zip = new JSZip()
@@ -171,6 +177,9 @@ export async function exportMultipleSTLs(
 
         if (inputs.uniqueBoxesExport) {
             boxMeshGroup.children.forEach((box, index) => {
+                // Skip invisible boxes (hidden or secondary combined boxes)
+                if (!box.visible) return;
+                
                 const boxKey = getBoxKey(box)
                 if (boxKey) {
                     if (uniqueBoxes.has(boxKey)) {
@@ -202,11 +211,17 @@ export async function exportMultipleSTLs(
                         boxInfo.box.userData &&
                         boxInfo.box.userData.dimensions
                     ) {
-                        const { width, depth, height } =
-                            boxInfo.box.userData.dimensions
+                        const { width, depth, height, isCombined } = boxInfo.box.userData.dimensions
 
                         let filename
-                        if (boxInfo.count > 1) {
+                        if (isCombined) {
+                            // Use a special prefix for combined boxes
+                            if (boxInfo.count > 1) {
+                                filename = `combined_box_${uniqueIndex}_${width.toFixed(0)}x${depth.toFixed(0)}x${height.toFixed(0)}mm_qty${boxInfo.count}.stl`
+                            } else {
+                                filename = `combined_box_${uniqueIndex}_${width.toFixed(0)}x${depth.toFixed(0)}x${height.toFixed(0)}mm.stl`
+                            }
+                        } else if (boxInfo.count > 1) {
                             filename = `box_${uniqueIndex}_${width.toFixed(0)}x${depth.toFixed(0)}x${height.toFixed(0)}mm_qty${boxInfo.count}.stl`
                         } else {
                             filename = `box_${uniqueIndex}_${width.toFixed(0)}x${depth.toFixed(0)}x${height.toFixed(0)}mm.stl`
@@ -224,6 +239,9 @@ export async function exportMultipleSTLs(
             }
         } else {
             boxMeshGroup.children.forEach((box, index) => {
+                // Skip invisible boxes or boxes that are part of combined ones but not primary
+                if (!box.visible) return;
+                
                 try {
                     const tempScene = new THREE.Scene()
                     const boxClone = box.clone()
@@ -239,14 +257,22 @@ export async function exportMultipleSTLs(
                     let boxWidth = 0
                     let boxDepth = 0
                     let boxHeight = 0
+                    let isCombined = false
 
                     if (box.userData && box.userData.dimensions) {
                         boxWidth = box.userData.dimensions.width || 0
                         boxDepth = box.userData.dimensions.depth || 0
                         boxHeight = box.userData.dimensions.height || 0
+                        isCombined = box.userData.dimensions.isCombined || false
                     }
 
-                    const filename = `box_${index + 1}_${boxWidth.toFixed(0)}x${boxDepth.toFixed(0)}x${boxHeight.toFixed(0)}mm.stl`
+                    let filename
+                    if (isCombined) {
+                        filename = `combined_box_${index + 1}_${boxWidth.toFixed(0)}x${boxDepth.toFixed(0)}x${boxHeight.toFixed(0)}mm.stl`
+                    } else {
+                        filename = `box_${index + 1}_${boxWidth.toFixed(0)}x${boxDepth.toFixed(0)}x${boxHeight.toFixed(0)}mm.stl`
+                    }
+                    
                     zip.file(filename, stlString)
                 } catch (error) {
                     console.error(`Error exporting box ${index}:`, error)
@@ -254,20 +280,31 @@ export async function exportMultipleSTLs(
             })
         }
 
-        // Add a README file to explain the naming convention for unique boxes export
-        if (inputs.uniqueBoxesExport && uniqueBoxes.size > 0) {
-            const totalBoxes = boxMeshGroup.children.length
-            const uniqueBoxCount = uniqueBoxes.size
+        // Add a README file to explain the combined boxes
+        const totalBoxes = boxMeshGroup.children.filter(box => box.visible).length
+        const uniqueBoxCount = uniqueBoxes.size || totalBoxes
+        const hasCombinedBoxes = boxMeshGroup.children.some(box => 
+            box.userData?.dimensions?.isCombined && box.visible
+        )
 
-            const readmeContent = `# Drawer Insert Box Export
+        let readmeContent = `# Drawer Insert Box Export
             
-This ZIP file contains ${uniqueBoxCount} unique box designs out of ${totalBoxes} total boxes.
+This ZIP file contains ${uniqueBoxCount} ${inputs.uniqueBoxesExport ? 'unique ' : ''}box designs.
 
 ## File Naming Convention
-- Files are named: box_[number]_[width]x[depth]x[height]mm_qty[quantity].stl
-- The "qty" suffix indicates how many identical boxes of this dimension you need to print
-- For example, "box_1_100x50x30mm_qty4.stl" means you need to print 4 copies of this box
+- Regular boxes are named: box_[number]_[width]x[depth]x[height]mm.stl
+${inputs.uniqueBoxesExport ? '- The "qty" suffix indicates how many identical boxes of this dimension you need to print\n' : ''}`;
 
+        if (hasCombinedBoxes) {
+            readmeContent += `- Combined boxes (merged from multiple boxes) are named: combined_box_[number]_[width]x[depth]x[height]mm.stl
+
+## Combined Boxes
+This export includes combined boxes that were created by merging adjacent boxes.
+These combined boxes allow for larger storage spaces or irregular shapes.
+`;
+        }
+
+        readmeContent += `
 ## Grid Layout
 - Total grid size: ${boxWidths.length}x${boxDepths.length}
 - Total width: ${inputs.width}mm
@@ -277,10 +314,9 @@ This ZIP file contains ${uniqueBoxCount} unique box designs out of ${totalBoxes}
 
 Thanks for using Box Grid Generator by timoweiss.me!
 Happy printing!
-`
+`;
 
-            zip.file('README.txt', readmeContent)
-        }
+        zip.file('README.txt', readmeContent)
 
         zip.generateAsync({ type: 'blob' }).then((content) => {
             const link = document.createElement('a')

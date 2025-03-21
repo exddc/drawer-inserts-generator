@@ -466,6 +466,12 @@ export default function DebugInfoPanel({
                         <div className="text-gray-400">H:</div>
                         <div>Toggle visibility of selected</div>
 
+                        <div className="text-gray-400">C:</div>
+                        <div>Combine selected boxes</div>
+
+                        <div className="text-gray-400">S:</div>
+                        <div>Split combined box</div>
+
                         <div className="text-gray-400">Escape:</div>
                         <div>Clear selection</div>
                     </div>
