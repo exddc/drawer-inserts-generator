@@ -339,8 +339,8 @@ export default function Home() {
                 }
             }
 
-            // 'Shift+C' to split a combined box
-            if (event.key === 'C' || (event.key === 'c' && event.shiftKey)) {
+            // 's' key to split a combined box (previously 'Shift+C')
+            if (event.key === 's' || event.key === 'S') {
                 if (selectedBoxIndices.size === 1) {
                     const index = Array.from(selectedBoxIndices)[0]
                     if (isPrimaryBox(index)) {

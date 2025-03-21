@@ -171,25 +171,28 @@ export const createUISlice: StateCreator<
     
     // If this is a primary box in a combined group, toggle visibility for all boxes in the group
     if (combinedBoxes.has(index)) {
-        const secondaryIndices = combinedBoxes.get(index) || [];
-        const allIndices = [index, ...secondaryIndices];
+        const combinedInfo = combinedBoxes.get(index);
         
-        const currentlyHidden = hiddenBoxes.has(index);
-        
-        if (currentlyHidden) {
-            // Show all boxes in the group
-            allIndices.forEach(idx => newHiddenBoxes.delete(idx));
-        } else {
-            // Hide all boxes in the group
-            allIndices.forEach(idx => newHiddenBoxes.add(idx));
+        if (combinedInfo && Array.isArray(combinedInfo.indices)) {
+            const allIndices = [index, ...combinedInfo.indices];
+            
+            const currentlyHidden = hiddenBoxes.has(index);
+            
+            if (currentlyHidden) {
+                // Show all boxes in the group
+                allIndices.forEach(idx => newHiddenBoxes.delete(idx));
+            } else {
+                // Hide all boxes in the group
+                allIndices.forEach(idx => newHiddenBoxes.add(idx));
+            }
         }
     } else {
         // Check if this box is part of a combined group (as a secondary box)
         let isSecondary = false;
         let primaryIndex = -1;
         
-        for (const [primary, secondaries] of combinedBoxes.entries()) {
-            if (secondaries.includes(index)) {
+        for (const [primary, combinedInfo] of combinedBoxes.entries()) {
+            if (combinedInfo && Array.isArray(combinedInfo.indices) && combinedInfo.indices.includes(index)) {
                 isSecondary = true;
                 primaryIndex = primary;
                 break;
@@ -198,17 +201,20 @@ export const createUISlice: StateCreator<
         
         if (isSecondary && primaryIndex !== -1) {
             // Toggle visibility for the entire combined group
-            const secondaries = combinedBoxes.get(primaryIndex) || [];
-            const allIndices = [primaryIndex, ...secondaries];
+            const combinedInfo = combinedBoxes.get(primaryIndex);
             
-            const currentlyHidden = hiddenBoxes.has(primaryIndex);
-            
-            if (currentlyHidden) {
-                // Show all boxes in the group
-                allIndices.forEach(idx => newHiddenBoxes.delete(idx));
-            } else {
-                // Hide all boxes in the group
-                allIndices.forEach(idx => newHiddenBoxes.add(idx));
+            if (combinedInfo && Array.isArray(combinedInfo.indices)) {
+                const allIndices = [primaryIndex, ...combinedInfo.indices];
+                
+                const currentlyHidden = hiddenBoxes.has(primaryIndex);
+                
+                if (currentlyHidden) {
+                    // Show all boxes in the group
+                    allIndices.forEach(idx => newHiddenBoxes.delete(idx));
+                } else {
+                    // Hide all boxes in the group
+                    allIndices.forEach(idx => newHiddenBoxes.add(idx));
+                }
             }
         } else {
             // Regular box, just toggle its visibility

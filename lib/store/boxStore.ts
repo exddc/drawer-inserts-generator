@@ -38,7 +38,7 @@ const validateMaxWidth = (
 
 const validateMinWidth = (minWidth: number, maxWidth: number): number => {
   return Math.min(
-    Math.max(defaultConstraints.minBoxWidth?.min || 10, minWidth),
+    Math.max(defaultConstraints.minBoxWidth!.min || 10, minWidth),
     maxWidth
   )
 }
@@ -133,6 +133,9 @@ export const createBoxSlice: StateCreator<
         newMaxWidth,
         useMultipleBoxes
       ),
+      combinedBoxes: new Map(),
+      selectedBoxIndex: null,
+      selectedBoxIndices: new Set<number>()
     })
   },
 
@@ -149,6 +152,9 @@ export const createBoxSlice: StateCreator<
         newMaxDepth,
         useMultipleBoxes
       ),
+      combinedBoxes: new Map(),
+      selectedBoxIndex: null,
+      selectedBoxIndices: new Set<number>()
     })
   },
 
@@ -182,6 +188,9 @@ export const createBoxSlice: StateCreator<
         maxBoxWidth,
         useMultipleBoxes
       ),
+      combinedBoxes: new Map(),
+      selectedBoxIndex: null,
+      selectedBoxIndices: new Set<number>()
     })
   },
 
@@ -197,6 +206,9 @@ export const createBoxSlice: StateCreator<
         newMaxWidth,
         useMultipleBoxes
       ),
+      combinedBoxes: new Map(),
+      selectedBoxIndex: null,
+      selectedBoxIndices: new Set<number>()
     })
   },
 
@@ -212,6 +224,9 @@ export const createBoxSlice: StateCreator<
         maxBoxDepth,
         useMultipleBoxes
       ),
+      combinedBoxes: new Map(),
+      selectedBoxIndex: null,
+      selectedBoxIndices: new Set<number>()
     })
   },
 
@@ -227,6 +242,9 @@ export const createBoxSlice: StateCreator<
         newMaxDepth,
         useMultipleBoxes
       ),
+      combinedBoxes: new Map(),
+      selectedBoxIndex: null,
+      selectedBoxIndices: new Set<number>()
     })
   },
 
@@ -257,6 +275,7 @@ export const createBoxSlice: StateCreator<
       selectedBoxIndex: null,
       selectedBoxIndices: new Set<number>(),
       hiddenBoxes: new Set<number>(),
+      combinedBoxes: new Map()
     })
   },
 

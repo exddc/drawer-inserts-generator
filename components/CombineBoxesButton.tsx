@@ -1,14 +1,12 @@
-import React from 'react'
-import { Button } from '@/components/ui/button'
-import { useBoxStore } from '@/lib/store'
-import { Combine, Unlink2 } from 'lucide-react'
-import { toast } from 'sonner'
+'use client'
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useBoxStore } from '@/lib/store'
+import { Combine, SquareSplitHorizontal } from 'lucide-react'
 
 export default function CombineBoxesButton() {
     const {
@@ -19,75 +17,53 @@ export default function CombineBoxesButton() {
         resetCombinedBoxes,
     } = useBoxStore()
 
-    const hasSelection = selectedBoxIndices.size > 0
-    const canCombine = canCombineSelectedBoxes()
+    const selectedBoxesCount = selectedBoxIndices.size
+    const firstSelectedIndex =
+        selectedBoxesCount > 0 ? Array.from(selectedBoxIndices)[0] : -1
 
-    // Check if the current selection is a primary combined box
-    const isSelectedCombined = () => {
-        if (selectedBoxIndices.size !== 1) return false
-        const index = Array.from(selectedBoxIndices)[0]
-        return isPrimaryBox(index)
-    }
+    // Determine if we can split (single selected box is a primary combined box)
+    const canSplit =
+        selectedBoxesCount === 1 && isPrimaryBox(firstSelectedIndex)
 
-    const handleCombine = () => {
-        if (canCombine) {
-            combineSelectedBoxes()
-            toast.success('Boxes combined', {
-                description: 'Selected boxes have been combined into one box',
-                duration: 2000,
-            })
-        }
-    }
+    // Determine if we can combine (multiple boxes selected that can be combined)
+    const canCombine = selectedBoxesCount > 1 && canCombineSelectedBoxes()
 
-    const handleSplit = () => {
-        if (isSelectedCombined()) {
+    // Handle button click based on state
+    const handleClick = () => {
+        if (canSplit) {
             resetCombinedBoxes()
-            toast.success('Box split', {
-                description:
-                    'Combined box has been split into individual boxes',
-                duration: 2000,
-            })
+        } else if (canCombine) {
+            combineSelectedBoxes()
         }
     }
 
-    if (isSelectedCombined()) {
-        return (
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex h-8 w-8 items-center justify-center rounded-md"
-                            onClick={handleSplit}
-                        >
-                            <Unlink2 className="h-4 w-4" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Split Box (Shift+C)</p>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-        )
-    }
+    const disabled = !canSplit && !canCombine
 
     return (
         <TooltipProvider>
             <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className={`flex h-8 w-8 items-center justify-center rounded-md ${!canCombine ? 'cursor-default text-neutral-400' : 'cursor-pointer'}`}
-                        onClick={handleCombine}
-                        disabled={!canCombine}
-                    >
+                <TooltipTrigger
+                    className={
+                        'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
+                        (disabled
+                            ? ' cursor-default text-neutral-400'
+                            : ' cursor-pointer')
+                    }
+                    onClick={handleClick}
+                    disabled={disabled}
+                >
+                    {canSplit ? (
+                        <SquareSplitHorizontal className="h-4 w-4" />
+                    ) : (
                         <Combine className="h-4 w-4" />
-                    </Button>
+                    )}
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>Combine Boxes (C)</p>
+                    {canSplit ? (
+                        <p>Split Combined Box (S)</p>
+                    ) : (
+                        <p>Combine Selected Boxes (C)</p>
+                    )}
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>

@@ -15,7 +15,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Camera, Crosshair, Frame, EyeOff, X } from 'lucide-react'
+import { Camera, EyeOff, X, Grid2X2, Box } from 'lucide-react'
 import { useBoxStore } from '@/lib/store'
 import CombineBoxesButton from './CombineBoxesButton'
 
@@ -82,11 +82,11 @@ export default function ActionsBar({ camera, controls }: ActionsBarProps) {
                             </MenubarTrigger>
                             <MenubarContent>
                                 <MenubarItem onClick={resetCamera}>
-                                    <Crosshair className="h-4 w-4" />
+                                    <Box className="h-4 w-4" />
                                     <p>Inital View</p>
                                 </MenubarItem>
                                 <MenubarItem onClick={setTopView}>
-                                    <Frame className="h-4 w-4" />
+                                    <Grid2X2 className="h-4 w-4" />
                                     <p>Top View</p>
                                 </MenubarItem>
                             </MenubarContent>
