@@ -67,7 +67,7 @@ export default function ActionsBar({ camera, controls }: ActionsBarProps) {
 
     return (
         <div
-            className={`fixed ${position === 'top' ? 'top-14' : 'bottom-14'} left-1/2 z-10 -translate-x-1/2 transform`}
+            className={`fixed ${position === 'top' ? 'top-20' : 'bottom-14'} left-1/2 z-10 -translate-x-1/2 transform`}
         >
             <TooltipProvider>
                 <div className="flex rounded-lg border border-neutral-300 bg-white p-1 shadow-md">
