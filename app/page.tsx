@@ -78,6 +78,14 @@ export default function Home() {
                 boxColor: getBoxHexColor(),
                 highlightColor: getHighlightHexColor(),
             })
+
+            // Update raycast manager when box mesh group changes
+            if (window.raycastManager && cameraRef.current) {
+                window.raycastManager.init(
+                    cameraRef.current,
+                    boxMeshGroupRef.current
+                )
+            }
         }
     }, [])
 
