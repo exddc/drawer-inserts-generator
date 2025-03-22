@@ -1,14 +1,8 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import * as THREE from 'three'
-import ShareButton from './ShareButton'
-import ExportButton from './ExportButton'
-
-interface HeaderProps {
-    title?: string
-    sceneRef: React.MutableRefObject<THREE.Scene | null>
-    boxMeshGroupRef: React.MutableRefObject<THREE.Group | null>
-}
+import ShareButton from '@/components/ShareButton'
+import ExportButton from '@/components/ExportButton'
+import { HeaderProps } from '@/lib/types'
 
 export default function Header({
     title = 'Box Grid Generator',

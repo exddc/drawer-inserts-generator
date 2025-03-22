@@ -1,7 +1,7 @@
 'use client'
 import * as React from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+
 import {
     Menubar,
     MenubarMenu,
@@ -17,12 +17,8 @@ import {
 } from '@/components/ui/tooltip'
 import { Camera, EyeOff, X, Grid2X2, Box } from 'lucide-react'
 import { useBoxStore } from '@/lib/store'
-import CombineBoxesButton from './CombineBoxesButton'
-
-interface ActionsBarProps {
-    camera: React.MutableRefObject<THREE.PerspectiveCamera | null>
-    controls: React.MutableRefObject<OrbitControls | null>
-}
+import CombineBoxesButton from '@/components/CombineBoxesButton'
+import type { ActionsBarProps } from '@/lib/types'
 
 export default function ActionsBar({ camera, controls }: ActionsBarProps) {
     const {

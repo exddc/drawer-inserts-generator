@@ -1,4 +1,4 @@
-import { BoxState } from '@/lib/store'
+import { BoxState } from '@/lib/types'
 
 /**
  * Encode the current box configuration into a URL parameter

@@ -10,12 +10,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-
-interface ColorPickerProps {
-    color?: string
-    onChange?: (value: string) => void
-    defaultColor?: string
-}
+import type { ColorPickerProps } from '@/lib/types'
 
 export function ColorPicker({
     color = '#000000',

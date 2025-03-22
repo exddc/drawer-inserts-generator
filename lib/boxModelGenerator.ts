@@ -1,16 +1,5 @@
 import * as THREE from 'three'
-
-interface BoxParameters {
-    width: number
-    depth: number
-    height: number
-    wallThickness: number
-    cornerRadius: number
-    hasBottom: boolean
-    isSelected?: boolean
-    boxColor?: number
-    highlightColor?: number
-}
+import { BoxParameters } from '@/lib/types'
 
 /**
  * Create a box with rounded edges and optional bottom
@@ -88,9 +77,11 @@ export function createBoxWithRoundedEdges({
             wallsExtrudeSettings
         )
 
-        const defaultColor = 0x7a9cbf;
-        const materialColor = isSelected ? highlightColor || 0xf59e0b : boxColor || defaultColor;
-        
+        const defaultColor = 0x7a9cbf
+        const materialColor = isSelected
+            ? highlightColor || 0xf59e0b
+            : boxColor || defaultColor
+
         const material = new THREE.MeshStandardMaterial({
             color: materialColor,
             roughness: 0.4,
@@ -230,9 +221,11 @@ export function createBoxWithRoundedEdges({
 
         const geometry = new THREE.ExtrudeGeometry(outerBox, extrudeSettings)
 
-        const defaultColor = 0x7a9cbf;
-        const materialColor = isSelected ? highlightColor || 0xf59e0b : boxColor || defaultColor;
-        
+        const defaultColor = 0x7a9cbf
+        const materialColor = isSelected
+            ? highlightColor || 0xf59e0b
+            : boxColor || defaultColor
+
         const material = new THREE.MeshStandardMaterial({
             color: materialColor,
             roughness: 0.4,

@@ -3,13 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useBoxStore } from '@/lib/store'
 import { Eye, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
-
-interface DebugInfoProps {
-    renderer: THREE.WebGLRenderer | null
-    scene: THREE.Scene | null
-    boxMeshGroup: THREE.Group | null
-    enabled: boolean
-}
+import type { DebugInfoProps } from '@/lib/types'
 
 export default function DebugInfoPanel({
     renderer,

@@ -8,12 +8,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useBoxStore } from '@/lib/store'
-import * as THREE from 'three'
-
-interface ExportButtonProps {
-    scene: THREE.Scene
-    boxMeshGroup: THREE.Group
-}
+import type { ExportButtonProps } from '@/lib/types'
 
 export default function ExportButton({
     scene,
