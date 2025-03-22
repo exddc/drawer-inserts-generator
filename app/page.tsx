@@ -1,5 +1,6 @@
 'use client'
 import ActionsBar from '@/components/ActionsBar'
+import BoxContextMenu from '@/components/BoxContextMenu'
 import ConfigSidebar from '@/components/ConfigSidebar'
 import DebugInfoPanel from '@/components/DebugInfoPanel'
 import Header from '@/components/Header'
@@ -9,11 +10,21 @@ import {
     ResizablePanelGroup,
 } from '@/components/ui/resizable'
 import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
+import { createRaycastManager } from '@/lib/RaycastManager'
 import { useBoxStore } from '@/lib/store'
 import { CombinedBoxInfo } from '@/lib/types'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+
+// Define the WindowWithContextMenu interface
+interface WindowWithContextMenu extends Window {
+    contextMenuOpen?: boolean
+    raycastManager?: any
+}
+
+// Type assertion to access our custom properties
+declare const window: WindowWithContextMenu
 
 export default function Home() {
     const {
@@ -95,6 +106,10 @@ export default function Home() {
         const controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
         controls.dampingFactor = 0.05
+        controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.PAN,
+        }
         controlsRef.current = controls
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
@@ -198,6 +213,14 @@ export default function Home() {
                 highlightColor: getHighlightHexColor(),
                 combinedBoxes: combinedBoxes as Map<number, CombinedBoxInfo>,
             })
+
+            // Update raycast manager when box mesh group changes
+            if (window.raycastManager && cameraRef.current) {
+                window.raycastManager.init(
+                    cameraRef.current,
+                    boxMeshGroupRef.current
+                )
+            }
         }
     }, [
         width,
@@ -261,6 +284,9 @@ export default function Home() {
         }
 
         const handleClick = (event: MouseEvent) => {
+            // Skip processing if context menu is open
+            if (window.contextMenuOpen) return
+
             if (
                 !containerRef.current ||
                 !raycasterRef.current ||
@@ -308,10 +334,8 @@ export default function Home() {
                     }
                 }
             } else {
-                // Only clear selection if not multi-selecting
-                if (!isMultiSelect) {
-                    clearSelectedBoxes()
-                }
+                // Don't clear selection when clicking empty space
+                // Only clear via Escape key or dedicated button now
             }
         }
 
@@ -351,6 +375,17 @@ export default function Home() {
         }
 
         window.addEventListener('keydown', handleKeyDown)
+
+        // Initialize the raycast manager for right-click context menu
+        if (cameraRef.current && boxMeshGroupRef.current) {
+            if (!window.raycastManager) {
+                window.raycastManager = createRaycastManager()
+            }
+            window.raycastManager.init(
+                cameraRef.current,
+                boxMeshGroupRef.current
+            )
+        }
 
         return () => {
             if (containerRef.current) {
@@ -401,7 +436,9 @@ export default function Home() {
                             <div
                                 ref={containerRef}
                                 className="relative h-full w-full"
-                            ></div>
+                            >
+                                <BoxContextMenu containerRef={containerRef} />
+                            </div>
                             <ActionsBar
                                 camera={cameraRef}
                                 controls={controlsRef}
