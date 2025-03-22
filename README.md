@@ -4,6 +4,8 @@ Simple parameterized generator to create a grid of boxes for 3D printing. The gr
 
 [![](https://static.timoweiss.me/572_2x_shots_so.png)](https://box-grid.timoweiss.me)
 
+Play with it here: [box-grid.timoweiss.me](https://box-grid.timoweiss.me)
+
 ## Getting Started
 
 First, run the development server:
