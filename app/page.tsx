@@ -18,13 +18,15 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // Define the WindowWithContextMenu interface
-interface WindowWithContextMenu extends Window {
+interface WindowWithContextMenu {
     contextMenuOpen?: boolean
-    raycastManager?: any
+    raycastManager: any
 }
 
 // Type assertion to access our custom properties
-declare const window: WindowWithContextMenu
+declare global {
+    interface Window extends WindowWithContextMenu {}
+}
 
 export default function Home() {
     const {
@@ -56,14 +58,14 @@ export default function Home() {
     } = useBoxStore()
 
     const containerRef = useRef<HTMLDivElement>(null)
-    const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
-    const sceneRef = useRef<THREE.Scene | null>(null)
-    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
-    const controlsRef = useRef<OrbitControls | null>(null)
-    const boxMeshGroupRef = useRef<THREE.Group | null>(null)
-    const gridHelperRef = useRef<THREE.GridHelper | null>(null)
-    const axesHelperRef = useRef<THREE.AxesHelper | null>(null)
-    const raycasterRef = useRef<THREE.Raycaster | null>(null)
+    const rendererRef = useRef<THREE.WebGLRenderer>(null)
+    const sceneRef = useRef<THREE.Scene>(null)
+    const cameraRef = useRef<THREE.PerspectiveCamera>(null)
+    const controlsRef = useRef<OrbitControls>(null)
+    const boxMeshGroupRef = useRef<THREE.Group>(null)
+    const gridHelperRef = useRef<THREE.GridHelper>(null)
+    const axesHelperRef = useRef<THREE.AxesHelper>(null)
+    const raycasterRef = useRef<THREE.Raycaster>(null)
     const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2())
 
     // Load configuration from URL if present
@@ -108,7 +110,8 @@ export default function Home() {
         controls.dampingFactor = 0.05
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN,
         }
         controlsRef.current = controls
 
@@ -437,7 +440,12 @@ export default function Home() {
                                 ref={containerRef}
                                 className="relative h-full w-full"
                             >
-                                <BoxContextMenu containerRef={containerRef} />
+                                {containerRef.current && (
+                                    <BoxContextMenu
+                                        // @ts-ignore - To be fixed
+                                        containerRef={containerRef}
+                                    />
+                                )}
                             </div>
                             <ActionsBar
                                 camera={cameraRef}

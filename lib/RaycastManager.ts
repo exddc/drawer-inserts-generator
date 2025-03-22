@@ -36,7 +36,10 @@ export class RaycastManager {
         this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.camera)
 
         // Calculate intersections with all objects in the box group
-        const intersects = this.raycaster.intersectObjects(this.boxGroup.children, true)
+        const intersects = this.raycaster.intersectObjects(
+            this.boxGroup.children,
+            true
+        )
 
         if (intersects.length > 0) {
             // Get the first intersected object
@@ -54,7 +57,7 @@ export class RaycastManager {
             if (boxIndex !== -1) {
                 // Get the actual index from userData (which might be different from array index)
                 const actualIndex = boxObject.userData?.dimensions?.index
-                
+
                 if (actualIndex !== undefined) {
                     return actualIndex
                 }
@@ -69,8 +72,8 @@ export class RaycastManager {
 // Extend the Window interface to include our raycast manager
 declare global {
     interface Window {
-        raycastManager: RaycastManager;
-        contextMenuOpen?: boolean;
+        raycastManager: RaycastManager
+        contextMenuOpen?: boolean
     }
 }
 
