@@ -1,5 +1,4 @@
 'use client'
-import { useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TabsContent } from '@/components/ui/tabs'

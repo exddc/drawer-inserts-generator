@@ -1,33 +1,4 @@
-import { FormInputs } from '@/lib/exportUtils'
-
-export interface InputConstraint {
-    min: number
-    max: number
-}
-
-export interface InputConstraints {
-    width: InputConstraint
-    depth: InputConstraint
-    height: InputConstraint
-    wallThickness: InputConstraint
-    cornerRadius: InputConstraint
-    minBoxWidth?: InputConstraint
-    maxBoxWidth?: InputConstraint
-    minBoxDepth?: InputConstraint
-    maxBoxDepth?: InputConstraint
-}
-
-export const defaultConstraints: InputConstraints = {
-    width: { min: 10, max: 500 },
-    depth: { min: 10, max: 500 },
-    height: { min: 5, max: 100 },
-    wallThickness: { min: 1, max: 10 },
-    cornerRadius: { min: 0, max: 50 },
-    minBoxWidth: { min: 10, max: 500 },
-    maxBoxWidth: { min: 10, max: 500 },
-    minBoxDepth: { min: 10, max: 500 },
-    maxBoxDepth: { min: 10, max: 500 },
-}
+import { FormInputs, defaultConstraints, InputConstraints } from '@/lib/types'
 
 /**
  * Validate and adjust a numeric input value based on constraints

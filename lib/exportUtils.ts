@@ -1,24 +1,7 @@
 import * as THREE from 'three'
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js'
-
-export interface FormInputs {
-    width: number
-    depth: number
-    height: number
-    wallThickness: number
-    cornerRadius: number
-    hasBottom: boolean
-    minBoxWidth: number
-    maxBoxWidth: number
-    minBoxDepth: number
-    maxBoxDepth: number
-    useMultipleBoxes: boolean
-    debugMode: boolean
-    uniqueBoxesExport: boolean
-    showGrid: boolean
-    showAxes: boolean
-}
+import { FormInputs } from '@/lib/types'
 
 /**
  * Generate a unique key for a box based on its dimensions
@@ -28,12 +11,12 @@ export interface FormInputs {
 function getBoxKey(box: THREE.Object3D): string {
     if (box.userData && box.userData.dimensions) {
         const { width, depth, height, isCombined } = box.userData.dimensions
-        
+
         // For combined boxes, use exact dimensions to create the key
         if (isCombined) {
             return `combined_${width.toFixed(2)}_${depth.toFixed(2)}_${height.toFixed(2)}`
         }
-        
+
         // For regular boxes, treat boxes with swapped width/depth as the same
         const [smallerDimension, largerDimension] = [width, depth].sort(
             (a, b) => a - b
@@ -62,7 +45,6 @@ export function exportSTL(
         const useMultipleBoxes = boxCount > 1 && inputs.useMultipleBoxes
 
         if (useMultipleBoxes && boxMeshGroup.children.length > 0) {
-
             let stlString
             try {
                 stlString = exporter.parse(scene, { binary: false })
@@ -178,8 +160,8 @@ export async function exportMultipleSTLs(
         if (inputs.uniqueBoxesExport) {
             boxMeshGroup.children.forEach((box, index) => {
                 // Skip invisible boxes (hidden or secondary combined boxes)
-                if (!box.visible) return;
-                
+                if (!box.visible) return
+
                 const boxKey = getBoxKey(box)
                 if (boxKey) {
                     if (uniqueBoxes.has(boxKey)) {
@@ -211,7 +193,8 @@ export async function exportMultipleSTLs(
                         boxInfo.box.userData &&
                         boxInfo.box.userData.dimensions
                     ) {
-                        const { width, depth, height, isCombined } = boxInfo.box.userData.dimensions
+                        const { width, depth, height, isCombined } =
+                            boxInfo.box.userData.dimensions
 
                         let filename
                         if (isCombined) {
@@ -240,8 +223,8 @@ export async function exportMultipleSTLs(
         } else {
             boxMeshGroup.children.forEach((box, index) => {
                 // Skip invisible boxes or boxes that are part of combined ones but not primary
-                if (!box.visible) return;
-                
+                if (!box.visible) return
+
                 try {
                     const tempScene = new THREE.Scene()
                     const boxClone = box.clone()
@@ -272,7 +255,7 @@ export async function exportMultipleSTLs(
                     } else {
                         filename = `box_${index + 1}_${boxWidth.toFixed(0)}x${boxDepth.toFixed(0)}x${boxHeight.toFixed(0)}mm.stl`
                     }
-                    
+
                     zip.file(filename, stlString)
                 } catch (error) {
                     console.error(`Error exporting box ${index}:`, error)
@@ -281,10 +264,12 @@ export async function exportMultipleSTLs(
         }
 
         // Add a README file to explain the combined boxes
-        const totalBoxes = boxMeshGroup.children.filter(box => box.visible).length
+        const totalBoxes = boxMeshGroup.children.filter(
+            (box) => box.visible
+        ).length
         const uniqueBoxCount = uniqueBoxes.size || totalBoxes
-        const hasCombinedBoxes = boxMeshGroup.children.some(box => 
-            box.userData?.dimensions?.isCombined && box.visible
+        const hasCombinedBoxes = boxMeshGroup.children.some(
+            (box) => box.userData?.dimensions?.isCombined && box.visible
         )
 
         let readmeContent = `# Drawer Insert Box Export
@@ -293,7 +278,7 @@ This ZIP file contains ${uniqueBoxCount} ${inputs.uniqueBoxesExport ? 'unique ' 
 
 ## File Naming Convention
 - Regular boxes are named: box_[number]_[width]x[depth]x[height]mm.stl
-${inputs.uniqueBoxesExport ? '- The "qty" suffix indicates how many identical boxes of this dimension you need to print\n' : ''}`;
+${inputs.uniqueBoxesExport ? '- The "qty" suffix indicates how many identical boxes of this dimension you need to print\n' : ''}`
 
         if (hasCombinedBoxes) {
             readmeContent += `- Combined boxes (merged from multiple boxes) are named: combined_box_[number]_[width]x[depth]x[height]mm.stl
@@ -301,7 +286,7 @@ ${inputs.uniqueBoxesExport ? '- The "qty" suffix indicates how many identical bo
 ## Combined Boxes
 This export includes combined boxes that were created by merging adjacent boxes.
 These combined boxes allow for larger storage spaces or irregular shapes.
-`;
+`
         }
 
         readmeContent += `
@@ -314,7 +299,7 @@ These combined boxes allow for larger storage spaces or irregular shapes.
 
 Thanks for using Box Grid Generator by timoweiss.me!
 Happy printing!
-`;
+`
 
         zip.file('README.txt', readmeContent)
 
