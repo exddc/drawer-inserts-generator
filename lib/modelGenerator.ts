@@ -1,7 +1,7 @@
-import * as THREE from 'three'
 import { createBoxWithRoundedEdges } from '@/lib/boxModelGenerator'
 import { generateBoxGrid } from '@/lib/boxUtils'
-import { CombinedBoxInfo, BoxModelParams } from '@/lib/types'
+import { BoxModelParams, CombinedBoxInfo } from '@/lib/types'
+import * as THREE from 'three'
 
 /**
  * Create box models based on current parameters and add them to the scene

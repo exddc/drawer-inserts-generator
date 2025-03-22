@@ -1,11 +1,11 @@
-import { StateCreator } from 'zustand'
 import { calculateBoxWidths } from '@/lib/boxUtils'
 import {
+    boxDefaults,
     BoxState,
     defaultConstraints,
-    boxDefaults,
     StoreState,
 } from '@/lib/types'
+import { StateCreator } from 'zustand'
 
 // Utility functions for the box store
 const recalculateBoxWidths = (

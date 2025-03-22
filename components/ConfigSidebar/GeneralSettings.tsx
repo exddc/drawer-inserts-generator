@@ -1,9 +1,7 @@
 'use client'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { TabsContent } from '@/components/ui/tabs'
 import { ColorPicker } from '@/components/ColorPicker'
-import { useBoxStore } from '@/lib/store'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import {
     Select,
     SelectContent,
@@ -11,6 +9,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import { TabsContent } from '@/components/ui/tabs'
+import { useBoxStore } from '@/lib/store'
 
 export default function GeneralSettings() {
     const {

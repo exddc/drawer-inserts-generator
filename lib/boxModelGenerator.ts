@@ -1,5 +1,5 @@
-import * as THREE from 'three'
 import { BoxParameters } from '@/lib/types'
+import * as THREE from 'three'
 
 /**
  * Create a box with rounded edges and optional bottom

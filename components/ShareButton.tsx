@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
 import { useBoxStore } from '@/lib/store'
-import { Share2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Share2 } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 export default function ShareButton() {
