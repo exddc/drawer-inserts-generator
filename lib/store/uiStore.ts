@@ -1,5 +1,5 @@
+import { CombinedBoxInfo, StoreState, UIState, uiDefaults } from '@/lib/types'
 import { StateCreator } from 'zustand'
-import { StoreState, CombinedBoxInfo, UIState, uiDefaults } from '@/lib/types'
 
 // Create UI store slice
 export const createUISlice: StateCreator<StoreState, [], [], UIState> = (

@@ -1,16 +1,16 @@
 'use client'
-import * as React from 'react'
-import * as ColorUtils from '@/lib/colorUtils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
+import * as ColorUtils from '@/lib/colorUtils'
 import type { ColorPickerProps } from '@/lib/types'
+import * as React from 'react'
 
 export function ColorPicker({
     color = '#000000',

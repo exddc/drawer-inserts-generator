@@ -1,19 +1,19 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import ActionsBar from '@/components/ActionsBar'
+import ConfigSidebar from '@/components/ConfigSidebar'
+import DebugInfoPanel from '@/components/DebugInfoPanel'
+import Header from '@/components/Header'
 import {
     ResizableHandle,
     ResizablePanel,
     ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import DebugInfoPanel from '@/components/DebugInfoPanel'
-import { useBoxStore } from '@/lib/store'
 import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
-import ConfigSidebar from '@/components/ConfigSidebar'
-import Header from '@/components/Header'
-import ActionsBar from '@/components/ActionsBar'
+import { useBoxStore } from '@/lib/store'
 import { CombinedBoxInfo } from '@/lib/types'
+import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 export default function Home() {
     const {

@@ -1,4 +1,4 @@
-import { FormInputs, defaultConstraints, InputConstraints } from '@/lib/types'
+import { defaultConstraints, FormInputs, InputConstraints } from '@/lib/types'
 
 /**
  * Validate and adjust a numeric input value based on constraints

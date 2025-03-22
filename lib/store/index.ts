@@ -1,7 +1,7 @@
-import { create } from 'zustand'
 import { createBoxSlice } from '@/lib/store/boxStore'
 import { createUISlice } from '@/lib/store/uiStore'
 import { StoreState } from '@/lib/types'
+import { create } from 'zustand'
 
 // Create the combined store with all slices
 export const useBoxStore = create<StoreState>((set, get, store) => ({

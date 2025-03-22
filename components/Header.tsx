@@ -1,8 +1,8 @@
 'use client'
-import React, { useState, useEffect } from 'react'
-import ShareButton from '@/components/ShareButton'
 import ExportButton from '@/components/ExportButton'
+import ShareButton from '@/components/ShareButton'
 import { HeaderProps } from '@/lib/types'
+import { useEffect, useState } from 'react'
 
 export default function Header({
     title = 'Box Grid Generator',

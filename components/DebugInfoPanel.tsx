@@ -1,9 +1,9 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import * as THREE from 'three'
 import { useBoxStore } from '@/lib/store'
-import { Eye, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import type { DebugInfoProps } from '@/lib/types'
+import { ChevronDown, ChevronUp, Eye, EyeOff, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import * as THREE from 'three'
 
 export default function DebugInfoPanel({
     renderer,

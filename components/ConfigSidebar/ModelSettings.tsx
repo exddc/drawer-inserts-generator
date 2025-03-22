@@ -1,17 +1,17 @@
 'use client'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Slider } from '@/components/ui/slider'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { calculateMaxCornerRadius } from '@/lib/validationUtils'
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { defaultConstraints } from '@/lib/types'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useBoxStore } from '@/lib/store'
+import { defaultConstraints } from '@/lib/types'
+import { calculateMaxCornerRadius } from '@/lib/validationUtils'
 import { ChevronsUpDown, InfoIcon } from 'lucide-react'
 
 export default function ModelSettings() {

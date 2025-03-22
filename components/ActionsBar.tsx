@@ -2,12 +2,13 @@
 import * as React from 'react'
 import * as THREE from 'three'
 
+import CombineBoxesButton from '@/components/CombineBoxesButton'
 import {
     Menubar,
-    MenubarMenu,
-    MenubarTrigger,
     MenubarContent,
     MenubarItem,
+    MenubarMenu,
+    MenubarTrigger,
 } from '@/components/ui/menubar'
 import {
     Tooltip,
@@ -15,10 +16,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Camera, EyeOff, X, Grid2X2, Box } from 'lucide-react'
 import { useBoxStore } from '@/lib/store'
-import CombineBoxesButton from '@/components/CombineBoxesButton'
 import type { ActionsBarProps } from '@/lib/types'
+import { Box, Camera, EyeOff, Grid2X2, X } from 'lucide-react'
 
 export default function ActionsBar({ camera, controls }: ActionsBarProps) {
     const {

@@ -1,7 +1,7 @@
 'use client'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import GeneralSettings from '@/components/ConfigSidebar/GeneralSettings'
 import ModelSettings from '@/components/ConfigSidebar/ModelSettings'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function ConfigSidebar() {
     return (
