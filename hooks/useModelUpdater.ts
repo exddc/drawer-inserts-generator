@@ -1,11 +1,12 @@
 import { useEffect, RefObject } from 'react'
 import * as THREE from 'three'
-import { createBoxModel, setupGrid } from '@/lib/modelGenerator'
+import { setupGrid, createBoxModelFromGrid } from '@/lib/gridGenerator'
 import { useBoxStore } from '@/lib/store'
 import { CombinedBoxInfo } from '@/lib/types'
 
 /**
  * Custom hook to update the model and grid when parameters change
+ * Updated to use the grid-based box generation approach
  */
 export function useModelUpdater(
     sceneRef: RefObject<THREE.Scene>,
@@ -42,14 +43,14 @@ export function useModelUpdater(
         }
 
         if (boxMeshGroupRef.current) {
-            createBoxModel(boxMeshGroupRef.current, {
+            // Use the new grid-based approach
+            createBoxModelFromGrid(boxMeshGroupRef.current, {
                 boxWidths,
                 boxDepths,
                 height,
                 wallThickness,
                 cornerRadius,
                 hasBottom,
-                selectedBoxIndex,
                 selectedBoxIndices,
                 hiddenBoxes,
                 boxColor: getBoxHexColor(),
