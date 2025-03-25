@@ -60,8 +60,7 @@ export function useSceneSetup(
         controls.dampingFactor = 0.05
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.PAN,
         }
         controlsRef.current = controls
 
