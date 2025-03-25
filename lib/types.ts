@@ -40,10 +40,16 @@ export const uiDefaults = {
     combinedBoxes: new Map<number, CombinedBoxInfo>(),
 }
 
-// Type definitions
+export interface BoxConnections {
+    connections: Map<number, number[]>;
+}
+
 export interface CombinedBoxInfo {
-    indices: number[]
-    direction: 'width' | 'depth'
+    indices: number[];
+    direction: 'width' | 'depth';
+    connections?: number[];
+    isPartOfGroup?: boolean;
+    groupId?: number;
 }
 
 /**
