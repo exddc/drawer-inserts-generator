@@ -1,5 +1,5 @@
-import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import * as THREE from 'three'
 
 // Default settings
 export const defaultConstraints: InputConstraints = {
@@ -40,10 +40,33 @@ export const uiDefaults = {
     combinedBoxes: new Map<number, CombinedBoxInfo>(),
 }
 
-// Type definitions
+export interface BoxConnections {
+    connections: Map<number, number[]>;
+}
+
 export interface CombinedBoxInfo {
-    indices: number[]
-    direction: 'width' | 'depth'
+    indices: number[];
+    direction: 'width' | 'depth';
+    connections?: number[];
+    isPartOfGroup?: boolean;
+    groupId?: number;
+}
+
+/**
+ * Definition of a box in the grid matrix
+ * This is used to store all properties of a box before creating the 3D object
+ */
+export interface GridBoxDefinition extends BoxParameters {
+    index: number
+    isSelected: boolean
+    isHidden: boolean
+    isCombined: boolean
+    isSecondaryBox?: boolean
+    primaryBoxIndex?: number
+    combinedIndices?: number[]
+    direction?: 'width' | 'depth'
+    x: number
+    z: number
 }
 
 export interface ActionsBarProps {

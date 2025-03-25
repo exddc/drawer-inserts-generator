@@ -12,7 +12,7 @@ import {
 import { useInteractions } from '@/hooks/useInteractions'
 import { useModelUpdater } from '@/hooks/useModelUpdater'
 import { useSceneSetup } from '@/hooks/useSceneSetup'
-import { createBoxModel } from '@/lib/modelGenerator'
+import { createBoxModelFromGrid } from '@/lib/gridGenerator'
 import { useBoxStore } from '@/lib/store'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
@@ -43,6 +43,7 @@ export default function Home() {
         hiddenBoxes,
         getBoxHexColor,
         getHighlightHexColor,
+        combinedBoxes,
         loadFromUrl,
     } = useBoxStore()
 
@@ -65,18 +66,19 @@ export default function Home() {
     // Initialize the scene, initial model, and add event listeners
     useEffect(() => {
         if (boxMeshGroupRef.current) {
-            createBoxModel(boxMeshGroupRef.current, {
+            // Use the new grid-based approach for initial model
+            createBoxModelFromGrid(boxMeshGroupRef.current, {
                 boxWidths,
                 boxDepths,
                 height,
                 wallThickness,
                 cornerRadius,
                 hasBottom,
-                selectedBoxIndex,
                 selectedBoxIndices,
                 hiddenBoxes,
                 boxColor: getBoxHexColor(),
                 highlightColor: getHighlightHexColor(),
+                combinedBoxes,
             })
 
             // Update raycast manager when box mesh group changes

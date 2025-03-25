@@ -1,7 +1,7 @@
 import { useEffect, RefObject } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { setupGrid } from '@/lib/modelGenerator'
+import { setupGrid } from '@/lib/gridGenerator'
 import { useBoxStore } from '@/lib/store'
 
 /**
@@ -60,8 +60,7 @@ export function useSceneSetup(
         controls.dampingFactor = 0.05
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.PAN,
         }
         controlsRef.current = controls
 

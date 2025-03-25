@@ -233,120 +233,6 @@ export const createUISlice: StateCreator<StoreState, [], [], UIState> = (
         }
     },
 
-    // Box combining methods
-    canCombineSelectedBoxes: () => {
-        const { selectedBoxIndices, boxWidths, boxDepths } = get()
-        const indices = Array.from(selectedBoxIndices)
-
-        // Need at least 2 boxes to combine
-        if (indices.length < 2) return false
-
-        // Convert indices to grid positions (row, column)
-        const boxGrid = []
-        const numCols = boxWidths.length
-
-        for (const index of indices) {
-            const row = Math.floor(index / numCols)
-            const col = index % numCols
-            boxGrid.push({ index, row, col })
-        }
-
-        // First check if boxes are in the same row (width combination)
-        const firstRow = boxGrid[0].row
-        const sameRow = boxGrid.every((box) => box.row === firstRow)
-
-        if (sameRow) {
-            // Sort by column for horizontal adjacency check
-            boxGrid.sort((a, b) => a.col - b.col)
-
-            // Check if boxes are adjacent horizontally
-            for (let i = 1; i < boxGrid.length; i++) {
-                if (boxGrid[i].col !== boxGrid[i - 1].col + 1) {
-                    return false
-                }
-            }
-
-            return true
-        }
-
-        // If not same row, check if they're in the same column (depth combination)
-        const firstCol = boxGrid[0].col
-        const sameCol = boxGrid.every((box) => box.col === firstCol)
-
-        if (sameCol) {
-            // Sort by row for vertical adjacency check
-            boxGrid.sort((a, b) => a.row - b.row)
-
-            // Check if boxes are adjacent vertically
-            for (let i = 1; i < boxGrid.length; i++) {
-                if (boxGrid[i].row !== boxGrid[i - 1].row + 1) {
-                    return false
-                }
-            }
-
-            return true
-        }
-
-        // Neither in same row nor same column
-        return false
-    },
-
-    combineSelectedBoxes: () => {
-        const {
-            selectedBoxIndices,
-            canCombineSelectedBoxes,
-            combinedBoxes,
-            boxWidths,
-        } = get()
-
-        if (!canCombineSelectedBoxes()) return
-
-        const indices = Array.from(selectedBoxIndices)
-        const numCols = boxWidths.length
-
-        // Convert indices to grid positions
-        const boxGrid = indices.map((index) => ({
-            index,
-            row: Math.floor(index / numCols),
-            col: index % numCols,
-        }))
-
-        // Check if boxes are in same row (width combination) or same column (depth combination)
-        const firstRow = boxGrid[0].row
-        const sameRow = boxGrid.every((box) => box.row === firstRow)
-
-        const firstCol = boxGrid[0].col
-        const sameCol = boxGrid.every((box) => box.col === firstCol)
-
-        if (sameRow) {
-            // Width combination - sort by column (left to right)
-            boxGrid.sort((a, b) => a.col - b.col)
-        } else if (sameCol) {
-            // Depth combination - sort by row (top to bottom)
-            boxGrid.sort((a, b) => a.row - b.row)
-        }
-
-        // Use the first (topmost or leftmost) box as primary
-        const primaryBoxIndex = boxGrid[0].index
-        const secondaryIndices = boxGrid.slice(1).map((box) => box.index)
-
-        // Create a new map to avoid mutation issues
-        const newCombinedBoxes = new Map(combinedBoxes)
-
-        // Add the new combined box info
-        newCombinedBoxes.set(primaryBoxIndex, {
-            indices: secondaryIndices,
-            direction: sameRow ? 'width' : 'depth',
-        })
-
-        // Update the state
-        set({
-            combinedBoxes: newCombinedBoxes,
-            selectedBoxIndices: new Set([primaryBoxIndex]),
-            selectedBoxIndex: primaryBoxIndex,
-        })
-    },
-
     isCombinedBox: (index: number) => {
         const { combinedBoxes } = get()
 
@@ -373,4 +259,73 @@ export const createUISlice: StateCreator<StoreState, [], [], UIState> = (
     resetCombinedBoxes: () => {
         set({ combinedBoxes: new Map<number, CombinedBoxInfo>() })
     },
+
+    // Box combining methods using the new connection-based approach
+    canCombineSelectedBoxes: () => {
+        const { selectedBoxIndices, boxWidths } = get()
+        const indices = Array.from(selectedBoxIndices)
+        
+        // Import the canCombineBoxes function from gridGenerator
+        const { canCombineBoxes } = require('../gridGenerator')
+        
+        return canCombineBoxes(indices, boxWidths.length)
+    },
+
+    combineSelectedBoxes: () => {
+        const { selectedBoxIndices, canCombineSelectedBoxes, boxWidths, combinedBoxes } = get()
+        
+        if (!canCombineSelectedBoxes()) return
+        
+        const indices = Array.from(selectedBoxIndices)
+        const numCols = boxWidths.length
+        
+        // Check if boxes are in same row (width combination) or same column (depth combination)
+        const rows = new Set()
+        const cols = new Set()
+        
+        for (const index of indices) {
+            const row = Math.floor(index / numCols)
+            const col = index % numCols
+            rows.add(row)
+            cols.add(col)
+        }
+        
+        const direction = rows.size === 1 ? 'width' : 'depth'
+        
+        // Import connectBoxesInLine from gridGenerator
+        const { connectBoxesInLine } = require('../gridGenerator')
+        
+        // Create connections between all selected boxes
+        const connections = new Map()
+        const newConnections = connectBoxesInLine(connections, indices)
+        
+        // Find the first box (top-left) to use as primary
+        const primaryIndex = indices.reduce((minIndex, index) => {
+            const row = Math.floor(index / numCols)
+            const col = index % numCols
+            const minRow = Math.floor(minIndex / numCols)
+            const minCol = minIndex % numCols
+            
+            // Compare row first, then column
+            if (row < minRow || (row === minRow && col < minCol)) {
+                return index
+            }
+            return minIndex
+        }, indices[0])
+        
+        // For compatibility with the existing code, also update combinedBoxes
+        const newCombinedBoxes = new Map(combinedBoxes)
+        newCombinedBoxes.set(primaryIndex, {
+            indices: indices.filter(idx => idx !== primaryIndex),
+            direction,
+            connections: newConnections
+        })
+        
+        // Update the state
+        set({
+            combinedBoxes: newCombinedBoxes,
+            selectedBoxIndices: new Set([primaryIndex]),
+            selectedBoxIndex: primaryIndex,
+        })
+    }
 })
