@@ -1,11 +1,23 @@
 import * as THREE from 'three'
-import { GridBoxDefinition } from '@/lib/types'
+
+/**
+ * Core box definition with only the essential dimensions
+ */
+export interface BoxDimensions {
+    width: number
+    depth: number
+    height: number
+    wallThickness: number
+    cornerRadius: number
+    hasBottom: boolean
+    color?: number
+}
 
 /**
  * Create a box with rounded edges and optional bottom
- * This is a streamlined version that works directly with GridBoxDefinition objects
+ * Simplified to only require dimensional parameters
  */
-export function generateBox(boxDef: GridBoxDefinition): THREE.Mesh | THREE.Group {
+export function generateBox(dimensions: BoxDimensions): THREE.Mesh | THREE.Group {
     const {
         width,
         depth,
@@ -13,32 +25,17 @@ export function generateBox(boxDef: GridBoxDefinition): THREE.Mesh | THREE.Group
         wallThickness,
         cornerRadius,
         hasBottom,
-        isSelected = false,
-        boxColor,
-        highlightColor,
-        isCombined,
-        combinedIndices,
-        direction,
-        index
-    } = boxDef
-
-    console.log('Generating Box with index:', index)
-    console.log('Box Definition:', boxDef)
+        color = 0x7a9cbf,
+    } = dimensions
     
     const meshGroup = new THREE.Group()
 
-    // Set userData immediately for better traceability
+    // Set userData for dimensions
     meshGroup.userData = {
         dimensions: {
             width,
             depth,
             height,
-            index,
-            isHidden: false,
-            isSelected,
-            isCombined: isCombined || false,
-            combinedIndices,
-            direction
         },
     }
 
@@ -54,14 +51,9 @@ export function generateBox(boxDef: GridBoxDefinition): THREE.Mesh | THREE.Group
         }
         const wallsGeometry = new THREE.ExtrudeGeometry(wallsShape, wallsExtrudeSettings)
 
-        // Create material with proper color based on selection state
-        const defaultColor = 0x7a9cbf
-        const materialColor = isSelected
-            ? highlightColor || 0xf59e0b
-            : boxColor || defaultColor
-
+        // Create material with proper color
         const material = new THREE.MeshStandardMaterial({
-            color: materialColor,
+            color: color,
             roughness: 0.4,
             metalness: 0.2,
         })
@@ -103,13 +95,8 @@ export function generateBox(boxDef: GridBoxDefinition): THREE.Mesh | THREE.Group
         
         const geometry = new THREE.ExtrudeGeometry(wallsShape, extrudeSettings)
 
-        const defaultColor = 0x7a9cbf
-        const materialColor = isSelected
-            ? highlightColor || 0xf59e0b
-            : boxColor || defaultColor
-
         const material = new THREE.MeshStandardMaterial({
-            color: materialColor,
+            color: color,
             roughness: 0.4,
             metalness: 0.2,
         })

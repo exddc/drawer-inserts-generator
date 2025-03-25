@@ -1,253 +1,264 @@
 import * as THREE from 'three'
-import { BoxParameters, CombinedBoxInfo } from '@/lib/types'
-import { GridBoxDefinition } from '@/lib/types'
-import { generateBox } from '@/lib/boxGenerator'
+import { CombinedBoxInfo } from '@/lib/types'
+import { BoxDimensions, generateBox } from '@/lib/boxGenerator'
 
 /**
- * Generate grid matrix of box definitions from input parameters
- * This creates a data structure that represents the grid without creating 3D objects yet
+ * Basic box information for rendering in the grid
+ */
+interface BoxInfo {
+    width: number
+    depth: number
+    height: number
+    wallThickness: number
+    cornerRadius: number
+    hasBottom: boolean
+    x: number
+    z: number
+    index: number
+    color: number
+    visible: boolean
+    isCombined: boolean
+    combinedIndices?: number[]
+    direction?: 'width' | 'depth'
+}
+
+/**
+ * Calculate total width of all boxes
+ */
+function calculateTotalWidth(boxWidths: number[]): number {
+    return boxWidths.reduce((sum, width) => sum + width, 0)
+}
+
+/**
+ * Calculate total depth of all boxes
+ */
+function calculateTotalDepth(boxDepths: number[]): number {
+    return boxDepths.reduce((sum, depth) => sum + depth, 0)
+}
+
+/**
+ * Calculate sum of widths up to specific index
+ */
+function sumWidthsBeforeIndex(boxWidths: number[], index: number): number {
+    return boxWidths.slice(0, index).reduce((sum, width) => sum + width, 0)
+}
+
+/**
+ * Calculate sum of depths up to specific index
+ */
+function sumDepthsBeforeIndex(boxDepths: number[], index: number): number {
+    return boxDepths.slice(0, index).reduce((sum, depth) => sum + depth, 0)
+}
+
+/**
+ * Generate grid matrix of box information
  */
 export function generateGridMatrix(
     boxWidths: number[],
     boxDepths: number[],
-    defaultParams: Omit<BoxParameters, 'width' | 'depth'>,
-    selectedBoxIndices: Set<number>,
-    hiddenBoxes: Set<number>,
-    combinedBoxes: Map<number, CombinedBoxInfo>
-): GridBoxDefinition[][] {
+    params: {
+        height: number,
+        wallThickness: number,
+        cornerRadius: number,
+        hasBottom: boolean,
+        boxColor: number,
+        highlightColor: number,
+        selectedBoxIndices: Set<number>,
+        hiddenBoxes: Set<number>,
+        combinedBoxes: Map<number, CombinedBoxInfo>
+    }
+): BoxInfo[] {
+    const {
+        height,
+        wallThickness,
+        cornerRadius,
+        hasBottom,
+        boxColor,
+        highlightColor,
+        selectedBoxIndices,
+        hiddenBoxes,
+        combinedBoxes
+    } = params;
+    
     const numCols = boxWidths.length
     const numRows = boxDepths.length
+    const totalWidth = calculateTotalWidth(boxWidths)
+    const totalDepth = calculateTotalDepth(boxDepths)
     
-    // Initialize matrix with empty rows
-    const matrix: GridBoxDefinition[][] = Array(numRows).fill(null).map(() => 
-        Array(numCols).fill(null)
-    )
+    // Result array of all box information
+    const boxInfoArray: BoxInfo[] = []
     
-    // Track processed positions for combined boxes
-    const processedPositions = new Set<string>()
+    // Track processed positions for combined boxes to avoid duplicates
+    const processedIndices = new Set<number>()
     
-    // First pass - create regular boxes and identify positions occupied by combined boxes
+    // First, handle combined boxes
+    for (const [primaryIndex, combinedInfo] of combinedBoxes.entries()) {
+        const primaryRow = Math.floor(primaryIndex / numCols)
+        const primaryCol = primaryIndex % numCols
+        const direction = combinedInfo.direction
+        const secondaryIndices = combinedInfo.indices
+        const startX = -totalWidth / 2 + sumWidthsBeforeIndex(boxWidths, primaryCol)
+        const startZ = totalDepth / 2 - sumDepthsBeforeIndex(boxDepths, primaryRow)
+        
+        // Mark all indices as processed
+        processedIndices.add(primaryIndex)
+        secondaryIndices.forEach(index => processedIndices.add(index))
+        
+        let combinedWidth = boxWidths[primaryCol]
+        let combinedDepth = boxDepths[primaryRow]
+        
+        if (direction === 'width') {
+            // Combine horizontally - add widths
+            secondaryIndices.forEach(index => {
+                const col = index % numCols
+                combinedWidth += boxWidths[col]
+            })
+        } else {
+            // Combine vertically - add depths
+            secondaryIndices.forEach(index => {
+                const row = Math.floor(index / numCols)
+                combinedDepth += boxDepths[row]
+            })
+        }
+        
+        // Create the combined box info
+        boxInfoArray.push({
+            width: combinedWidth,
+            depth: combinedDepth,
+            height,
+            wallThickness,
+            cornerRadius,
+            hasBottom,
+            x: startX,
+            z: startZ,
+            index: primaryIndex,
+            color: selectedBoxIndices.has(primaryIndex) ? highlightColor : boxColor,
+            visible: !hiddenBoxes.has(primaryIndex),
+            isCombined: true,
+            combinedIndices: [primaryIndex, ...secondaryIndices],
+            direction
+        })
+    }
+    
+    // Then handle regular boxes
     for (let row = 0; row < numRows; row++) {
         for (let col = 0; col < numCols; col++) {
             const index = row * numCols + col
-            const posKey = `${row}-${col}`
             
-            // Skip processing if this position is part of a processed combined box
-            if (processedPositions.has(posKey)) {
+            // Skip if this box was already processed as part of a combined box
+            if (processedIndices.has(index)) {
                 continue
             }
             
-            // If this is a primary index of a combined box
-            if (combinedBoxes.has(index)) {
-                const combinedInfo = combinedBoxes.get(index)!
-                const direction = combinedInfo.direction
-                const secondaryIndices = combinedInfo.indices
-                
-                // Calculate combined dimensions and positions
-                if (direction === 'width') {
-                    // Width combination (horizontal)
-                    let combinedWidth = boxWidths[col]
-                    let currentCol = col
-                    
-                    // Calculate total width and mark positions as processed
-                    for (const secondaryIndex of secondaryIndices) {
-                        const secondaryCol = secondaryIndex % numCols
-                        currentCol = Math.max(currentCol, secondaryCol)
-                        combinedWidth += boxWidths[secondaryCol]
-                        
-                        // Mark all positions in the combined box as processed
-                        processedPositions.add(`${row}-${secondaryCol}`)
-                    }
-                    
-                    // Create a single box definition for the combined box
-                    matrix[row][col] = {
-                        width: combinedWidth,
-                        depth: boxDepths[row],
-                        index,
-                        isSelected: selectedBoxIndices.has(index),
-                        isHidden: hiddenBoxes.has(index),
-                        isCombined: true,
-                        combinedIndices: [index, ...secondaryIndices],
-                        direction,
-                        // Calculate position based on spanning columns
-                        // Position from leftmost box
-                        x: -calculateTotalWidth(boxWidths) / 2 + sumWidthsBeforeIndex(boxWidths, col),
-                        z: calculateTotalDepth(boxDepths) / 2 - sumDepthsBeforeIndex(boxDepths, row),
-                        ...defaultParams
-                    }
-                } else {
-                    // Depth combination (vertical)
-                    let combinedDepth = boxDepths[row]
-                    let currentRow = row
-                    
-                    // Calculate total depth and mark positions as processed
-                    for (const secondaryIndex of secondaryIndices) {
-                        const secondaryRow = Math.floor(secondaryIndex / numCols)
-                        currentRow = Math.max(currentRow, secondaryRow)
-                        combinedDepth += boxDepths[secondaryRow]
-                        
-                        // Mark all positions in the combined box as processed
-                        processedPositions.add(`${secondaryRow}-${col}`)
-                    }
-                    
-                    // Create a single box definition for the combined box
-                    matrix[row][col] = {
-                        width: boxWidths[col],
-                        depth: combinedDepth,
-                        index,
-                        isSelected: selectedBoxIndices.has(index),
-                        isHidden: hiddenBoxes.has(index),
-                        isCombined: true,
-                        combinedIndices: [index, ...secondaryIndices],
-                        direction,
-                        // Calculate position based on spanning rows
-                        x: -calculateTotalWidth(boxWidths) / 2 + sumWidthsBeforeIndex(boxWidths, col),
-                        z: calculateTotalDepth(boxDepths) / 2 - sumDepthsBeforeIndex(boxDepths, row),
-                        ...defaultParams
-                    }
-                }
-            } else {
-                // Handle secondary boxes of combined boxes
-                let isSecondaryBox = false
-                
-                for (const [primaryIndex, combinedInfo] of combinedBoxes.entries()) {
-                    if (combinedInfo.indices.includes(index)) {
-                        isSecondaryBox = true
-                        processedPositions.add(posKey)
-                        
-                        // Create a placeholder for secondary box that won't be rendered
-                        matrix[row][col] = {
-                            width: boxWidths[col],
-                            depth: boxDepths[row],
-                            index,
-                            isSelected: false,
-                            isHidden: true,
-                            isCombined: true,
-                            isSecondaryBox: true,
-                            primaryBoxIndex: primaryIndex,
-                            combinedIndices: [primaryIndex, ...combinedInfo.indices],
-                            direction: combinedInfo.direction,
-                            x: 0,
-                            z: 0,
-                            ...defaultParams
-                        }
-                        break
-                    }
-                }
-
-                // Regular box
-                if (!isSecondaryBox && !processedPositions.has(posKey)) {
-                    matrix[row][col] = {
-                        width: boxWidths[col],
-                        depth: boxDepths[row],
-                        index,
-                        isSelected: selectedBoxIndices.has(index),
-                        isHidden: hiddenBoxes.has(index),
-                        isCombined: false,
-                        // Calculate position
-                        x: -calculateTotalWidth(boxWidths) / 2 + sumWidthsBeforeIndex(boxWidths, col),
-                        z: calculateTotalDepth(boxDepths) / 2 - sumDepthsBeforeIndex(boxDepths, row),
-                        ...defaultParams
-                    }
-                }
-            }
+            // Calculate position for this box
+            const startX = -totalWidth / 2 + sumWidthsBeforeIndex(boxWidths, col)
+            const startZ = totalDepth / 2 - sumDepthsBeforeIndex(boxDepths, row)
+            
+            // Create the box info
+            boxInfoArray.push({
+                width: boxWidths[col],
+                depth: boxDepths[row],
+                height,
+                wallThickness,
+                cornerRadius,
+                hasBottom,
+                x: startX,
+                z: startZ,
+                index,
+                color: selectedBoxIndices.has(index) ? highlightColor : boxColor,
+                visible: !hiddenBoxes.has(index),
+                isCombined: false
+            })
         }
     }
     
-    return matrix
+    return boxInfoArray
 }
 
 /**
- * Creates 3D box objects from a grid matrix and adds them to a group
+ * Create 3D boxes from box information and add them to the group
  */
-export function createBoxesFromMatrix(
-    boxMeshGroup: THREE.Group,
-    matrix: GridBoxDefinition[][]
-): void {
+export function createBoxesFromInfo(boxMeshGroup: THREE.Group, boxInfoArray: BoxInfo[]): void {
     // Clear existing boxes
     while (boxMeshGroup.children.length > 0) {
         boxMeshGroup.remove(boxMeshGroup.children[0])
     }
     
-    // Keep track of box indices for proper ordering
-    const boxMap = new Map<number, THREE.Object3D>();
+    // Sort boxes by index to ensure consistent ordering
+    const sortedBoxInfo = [...boxInfoArray].sort((a, b) => a.index - b.index)
     
-    // Create 3D objects from matrix
-    for (let row = 0; row < matrix.length; row++) {
-        for (let col = 0; col < matrix[row].length; col++) {
-            const boxDef = matrix[row][col]
-            
-            if (!boxDef) continue
-            
-            if (boxDef.isSecondaryBox) {
-                // Create a placeholder for secondary boxes that won't be rendered
-                const placeholder = new THREE.Group()
-                placeholder.visible = false
-                placeholder.userData = {
-                    dimensions: {
-                        width: boxDef.width,
-                        depth: boxDef.depth,
-                        height: boxDef.height,
-                        index: boxDef.index,
-                        isHidden: true,
-                        isSelected: false,
-                        isCombined: true,
-                        isSecondaryBox: true,
-                        primaryBoxIndex: boxDef.primaryBoxIndex,
-                    },
+    // Create a box entry for every index, even if invisible
+    const totalIndices = Math.max(...boxInfoArray.map(info => info.index)) + 1
+    const boxObjects: (THREE.Object3D | null)[] = Array(totalIndices).fill(null)
+    
+    // Create and position all boxes
+    for (const boxInfo of sortedBoxInfo) {
+        // For invisible boxes, create a placeholder group
+        if (!boxInfo.visible) {
+            const placeholder = new THREE.Group()
+            placeholder.visible = false
+            placeholder.userData = {
+                dimensions: {
+                    width: boxInfo.width,
+                    depth: boxInfo.depth,
+                    height: boxInfo.height,
+                    index: boxInfo.index,
+                    isHidden: true,
+                    isSelected: false,
+                    isCombined: boxInfo.isCombined,
+                    combinedIndices: boxInfo.combinedIndices,
+                    direction: boxInfo.direction
                 }
-                boxMap.set(boxDef.index, placeholder)
-                continue
             }
-            
-            // Skip hidden boxes but create placeholder for proper indexing
-            if (boxDef.isHidden) {
-                const placeholder = new THREE.Group()
-                placeholder.visible = false
-                placeholder.userData = {
-                    dimensions: {
-                        width: boxDef.width,
-                        depth: boxDef.depth,
-                        height: boxDef.height,
-                        index: boxDef.index,
-                        isHidden: true,
-                        isSelected: false,
-                        isCombined: boxDef.isCombined,
-                        combinedIndices: boxDef.combinedIndices,
-                        direction: boxDef.direction
-                    },
-                }
-                placeholder.position.set(boxDef.x, 0, boxDef.z)
-                boxMap.set(boxDef.index, placeholder)
-                continue
-            }
-            
-            // Create a visible box
-            const box = generateBox(boxDef)
-            
-            // Position the box
-            if (box instanceof THREE.Group || box instanceof THREE.Mesh) {
-                box.position.set(boxDef.x, 0, boxDef.z)
-            }
-            
-            boxMap.set(boxDef.index, box)
+            placeholder.position.set(boxInfo.x, 0, boxInfo.z)
+            boxObjects[boxInfo.index] = placeholder
+            continue
         }
+        
+        // Create visible box
+        const box = generateBox({
+            width: boxInfo.width,
+            depth: boxInfo.depth,
+            height: boxInfo.height,
+            wallThickness: boxInfo.wallThickness,
+            cornerRadius: boxInfo.cornerRadius,
+            hasBottom: boxInfo.hasBottom,
+            color: boxInfo.color
+        })
+        
+        // Add metadata
+        box.userData = {
+            dimensions: {
+                width: boxInfo.width,
+                depth: boxInfo.depth,
+                height: boxInfo.height,
+                index: boxInfo.index,
+                isHidden: false,
+                isSelected: boxInfo.color === (boxInfo as any).highlightColor,
+                isCombined: boxInfo.isCombined,
+                combinedIndices: boxInfo.combinedIndices,
+                direction: boxInfo.direction
+            }
+        }
+        
+        // Position the box
+        box.position.set(boxInfo.x, 0, boxInfo.z)
+        
+        // Store in our array
+        boxObjects[boxInfo.index] = box
     }
     
-    // Add boxes to the group in the correct order
-    const sortedIndices = Array.from(boxMap.keys()).sort((a, b) => a - b)
-    for (const index of sortedIndices) {
-        const box = boxMap.get(index)
-        if (box) {
-            boxMeshGroup.add(box)
+    // Add all boxes to the group in index order
+    boxObjects.forEach(obj => {
+        if (obj) {
+            boxMeshGroup.add(obj)
         }
-    }
+    })
 }
 
 /**
- * Generate box models based on current parameters and add them to the scene
- * This is a wrapper around the matrix-based generation functions 
- * for backward compatibility
+ * Generate box models and add them to the scene
+ * Main entry point for the grid generator
  */
 export function createBoxModelFromGrid(
     boxMeshGroup: THREE.Group | null,
@@ -276,8 +287,8 @@ export function createBoxModelFromGrid(
         hasBottom,
         selectedBoxIndices = new Set<number>(),
         hiddenBoxes = new Set<number>(),
-        boxColor,
-        highlightColor,
+        boxColor = 0x7a9cbf,
+        highlightColor = 0xf59e0b,
         combinedBoxes = new Map<number, CombinedBoxInfo>(),
     } = params
     
@@ -293,8 +304,8 @@ export function createBoxModelFromGrid(
             return
         }
         
-        // Generate grid matrix
-        const matrix = generateGridMatrix(
+        // Generate box information
+        const boxInfoArray = generateGridMatrix(
             boxWidths,
             boxDepths,
             {
@@ -303,49 +314,19 @@ export function createBoxModelFromGrid(
                 cornerRadius,
                 hasBottom,
                 boxColor,
-                highlightColor
-            },
-            selectedBoxIndices,
-            hiddenBoxes,
-            combinedBoxes
+                highlightColor,
+                selectedBoxIndices,
+                hiddenBoxes,
+                combinedBoxes
+            }
         )
-
-        console.log('Generated grid matrix:', matrix)
         
-        // Create boxes from matrix
-        createBoxesFromMatrix(boxMeshGroup, matrix)
+        // Create boxes from info
+        createBoxesFromInfo(boxMeshGroup, boxInfoArray)
         
     } catch (error) {
         console.error('Error creating box models:', error)
     }
-}
-
-/**
- * Helper function to calculate total width of all boxes
- */
-function calculateTotalWidth(boxWidths: number[]): number {
-    return boxWidths.reduce((sum, width) => sum + width, 0)
-}
-
-/**
- * Helper function to calculate total depth of all boxes
- */
-function calculateTotalDepth(boxDepths: number[]): number {
-    return boxDepths.reduce((sum, depth) => sum + depth, 0)
-}
-
-/**
- * Helper function to sum widths of boxes before a certain index
- */
-function sumWidthsBeforeIndex(boxWidths: number[], index: number): number {
-    return boxWidths.slice(0, index).reduce((sum, width) => sum + width, 0)
-}
-
-/**
- * Helper function to sum depths of boxes before a certain index
- */
-function sumDepthsBeforeIndex(boxDepths: number[], index: number): number {
-    return boxDepths.slice(0, index).reduce((sum, depth) => sum + depth, 0)
 }
 
 /**
