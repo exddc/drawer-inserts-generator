@@ -4,9 +4,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { setupGrid } from '@/lib/gridGenerator'
 import { useBoxStore } from '@/lib/store'
 
-/**
- * Custom hook to set up the Three.js scene, camera, renderer, and controls
- */
 export function useSceneSetup(
     containerRef: RefObject<HTMLDivElement>,
     rendererRef: RefObject<THREE.WebGLRenderer>,
@@ -21,106 +18,63 @@ export function useSceneSetup(
 ) {
     const { width, depth, debugMode } = useBoxStore()
 
+    // Initialize scene, camera, renderer
     useEffect(() => {
         if (!containerRef.current) return
 
-        // Initialize scene
-        const scene = new THREE.Scene()
-        scene.background = new THREE.Color(0xffffff)
+        // Scene setup
+        const scene = initializeScene()
         sceneRef.current = scene
 
-        // Set up camera
-        const camera = new THREE.PerspectiveCamera(
-            75,
-            containerRef.current.clientWidth / containerRef.current.clientHeight,
-            0.1,
-            1000
-        )
-        camera.position.set(-110, -130, 110)
-        camera.up.set(0, 0, 1)
+        // Camera setup
+        const camera = initializeCamera(containerRef.current)
         cameraRef.current = camera
 
-        // Set up renderer
-        const renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            alpha: true,
-        })
-        renderer.setSize(
-            containerRef.current.clientWidth,
-            containerRef.current.clientHeight
-        )
-        renderer.shadowMap.enabled = true
-        renderer.info.autoReset = false
-        containerRef.current.appendChild(renderer.domElement)
+        // Renderer setup
+        const renderer = initializeRenderer(containerRef.current)
         rendererRef.current = renderer
 
-        // Set up controls
-        const controls = new OrbitControls(camera, renderer.domElement)
-        controls.enableDamping = true
-        controls.dampingFactor = 0.05
-        controls.mouseButtons = {
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.PAN,
-        }
+        // Controls setup
+        const controls = initializeControls(camera, renderer.domElement)
         controlsRef.current = controls
 
-        // Add lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
-        scene.add(ambientLight)
+        // Lighting setup
+        setupLighting(scene)
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
-        directionalLight.position.set(150, 200, 100)
-        directionalLight.castShadow = true
-        scene.add(directionalLight)
-
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5)
-        directionalLight2.position.set(-150, 50, -100)
-        directionalLight2.castShadow = true
-        scene.add(directionalLight2)
-
-        // Set up grid and axes
+        // Grid and axes setup
         const gridHelper = setupGrid(scene, width, depth)
-        // @ts-ignore - To be fixed
         gridHelperRef.current = gridHelper
-        scene.rotateX(Math.PI / 2) // Make Z the up direction for easier placement in CAD or Slicer Software
 
         const axesHelper = new THREE.AxesHelper(100)
         scene.add(axesHelper)
         axesHelperRef.current = axesHelper
 
-        // Create box group
+        // Box group setup
         const boxGroup = new THREE.Group()
         scene.add(boxGroup)
         boxMeshGroupRef.current = boxGroup
 
-        // Set up raycaster
+        // Raycaster setup
         raycasterRef.current = new THREE.Raycaster()
 
         // Animation loop
-        const animate = () => {
-            requestAnimationFrame(animate)
-            if (controlsRef.current) controlsRef.current.update()
-            if (rendererRef.current && sceneRef.current && cameraRef.current) {
-                if (debugMode) {
-                    rendererRef.current.info.reset()
-                }
-                rendererRef.current.render(sceneRef.current, cameraRef.current)
-            }
-        }
+        const animate = createAnimationLoop(
+            controlsRef,
+            rendererRef,
+            sceneRef,
+            cameraRef,
+            debugMode
+        )
+        
         animate()
 
         // Handle window resize
-        const handleResize = () => {
-            if (!containerRef.current || !cameraRef.current || !rendererRef.current) return
-
-            cameraRef.current.aspect = 
-                containerRef.current.clientWidth / containerRef.current.clientHeight
-            cameraRef.current.updateProjectionMatrix()
-            rendererRef.current.setSize(
-                containerRef.current.clientWidth,
-                containerRef.current.clientHeight
-            )
-        }
+        const handleResize = createResizeHandler(
+            containerRef,
+            cameraRef,
+            rendererRef
+        )
+        
         window.addEventListener('resize', handleResize)
 
         // Cleanup
@@ -140,4 +94,102 @@ export function useSceneSetup(
     }, [debugMode])
 
     return null
+}
+
+// Helper functions
+function initializeScene(): THREE.Scene {
+    const scene = new THREE.Scene()
+    scene.background = new THREE.Color(0xffffff)
+    scene.rotateX(Math.PI / 2) // Make Z the up direction for easier placement in CAD or Slicer Software
+    return scene
+}
+
+function initializeCamera(container: HTMLDivElement): THREE.PerspectiveCamera {
+    const camera = new THREE.PerspectiveCamera(
+        75,
+        container.clientWidth / container.clientHeight,
+        0.1,
+        1000
+    )
+    camera.position.set(-110, -130, 110)
+    camera.up.set(0, 0, 1)
+    return camera
+}
+
+function initializeRenderer(container: HTMLDivElement): THREE.WebGLRenderer {
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+    })
+    renderer.setSize(container.clientWidth, container.clientHeight)
+    renderer.shadowMap.enabled = true
+    renderer.info.autoReset = false
+    container.appendChild(renderer.domElement)
+    return renderer
+}
+
+function initializeControls(
+    camera: THREE.PerspectiveCamera,
+    domElement: HTMLCanvasElement
+): OrbitControls {
+    const controls = new OrbitControls(camera, domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.05
+    controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.PAN,
+    }
+    return controls
+}
+
+function setupLighting(scene: THREE.Scene): void {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
+    scene.add(ambientLight)
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+    directionalLight.position.set(150, 200, 100)
+    directionalLight.castShadow = true
+    scene.add(directionalLight)
+
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5)
+    directionalLight2.position.set(-150, 50, -100)
+    directionalLight2.castShadow = true
+    scene.add(directionalLight2)
+}
+
+function createAnimationLoop(
+    controlsRef: RefObject<OrbitControls>,
+    rendererRef: RefObject<THREE.WebGLRenderer>,
+    sceneRef: RefObject<THREE.Scene>,
+    cameraRef: RefObject<THREE.PerspectiveCamera>,
+    debugMode: boolean
+): () => void {
+    return function animate() {
+        requestAnimationFrame(animate)
+        if (controlsRef.current) controlsRef.current.update()
+        if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            if (debugMode) {
+                rendererRef.current.info.reset()
+            }
+            rendererRef.current.render(sceneRef.current, cameraRef.current)
+        }
+    }
+}
+
+function createResizeHandler(
+    containerRef: RefObject<HTMLDivElement>,
+    cameraRef: RefObject<THREE.PerspectiveCamera>,
+    rendererRef: RefObject<THREE.WebGLRenderer>
+): () => void {
+    return function handleResize() {
+        if (!containerRef.current || !cameraRef.current || !rendererRef.current) return
+
+        cameraRef.current.aspect = 
+            containerRef.current.clientWidth / containerRef.current.clientHeight
+        cameraRef.current.updateProjectionMatrix()
+        rendererRef.current.setSize(
+            containerRef.current.clientWidth,
+            containerRef.current.clientHeight
+        )
+    }
 }

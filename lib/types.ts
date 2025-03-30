@@ -257,3 +257,12 @@ export interface UIState {
     getCombinedBoxIndices: (index: number) => number[]
     resetCombinedBoxes: () => void
 }
+
+export interface SharingState {
+    loadFromUrl: () => void
+    shareConfiguration: () => Promise<boolean>
+  }
+
+export interface StoreState extends BoxState, UIState, SharingState {
+    updateInput: (name: string, value: number | boolean | string) => void
+}

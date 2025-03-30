@@ -1,3 +1,4 @@
+// lib/raycastManager.ts
 import * as THREE from 'three'
 
 /**
@@ -69,7 +70,7 @@ export class RaycastManager {
     }
 }
 
-// Extend the Window interface to include our raycast manager
+// Define the global extensions for the window object
 declare global {
     interface Window {
         raycastManager: RaycastManager

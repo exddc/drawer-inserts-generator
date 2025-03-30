@@ -11,11 +11,13 @@ export interface BoxDimensions {
     cornerRadius: number
     hasBottom: boolean
     color?: number
+    index?: number
+    isSelected?: boolean
+    isHidden?: boolean
 }
 
 /**
  * Create a box with rounded edges and optional bottom
- * Simplified to only require dimensional parameters
  */
 export function generateBox(dimensions: BoxDimensions): THREE.Mesh | THREE.Group {
     const {
@@ -26,9 +28,13 @@ export function generateBox(dimensions: BoxDimensions): THREE.Mesh | THREE.Group
         cornerRadius,
         hasBottom,
         color = 0x7a9cbf,
+        index,
+        isSelected = false,
+        isHidden = false
     } = dimensions
     
     const meshGroup = new THREE.Group()
+    meshGroup.visible = !isHidden
 
     // Set userData for dimensions
     meshGroup.userData = {
@@ -36,81 +42,110 @@ export function generateBox(dimensions: BoxDimensions): THREE.Mesh | THREE.Group
             width,
             depth,
             height,
+            index,
+            isSelected,
+            isHidden
         },
     }
 
+    // Generate the box geometry based on whether it has a bottom
     if (hasBottom) {
-        // Create wall shape with rounded corners
-        const wallsShape = createWallShape(width, depth, wallThickness, cornerRadius)
-        
-        // Extrude the walls vertically
-        const wallsExtrudeSettings = {
-            steps: 1,
-            depth: height,
-            bevelEnabled: false,
-        }
-        const wallsGeometry = new THREE.ExtrudeGeometry(wallsShape, wallsExtrudeSettings)
-
-        // Create material with proper color
-        const material = new THREE.MeshStandardMaterial({
-            color: color,
-            roughness: 0.4,
-            metalness: 0.2,
-        })
-
-        // Create the walls mesh
-        const wallsMesh = new THREE.Mesh(wallsGeometry, material)
-        wallsMesh.castShadow = true
-        wallsMesh.receiveShadow = true
-        meshGroup.add(wallsMesh)
-
-        // Create the bottom shape (same as outer wall shape)
-        const bottomShape = createOuterShape(width, depth, cornerRadius)
-        
-        // Extrude the bottom with wall thickness
-        const bottomExtrudeSettings = {
-            steps: 1,
-            depth: wallThickness,
-            bevelEnabled: false,
-        }
-        const bottomGeometry = new THREE.ExtrudeGeometry(bottomShape, bottomExtrudeSettings)
-        const bottomMesh = new THREE.Mesh(bottomGeometry, material)
-        bottomMesh.castShadow = true
-        bottomMesh.receiveShadow = true
-        meshGroup.add(bottomMesh)
-
-        // Rotate the whole group to match the scene orientation
-        meshGroup.rotation.x = -Math.PI / 2
-
-        return meshGroup
+        addBoxWithBottom(meshGroup, width, depth, height, wallThickness, cornerRadius, color)
     } else {
-        // No bottom - create only walls
-        const wallsShape = createWallShape(width, depth, wallThickness, cornerRadius)
-        
-        const extrudeSettings = {
-            steps: 1,
-            depth: height,
-            bevelEnabled: false,
-        }
-        
-        const geometry = new THREE.ExtrudeGeometry(wallsShape, extrudeSettings)
-
-        const material = new THREE.MeshStandardMaterial({
-            color: color,
-            roughness: 0.4,
-            metalness: 0.2,
-        })
-
-        const mesh = new THREE.Mesh(geometry, material)
-        mesh.castShadow = true
-        mesh.receiveShadow = true
-        mesh.rotation.x = -Math.PI / 2
-        
-        // Add userData for the mesh
-        mesh.userData = meshGroup.userData
-
-        return mesh
+        addBoxWithoutBottom(meshGroup, width, depth, height, wallThickness, cornerRadius, color)
     }
+
+    // Rotate the whole group to match the scene orientation
+    meshGroup.rotation.x = -Math.PI / 2
+
+    return meshGroup
+}
+
+/**
+ * Add a box with bottom to the mesh group
+ */
+function addBoxWithBottom(
+    meshGroup: THREE.Group,
+    width: number,
+    depth: number,
+    height: number,
+    wallThickness: number,
+    cornerRadius: number,
+    color: number
+): void {
+    // Create wall shape with rounded corners
+    const wallsShape = createWallShape(width, depth, wallThickness, cornerRadius)
+    
+    // Extrude the walls vertically
+    const wallsExtrudeSettings = {
+        steps: 1,
+        depth: height,
+        bevelEnabled: false,
+    }
+    const wallsGeometry = new THREE.ExtrudeGeometry(wallsShape, wallsExtrudeSettings)
+
+    // Create material with proper color
+    const material = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.4,
+        metalness: 0.2,
+    })
+
+    // Create the walls mesh
+    const wallsMesh = new THREE.Mesh(wallsGeometry, material)
+    wallsMesh.castShadow = true
+    wallsMesh.receiveShadow = true
+    meshGroup.add(wallsMesh)
+
+    // Create the bottom shape (same as outer wall shape)
+    const bottomShape = createOuterShape(width, depth, cornerRadius)
+    
+    // Extrude the bottom with wall thickness
+    const bottomExtrudeSettings = {
+        steps: 1,
+        depth: wallThickness,
+        bevelEnabled: false,
+    }
+    const bottomGeometry = new THREE.ExtrudeGeometry(bottomShape, bottomExtrudeSettings)
+    const bottomMesh = new THREE.Mesh(bottomGeometry, material)
+    bottomMesh.castShadow = true
+    bottomMesh.receiveShadow = true
+    meshGroup.add(bottomMesh)
+}
+
+/**
+ * Add a box without bottom to the mesh group
+ */
+function addBoxWithoutBottom(
+    meshGroup: THREE.Group,
+    width: number,
+    depth: number,
+    height: number,
+    wallThickness: number,
+    cornerRadius: number,
+    color: number
+): void {
+    // Create wall shape with rounded corners
+    const wallsShape = createWallShape(width, depth, wallThickness, cornerRadius)
+    
+    const extrudeSettings = {
+        steps: 1,
+        depth: height,
+        bevelEnabled: false,
+    }
+    
+    const geometry = new THREE.ExtrudeGeometry(wallsShape, extrudeSettings)
+
+    const material = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.4,
+        metalness: 0.2,
+    })
+
+    const mesh = new THREE.Mesh(geometry, material)
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    meshGroup.add(mesh)
 }
 
 /**

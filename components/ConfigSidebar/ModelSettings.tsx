@@ -1,3 +1,4 @@
+// components/ConfigSidebar/ModelSettings.tsx
 'use client'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -10,11 +11,11 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useBoxStore } from '@/lib/store'
-import { defaultConstraints } from '@/lib/types'
 import { calculateMaxCornerRadius } from '@/lib/validationUtils'
 import { ChevronsUpDown, InfoIcon } from 'lucide-react'
 
 export default function ModelSettings() {
+    // Get all required state from the store
     const {
         width,
         depth,
@@ -33,6 +34,7 @@ export default function ModelSettings() {
         uniqueBoxesExport,
     } = useBoxStore()
 
+    // Create a generic handler for any input change
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target
 
@@ -43,15 +45,6 @@ export default function ModelSettings() {
         }
     }
 
-    const handleUniqueBoxesExportChange = (checked: boolean) => {
-        updateInput('uniqueBoxesExport', checked)
-    }
-
-    // Generic Checkbox change handler
-    const handleCheckboxChange = (name: string, checked: boolean) => {
-        updateInput(name, checked)
-    }
-
     // Generic Slider change handler
     const handleSliderChange = (name: string, value: number[]) => {
         if (value.length > 0) {
@@ -59,9 +52,16 @@ export default function ModelSettings() {
         }
     }
 
-    const handleMultiBoxCheckboxChange = (checked: boolean) => {
-        updateInput('useMultipleBoxes', checked)
-    }
+    // Calculate maximum allowed corner radius
+    const maxCornerRadius = calculateMaxCornerRadius(
+        width,
+        depth,
+        wallThickness,
+        25, // default constraint max
+        useMultipleBoxes,
+        minBoxWidth,
+        minBoxDepth
+    )
 
     return (
         <TabsContent value="modelSettings" className="space-y-4">
@@ -74,6 +74,7 @@ export default function ModelSettings() {
                 </div>
 
                 <CollapsibleContent className="space-y-4">
+                    {/* Width slider */}
                     <div className="space-y-2">
                         <Label htmlFor="width">Total Width (mm): {width}</Label>
                         <div className="mt-2 flex items-center space-x-2">
@@ -84,8 +85,8 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     handleSliderChange('width', value)
                                 }
-                                min={defaultConstraints.width.min}
-                                max={defaultConstraints.width.max}
+                                min={10}
+                                max={500}
                                 step={1}
                                 className="flex-grow"
                             />
@@ -94,13 +95,14 @@ export default function ModelSettings() {
                                 name="width"
                                 value={width}
                                 onChange={handleInputChange}
-                                min={defaultConstraints.width.min}
-                                max={defaultConstraints.width.max}
+                                min={10}
+                                max={500}
                                 className="w-20"
                             />
                         </div>
                     </div>
 
+                    {/* Depth slider */}
                     <div className="space-y-2">
                         <Label htmlFor="depth">Total Depth (mm): {depth}</Label>
                         <div className="mt-2 flex items-center space-x-2">
@@ -111,8 +113,8 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     handleSliderChange('depth', value)
                                 }
-                                min={defaultConstraints.depth.min}
-                                max={defaultConstraints.depth.max}
+                                min={10}
+                                max={500}
                                 step={1}
                                 className="flex-grow"
                             />
@@ -121,13 +123,14 @@ export default function ModelSettings() {
                                 name="depth"
                                 value={depth}
                                 onChange={handleInputChange}
-                                min={defaultConstraints.depth.min}
-                                max={defaultConstraints.depth.max}
+                                min={10}
+                                max={500}
                                 className="w-20"
                             />
                         </div>
                     </div>
 
+                    {/* Height slider */}
                     <div className="space-y-2">
                         <Label htmlFor="height">Height (mm): {height}</Label>
                         <div className="mt-2 flex items-center space-x-2">
@@ -140,13 +143,10 @@ export default function ModelSettings() {
                                 }
                                 min={
                                     hasBottom
-                                        ? Math.max(
-                                              defaultConstraints.height.min,
-                                              wallThickness + 1
-                                          )
-                                        : defaultConstraints.height.min
+                                        ? Math.max(5, wallThickness + 1)
+                                        : 5
                                 }
-                                max={defaultConstraints.height.max}
+                                max={100}
                                 step={1}
                                 className="flex-grow"
                             />
@@ -157,18 +157,16 @@ export default function ModelSettings() {
                                 onChange={handleInputChange}
                                 min={
                                     hasBottom
-                                        ? Math.max(
-                                              defaultConstraints.height.min,
-                                              wallThickness + 1
-                                          )
-                                        : defaultConstraints.height.min
+                                        ? Math.max(5, wallThickness + 1)
+                                        : 5
                                 }
-                                max={defaultConstraints.height.max}
+                                max={100}
                                 className="w-20"
                             />
                         </div>
                     </div>
 
+                    {/* Wall thickness slider */}
                     <div className="space-y-2">
                         <Label htmlFor="wallThickness">
                             Wall Thickness (mm): {wallThickness}
@@ -181,8 +179,8 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     handleSliderChange('wallThickness', value)
                                 }
-                                min={defaultConstraints.wallThickness.min}
-                                max={defaultConstraints.wallThickness.max}
+                                min={1}
+                                max={10}
                                 step={0.5}
                                 className="flex-grow"
                             />
@@ -191,14 +189,15 @@ export default function ModelSettings() {
                                 name="wallThickness"
                                 value={wallThickness}
                                 onChange={handleInputChange}
-                                min={defaultConstraints.wallThickness.min}
-                                max={defaultConstraints.wallThickness.max}
+                                min={1}
+                                max={10}
                                 step="0.5"
                                 className="w-20"
                             />
                         </div>
                     </div>
 
+                    {/* Corner radius slider */}
                     <div className="space-y-2">
                         <Label htmlFor="cornerRadius">
                             Corner Radius (mm): {cornerRadius}
@@ -211,16 +210,8 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     handleSliderChange('cornerRadius', value)
                                 }
-                                min={defaultConstraints.cornerRadius.min}
-                                max={calculateMaxCornerRadius(
-                                    width,
-                                    depth,
-                                    wallThickness,
-                                    defaultConstraints.cornerRadius.max,
-                                    useMultipleBoxes,
-                                    minBoxWidth,
-                                    minBoxDepth
-                                )}
+                                min={0}
+                                max={maxCornerRadius}
                                 step={0.5}
                                 className="flex-grow"
                             />
@@ -229,52 +220,48 @@ export default function ModelSettings() {
                                 name="cornerRadius"
                                 value={cornerRadius}
                                 onChange={handleInputChange}
-                                min={defaultConstraints.cornerRadius.min}
-                                max={calculateMaxCornerRadius(
-                                    width,
-                                    depth,
-                                    wallThickness,
-                                    defaultConstraints.cornerRadius.max,
-                                    useMultipleBoxes,
-                                    minBoxWidth,
-                                    minBoxDepth
-                                )}
+                                min={0}
+                                max={maxCornerRadius}
                                 className="w-20"
                             />
                         </div>
                     </div>
 
+                    {/* Include bottom checkbox */}
                     <div className="flex items-center space-x-2 pt-2">
                         <Checkbox
                             id="hasBottom"
                             checked={hasBottom}
                             onCheckedChange={(checked) =>
-                                handleCheckboxChange(
-                                    'hasBottom',
-                                    checked as boolean
-                                )
+                                updateInput('hasBottom', !!checked)
                             }
                         />
                         <Label htmlFor="hasBottom">Include Bottom</Label>
                     </div>
 
+                    {/* Split into grid checkbox */}
                     <div className="flex items-center space-x-2">
                         <Checkbox
                             id="useMultipleBoxes"
                             checked={useMultipleBoxes}
-                            onCheckedChange={handleMultiBoxCheckboxChange}
+                            onCheckedChange={(checked) =>
+                                updateInput('useMultipleBoxes', !!checked)
+                            }
                         />
                         <Label htmlFor="useMultipleBoxes">
                             Split into grid of boxes
                         </Label>
                     </div>
 
+                    {/* Unique boxes export checkbox */}
                     {useMultipleBoxes && (
                         <div className="flex items-center space-x-2">
                             <Checkbox
                                 id="uniqueBoxesExport"
                                 checked={uniqueBoxesExport}
-                                onCheckedChange={handleUniqueBoxesExportChange}
+                                onCheckedChange={(checked) =>
+                                    updateInput('uniqueBoxesExport', !!checked)
+                                }
                             />
                             <Label htmlFor="uniqueBoxesExport">
                                 Only export unique boxes
@@ -282,6 +269,7 @@ export default function ModelSettings() {
                         </div>
                     )}
 
+                    {/* Information about STL files */}
                     {uniqueBoxesExport && (
                         <div className="text-muted-foreground mb-2 flex items-center space-x-4 text-xs">
                             <InfoIcon className="h-6 w-6" />
@@ -295,7 +283,7 @@ export default function ModelSettings() {
                 </CollapsibleContent>
             </Collapsible>
 
-            {/* Multi-box settings */}
+            {/* Multi-box settings section (rendered conditionally) */}
             {useMultipleBoxes && (
                 <Collapsible defaultOpen={true}>
                     <div className="mb-4 flex items-center justify-between border-t pt-4">
@@ -339,44 +327,6 @@ export default function ModelSettings() {
                             </TabsList>
 
                             <TabsContent value="width" className="space-y-4">
-                                {/* <div className="space-y-2 mt-2">
-                                    <Label htmlFor="minBoxWidth">
-                                        Min Box Width (mm): {minBoxWidth}
-                                    </Label>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                        <Slider
-                                            id="minBoxWidth-slider"
-                                            name="minBoxWidth"
-                                            value={[minBoxWidth]}
-                                            onValueChange={(value) =>
-                                                handleSliderChange(
-                                                    'minBoxWidth',
-                                                    value
-                                                )
-                                            }
-                                            min={
-                                                defaultConstraints.minBoxWidth
-                                                    ?.min
-                                            }
-                                            max={maxBoxWidth}
-                                            step={1}
-                                            className="flex-grow"
-                                        />
-                                        <Input
-                                            type="number"
-                                            name="minBoxWidth"
-                                            value={minBoxWidth}
-                                            onChange={handleInputChange}
-                                            min={
-                                                defaultConstraints.minBoxWidth
-                                                    ?.min
-                                            }
-                                            max={maxBoxWidth}
-                                            className="w-20"
-                                        />
-                                    </div>
-                                </div> */}
-
                                 <div className="mt-2 space-y-2">
                                     <Label htmlFor="maxBoxWidth">
                                         Max Box Width (mm): {maxBoxWidth}
@@ -410,7 +360,6 @@ export default function ModelSettings() {
                                 </div>
 
                                 {/* Show calculated box widths */}
-
                                 <div className="bg-secondary/20 mt-4 rounded-md border p-3 text-sm">
                                     <p className="font-medium">
                                         Width distribution:
@@ -430,44 +379,6 @@ export default function ModelSettings() {
                             </TabsContent>
 
                             <TabsContent value="depth" className="space-y-4">
-                                {/* <div className="space-y-2 mt-2">
-                                    <Label htmlFor="minBoxDepth">
-                                        Min Box Depth (mm): {minBoxDepth}
-                                    </Label>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                        <Slider
-                                            id="minBoxDepth-slider"
-                                            name="minBoxDepth"
-                                            value={[minBoxDepth]}
-                                            onValueChange={(value) =>
-                                                handleSliderChange(
-                                                    'minBoxDepth',
-                                                    value
-                                                )
-                                            }
-                                            min={
-                                                defaultConstraints.minBoxDepth
-                                                    ?.min
-                                            }
-                                            max={maxBoxDepth}
-                                            step={1}
-                                            className="flex-grow"
-                                        />
-                                        <Input
-                                            type="number"
-                                            name="minBoxDepth"
-                                            value={minBoxDepth}
-                                            onChange={handleInputChange}
-                                            min={
-                                                defaultConstraints.minBoxDepth
-                                                    ?.min
-                                            }
-                                            max={maxBoxDepth}
-                                            className="w-20"
-                                        />
-                                    </div>
-                                </div> */}
-
                                 <div className="mt-2 space-y-2">
                                     <Label htmlFor="maxBoxDepth">
                                         Max Box Depth (mm): {maxBoxDepth}
