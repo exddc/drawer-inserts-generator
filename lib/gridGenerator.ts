@@ -1,7 +1,3 @@
-import { get } from 'http'
-import { Grid } from 'lucide-react'
-import * as THREE from 'three'
-
 interface GridCell {
     index: number,
     width: number,
@@ -53,3 +49,17 @@ export function generateGrid(width: number, depth: number, maxBoxWidth: number, 
     return grid
 }
 
+/**
+ * Get the cell information based on the given index
+ */
+export function getCellInfo(grid: GridCell[][], index: number): GridCell | undefined {
+    for (let i = 0; i < grid.length; i++) {
+        for (let j = 0; j < grid[i].length; j++) {
+            if (grid[i][j].index === index) {
+                return grid[i][j]
+            }
+        }
+    }
+
+    return undefined
+}

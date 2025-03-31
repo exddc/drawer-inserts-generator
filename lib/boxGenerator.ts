@@ -1,42 +1,44 @@
-import * as THREE from 'three'
-import { createOuterShape, createInnerShape } from './boxGeneratorUtils'
+import * as THREE from 'three';
+import { createBoxWalls } from './boxGeneratorUtils';
 
 /**
  * Core box definition with only the essential dimensions
  */
 export interface BoxDimensions {
-    width: number
-    depth: number
-    height: number
-    wallThickness: number
-    cornerRadius: number
-    hasBottom: boolean
-    color?: number
-    index?: number
-    isSelected?: boolean
-    isHidden?: boolean
+    width: number;
+    depth: number;
+    height: number;
+    wallThickness: number;
+    cornerRadius: number;
+    hasBottom: boolean;
+    color?: number;
+    index?: number;
+    isHidden?: boolean;
+    excludeWalls?: string[]; // Walls to exclude
 }
 
 /**
- * Create a box with rounded edges and optional bottom
+ * Create a box with individual walls and optional bottom
  */
-export function generateBasicBox(dimensions: BoxDimensions, positionX: number, positionZ: number): THREE.Mesh | THREE.Group {
+export function generateBasicBox(
+    dimensions: BoxDimensions,
+    positionX: number,
+    positionZ: number
+): THREE.Group {
     const {
         width,
         depth,
         height,
         wallThickness,
-        cornerRadius,
-        hasBottom,
-        color = 0x7a9cbf,
         index,
-        isSelected = false,
-        isHidden = false
-    } = dimensions
-    
-    const meshGroup = new THREE.Group()
-    meshGroup.visible = !isHidden
+        isHidden = false,
+        excludeWalls = [], // Default to empty array if not provided
+    } = dimensions;
 
+    // Create a group to hold all the meshes
+    const meshGroup = new THREE.Group();
+    meshGroup.visible = !isHidden;
+    
     // Set userData for dimensions
     meshGroup.userData = {
         dimensions: {
@@ -44,60 +46,18 @@ export function generateBasicBox(dimensions: BoxDimensions, positionX: number, p
             depth,
             height,
             index,
-            isSelected,
-            isHidden
+            isHidden,
         },
-    }
-
-    // Create wall shape with rounded corners
-    const wallsShape = createOuterShape(width, depth, cornerRadius)
-    const innerPath = createInnerShape(width, depth, wallThickness, cornerRadius)
+    };
     
-    wallsShape.holes.push(innerPath)
-
-    // Extrude the walls vertically
-    const wallsExtrudeSettings = {
-        steps: 1,
-        depth: height,
-        bevelEnabled: false,
-    }
-    const wallsGeometry = new THREE.ExtrudeGeometry(wallsShape, wallsExtrudeSettings)
-
-    // Create material with proper color
-    const material = new THREE.MeshStandardMaterial({
-        color: color,
-        roughness: 0.4,
-        metalness: 0.2,
-    })
-
-    // Create the walls mesh
-    const wallsMesh = new THREE.Mesh(wallsGeometry, material)
-    wallsMesh.castShadow = true
-    wallsMesh.receiveShadow = true
-    meshGroup.add(wallsMesh)
-
-    if(hasBottom) {
-         // Create the bottom shape (same as outer wall shape)
-        const bottomShape = createOuterShape(width, depth, cornerRadius)
-        
-        // Extrude the bottom with wall thickness
-        const bottomExtrudeSettings = {
-            steps: 1,
-            depth: wallThickness,
-            bevelEnabled: false,
-        }
-        const bottomGeometry = new THREE.ExtrudeGeometry(bottomShape, bottomExtrudeSettings)
-        const bottomMesh = new THREE.Mesh(bottomGeometry, material)
-        bottomMesh.castShadow = true
-        bottomMesh.receiveShadow = true
-        meshGroup.add(bottomMesh)
-    }
-
-    // Rotate the whole group to match the scene orientation
-    meshGroup.rotation.x = -Math.PI / 2
-
+    // Create walls using the simplified approach
+    const walls = createBoxWalls(dimensions, excludeWalls);
+    meshGroup.add(walls);
+    
+    
     // Position the mesh group
-    meshGroup.position.x = positionX
-    meshGroup.position.z = positionZ
-    return meshGroup
+    meshGroup.position.x = positionX;
+    meshGroup.position.z = positionZ;
+    
+    return meshGroup;
 }
