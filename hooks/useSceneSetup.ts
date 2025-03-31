@@ -1,7 +1,7 @@
 import { useEffect, RefObject } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { setupGrid } from '@/lib/gridGenerator'
+import { setupGrid } from '@/lib/utils'
 import { useBoxStore } from '@/lib/store'
 
 export function useSceneSetup(
@@ -15,7 +15,7 @@ export function useSceneSetup(
     axesHelperRef: RefObject<THREE.AxesHelper>,
     raycasterRef: RefObject<THREE.Raycaster>,
     mouseRef: RefObject<THREE.Vector2>
-) {
+): void {
     const { width, depth, debugMode } = useBoxStore()
 
     // Initialize scene, camera, renderer
@@ -92,8 +92,6 @@ export function useSceneSetup(
             rendererRef.current.info.autoReset = !debugMode
         }
     }, [debugMode])
-
-    return null
 }
 
 // Helper functions

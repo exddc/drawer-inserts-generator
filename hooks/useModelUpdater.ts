@@ -1,12 +1,13 @@
 import { useEffect, RefObject } from 'react'
 import * as THREE from 'three'
-import { setupGrid, createBoxModelFromGrid } from '@/lib/gridGenerator'
 import { useBoxStore } from '@/lib/store'
 import { CombinedBoxInfo } from '@/lib/types'
+import { generateBasicBox } from '@/lib/boxGenerator'
+import { setupGrid } from '@/lib/utils'
+import {generateGrid} from '@/lib/gridGenerator'
 
 /**
  * Custom hook to update the model and grid when parameters change
- * Updated to use the grid-based box generation approach
  */
 export function useModelUpdater(
     sceneRef: RefObject<THREE.Scene>,
@@ -14,7 +15,7 @@ export function useModelUpdater(
     gridHelperRef: RefObject<THREE.GridHelper>,
     axesHelperRef: RefObject<THREE.AxesHelper>,
     cameraRef: RefObject<THREE.PerspectiveCamera>
-) {
+): void {
     const {
         width,
         depth,
@@ -29,42 +30,50 @@ export function useModelUpdater(
         hiddenBoxes,
         getBoxHexColor,
         getHighlightHexColor,
-        combinedBoxes,
         showGrid,
-        showAxes
+        showAxes,
+        maxBoxDepth,
+        maxBoxWidth,
     } = useBoxStore()
 
     // Update the model when parameters change
     useEffect(() => {
-        if (sceneRef.current) {
-            const gridHelper = setupGrid(sceneRef.current, width, depth)
-            // @ts-ignore - To be fixed
-            gridHelperRef.current = gridHelper
-        }
+        // Update grid based on new dimensions
+        const gridHelper = setupGrid(sceneRef.current, width, depth)
+        // @ts-ignore - To be fixed
+        gridHelperRef.current = gridHelper
 
-        if (boxMeshGroupRef.current) {
-            // Use the new grid-based approach
-            createBoxModelFromGrid(boxMeshGroupRef.current, {
-                boxWidths,
-                boxDepths,
-                height,
-                wallThickness,
-                cornerRadius,
-                hasBottom,
-                selectedBoxIndices,
-                hiddenBoxes,
-                boxColor: getBoxHexColor(),
-                highlightColor: getHighlightHexColor(),
-                combinedBoxes: combinedBoxes as Map<number, CombinedBoxInfo>,
+        // Clear the box mesh group
+        boxMeshGroupRef.current.clear()
+
+        // Generate Grid
+        const grid = generateGrid(width, depth, maxBoxWidth, maxBoxDepth)
+
+        // Generate boxes based on grid
+        grid.forEach((row, i) => {
+            row.forEach((cell, j) => {
+                const box = generateBasicBox({
+                    width: cell.width,
+                    depth: cell.depth,
+                    height: height,
+                    wallThickness: wallThickness,
+                    cornerRadius: cornerRadius,
+                    hasBottom: hasBottom,
+                    color: getBoxHexColor(),
+                    index: cell.index,
+                    isSelected: false,
+                    isHidden: false
+                }, cell.startX - width / 2, cell.startZ + depth / 2)
+                boxMeshGroupRef.current.add(box)
             })
+        })
 
-            // Update raycast manager when box mesh group changes
-            if (window.raycastManager && cameraRef.current) {
-                window.raycastManager.init(
-                    cameraRef.current,
-                    boxMeshGroupRef.current
-                )
-            }
+        // Update raycast manager when box mesh group changes
+        if (window.raycastManager && cameraRef.current) {
+            window.raycastManager.init(
+                cameraRef.current,
+                boxMeshGroupRef.current
+            )
         }
     }, [
         width,
@@ -80,7 +89,6 @@ export function useModelUpdater(
         hiddenBoxes,
         getBoxHexColor,
         getHighlightHexColor,
-        combinedBoxes,
     ])
 
     // Toggle grid visibility
@@ -96,6 +104,4 @@ export function useModelUpdater(
             axesHelperRef.current.visible = showAxes
         }
     }, [showAxes])
-
-    return null
 }

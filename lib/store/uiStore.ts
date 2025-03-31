@@ -265,10 +265,7 @@ export const createUISlice: StateCreator<StoreState, [], [], UIState> = (
         const { selectedBoxIndices, boxWidths } = get()
         const indices = Array.from(selectedBoxIndices)
         
-        // Import the canCombineBoxes function from gridGenerator
-        const { canCombineBoxes } = require('../gridGenerator')
-        
-        return canCombineBoxes(indices, boxWidths.length)
+        return indices.length > 1 && indices.every(idx => idx < boxWidths.length)
     },
 
     combineSelectedBoxes: () => {
