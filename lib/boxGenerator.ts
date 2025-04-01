@@ -1,20 +1,20 @@
-import * as THREE from 'three';
-import { CSG } from 'three-csg-ts';
+import * as THREE from 'three'
+import { CSG } from 'three-csg-ts'
 
 /**
  * Core box definition with only the essential dimensions
  */
 export interface BoxDimensions {
-    width: number;
-    depth: number;
-    height: number;
-    wallThickness: number;
-    cornerRadius: number;
-    hasBottom: boolean;
-    color?: number;
-    index?: number;
-    isHidden?: boolean;
-    excludeWalls?: string[]; // Walls to exclude
+    width: number
+    depth: number
+    height: number
+    wallThickness: number
+    cornerRadius: number
+    hasBottom: boolean
+    color?: number
+    index?: number
+    isHidden?: boolean
+    excludeWalls?: string[] // Walls to exclude
 }
 
 /**
@@ -35,13 +35,13 @@ export function generateBasicBox(
         index,
         isHidden = false,
         color,
-        excludeWalls
-    } = dimensions;
+        excludeWalls,
+    } = dimensions
 
     // Create a group to hold all the meshes
-    const meshGroup = new THREE.Group();
-    meshGroup.visible = !isHidden;
-    
+    const meshGroup = new THREE.Group()
+    meshGroup.visible = !isHidden
+
     // Set userData for dimensions
     meshGroup.userData = {
         dimensions: {
@@ -51,7 +51,7 @@ export function generateBasicBox(
             index,
             isHidden,
         },
-    };
+    }
 
     const defaultColor = 0x7a9cbf
     const materialColor = color || defaultColor
@@ -195,9 +195,6 @@ export function generateBasicBox(
         bottomMesh.receiveShadow = true
 
         meshGroup.add(bottomMesh)
-
-        
-
     } else {
         const outerBox = new THREE.Shape()
         outerBox.moveTo(cornerRadius, 0)
@@ -257,93 +254,119 @@ export function generateBasicBox(
         const mesh = new THREE.Mesh(geometry, material)
         mesh.castShadow = true
         mesh.receiveShadow = true
-
     }
-
 
     if (excludeWalls.length > 0) {
         for (const wall of excludeWalls) {
             switch (wall.toLowerCase()) {
                 case 'front':
                     // Create a wall for the full width (for subtraction)
-                    const frontWall = new THREE.BoxGeometry(width, wallThickness + cornerRadius * 2, height);
-                    frontWall.translate(width / 2, wallThickness, height / 2);
-                    const frontWallMesh = new THREE.Mesh(frontWall);
-                    
+                    const frontWall = new THREE.BoxGeometry(
+                        width,
+                        wallThickness + cornerRadius * 2,
+                        height
+                    )
+                    frontWall.translate(width / 2, wallThickness, height / 2)
+                    const frontWallMesh = new THREE.Mesh(frontWall)
+
                     for (let i = 0; i < meshGroup.children.length; i++) {
-                        
                         // Get the first mesh from the group (which should be the walls mesh)
                         const boxMesh = meshGroup.children[0]
-                        
+
                         // Perform CSG subtraction
-                        const boxCSG = CSG.fromMesh(boxMesh);
-                        const frontWallCSG = CSG.fromMesh(frontWallMesh);
-                        const resultCSG = boxCSG.subtract(frontWallCSG);
-                        
+                        const boxCSG = CSG.fromMesh(boxMesh)
+                        const frontWallCSG = CSG.fromMesh(frontWallMesh)
+                        const resultCSG = boxCSG.subtract(frontWallCSG)
+
                         // Convert back to mesh
-                        const resultMesh = CSG.toMesh(resultCSG, boxMesh.matrix, boxMesh.material);
-                        resultMesh.castShadow = true;
-                        resultMesh.receiveShadow = true;
-                        
+                        const resultMesh = CSG.toMesh(
+                            resultCSG,
+                            boxMesh.matrix,
+                            boxMesh.material
+                        )
+                        resultMesh.castShadow = true
+                        resultMesh.receiveShadow = true
+
                         // Replace the old mesh with the new one
-                        meshGroup.remove(boxMesh);
-                        meshGroup.add(resultMesh);
+                        meshGroup.remove(boxMesh)
+                        meshGroup.add(resultMesh)
                     }
 
                     // Add the straight wall for connections back in
                     if (hasBottom) {
-                        const bottomShape = new THREE.BoxGeometry(width, wallThickness + cornerRadius * 2, wallThickness);
-                        bottomShape.translate(width / 2, wallThickness, wallThickness / 2);
-                        const bottomMesh = new THREE.Mesh(bottomShape);
-                        bottomMesh.castShadow = true;
-                        bottomMesh.receiveShadow = true;
-                        bottomMesh.material = material;
-                        meshGroup.add(bottomMesh);
+                        const bottomShape = new THREE.BoxGeometry(
+                            width,
+                            wallThickness + cornerRadius * 2,
+                            wallThickness
+                        )
+                        bottomShape.translate(
+                            width / 2,
+                            wallThickness,
+                            wallThickness / 2
+                        )
+                        const bottomMesh = new THREE.Mesh(bottomShape)
+                        bottomMesh.castShadow = true
+                        bottomMesh.receiveShadow = true
+                        bottomMesh.material = material
+                        meshGroup.add(bottomMesh)
                     }
 
                     if (!excludeWalls.includes('left')) {
                         // Add the left wall for connections back in
-                        const leftShape = new THREE.BoxGeometry(wallThickness, wallThickness + cornerRadius * 2, height);
-                        leftShape.translate(wallThickness / 2, wallThickness, height / 2);
-                        const leftMesh = new THREE.Mesh(leftShape);
-                        leftMesh.castShadow = true;
-                        leftMesh.receiveShadow = true;
-                        leftMesh.material = material;
-                        meshGroup.add(leftMesh);
+                        const leftShape = new THREE.BoxGeometry(
+                            wallThickness,
+                            wallThickness + cornerRadius * 2,
+                            height
+                        )
+                        leftShape.translate(
+                            wallThickness / 2,
+                            wallThickness,
+                            height / 2
+                        )
+                        const leftMesh = new THREE.Mesh(leftShape)
+                        leftMesh.castShadow = true
+                        leftMesh.receiveShadow = true
+                        leftMesh.material = material
+                        meshGroup.add(leftMesh)
                     }
 
                     if (!excludeWalls.includes('right')) {
                         // Add the right wall for connections back in
-                        const rightShape = new THREE.BoxGeometry(wallThickness, wallThickness + cornerRadius * 2, height);
-                        rightShape.translate(width - wallThickness / 2, wallThickness, height / 2);
-                        const rightMesh = new THREE.Mesh(rightShape);
-                        rightMesh.castShadow = true;
-                        rightMesh.receiveShadow = true;
-                        rightMesh.material = material;
-                        meshGroup.add(rightMesh);
+                        const rightShape = new THREE.BoxGeometry(
+                            wallThickness,
+                            wallThickness + cornerRadius * 2,
+                            height
+                        )
+                        rightShape.translate(
+                            width - wallThickness / 2,
+                            wallThickness,
+                            height / 2
+                        )
+                        const rightMesh = new THREE.Mesh(rightShape)
+                        rightMesh.castShadow = true
+                        rightMesh.receiveShadow = true
+                        rightMesh.material = material
+                        meshGroup.add(rightMesh)
                     }
-                    
-                    break;
+
+                    break
                 case 'back':
                     // Remove back wall
-                    break;
+                    break
                 case 'left':
                     // Remove left wall
-                    break;
+                    break
                 case 'right':
                     // Remove right wall
-                    break;
+                    break
             }
         }
     }
 
-
-
-
     // Position the mesh group
     meshGroup.rotation.x = -Math.PI / 2
-    meshGroup.position.x = positionX;
-    meshGroup.position.z = positionZ;
-    
-    return meshGroup;
+    meshGroup.position.x = positionX
+    meshGroup.position.z = positionZ
+
+    return meshGroup
 }

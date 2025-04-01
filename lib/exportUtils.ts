@@ -1,8 +1,7 @@
-import * as THREE from 'three'
-import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
-import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js'
 import { FormInputs } from '@/lib/types'
-import { generateGridMatrix } from '@/lib/gridGenerator'
+import * as THREE from 'three'
+import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js'
+import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 
 /**
  * Generate a unique key for a box based on its dimensions

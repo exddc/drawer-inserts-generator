@@ -24,13 +24,10 @@ export function setupGrid(
 
     // Calculate grid size based on dimensions
     const gridSize = Math.max(width, depth) + 50
-    
+
     // Create new grid helper with appropriate divisions
-    const gridHelper = new THREE.GridHelper(
-        gridSize, 
-        Math.ceil(gridSize / 10)
-    )
-    
+    const gridHelper = new THREE.GridHelper(gridSize, Math.ceil(gridSize / 10))
+
     // Add to scene
     scene.add(gridHelper)
 

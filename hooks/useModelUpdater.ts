@@ -1,10 +1,9 @@
-import { useEffect, RefObject } from 'react'
-import * as THREE from 'three'
-import { useBoxStore } from '@/lib/store'
-import { CombinedBoxInfo } from '@/lib/types'
 import { generateBasicBox } from '@/lib/boxGenerator'
+import { getCellInfo } from '@/lib/gridGenerator'
+import { useBoxStore } from '@/lib/store'
 import { setupGrid } from '@/lib/utils'
-import { generateGrid, getCellInfo } from '@/lib/gridGenerator'
+import { RefObject, useEffect } from 'react'
+import * as THREE from 'three'
 
 /**
  * Custom hook to update the model and grid when parameters change
@@ -46,20 +45,24 @@ export function useModelUpdater(
         boxMeshGroupRef.current.clear()
 
         // Testing
-        // Generate the horizontal box 
-        const Box = generateBasicBox({
-            width: width,
-            depth: depth,
-            height: height,
-            wallThickness: wallThickness,
-            cornerRadius: cornerRadius,
-            hasBottom: hasBottom,
-            color: getBoxHexColor(),
-            isHidden: false,
-            excludeWalls: ['front']
-        }, -width / 2, depth / 2)
+        // Generate the horizontal box
+        const Box = generateBasicBox(
+            {
+                width: width,
+                depth: depth,
+                height: height,
+                wallThickness: wallThickness,
+                cornerRadius: cornerRadius,
+                hasBottom: hasBottom,
+                color: getBoxHexColor(),
+                isHidden: false,
+                excludeWalls: ['front'],
+            },
+            -width / 2,
+            depth / 2
+        )
 
-        boxMeshGroupRef.current.add(Box);
+        boxMeshGroupRef.current.add(Box)
 
         /* // Generate Grid
         const grid = generateGrid(width, depth, maxBoxWidth, maxBoxDepth)
@@ -91,19 +94,23 @@ export function useModelUpdater(
             selectedBoxIndices.forEach((index) => {
                 const box = getCellInfo(grid, index)
 
-                if (box){
+                if (box) {
                     // Generate new box with updated color
-                    const newBox = generateBasicBox({
-                        width: box.width,
-                        depth: box.depth,
-                        height: height,
-                        wallThickness: wallThickness,
-                        cornerRadius: cornerRadius,
-                        hasBottom: hasBottom,
-                        color: getHighlightHexColor(),
-                        index: box.index,
-                        isHidden: false
-                    }, box.startX - width / 2, box.startZ + depth / 2)
+                    const newBox = generateBasicBox(
+                        {
+                            width: box.width,
+                            depth: box.depth,
+                            height: height,
+                            wallThickness: wallThickness,
+                            cornerRadius: cornerRadius,
+                            hasBottom: hasBottom,
+                            color: getHighlightHexColor(),
+                            index: box.index,
+                            isHidden: false,
+                        },
+                        box.startX - width / 2,
+                        box.startZ + depth / 2
+                    )
 
                     // Add new box to group
                     boxMeshGroupRef.current.add(newBox)
@@ -118,27 +125,29 @@ export function useModelUpdater(
             hiddenBoxes.forEach((index) => {
                 const box = getCellInfo(grid, index)
 
-                if (box){
+                if (box) {
                     // Generate new box with updated color
-                    const newBox = generateBasicBox({
-                        width: box.width,
-                        depth: box.depth,
-                        height: height,
-                        wallThickness: wallThickness,
-                        cornerRadius: cornerRadius,
-                        hasBottom: hasBottom,
-                        color: getBoxHexColor(),
-                        index: box.index,
-                        isHidden: true
-                    }, box.startX - width / 2, box.startZ + depth / 2)
+                    const newBox = generateBasicBox(
+                        {
+                            width: box.width,
+                            depth: box.depth,
+                            height: height,
+                            wallThickness: wallThickness,
+                            cornerRadius: cornerRadius,
+                            hasBottom: hasBottom,
+                            color: getBoxHexColor(),
+                            index: box.index,
+                            isHidden: true,
+                        },
+                        box.startX - width / 2,
+                        box.startZ + depth / 2
+                    )
 
                     // Add new box to group
                     boxMeshGroupRef.current.add(newBox)
                 }
             })
         }
-
-        
 
         // Update raycast manager when box mesh group changes
         if (window.raycastManager && cameraRef.current) {

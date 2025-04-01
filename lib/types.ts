@@ -1,5 +1,5 @@
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // Default settings
 export const defaultConstraints: InputConstraints = {
@@ -41,15 +41,15 @@ export const uiDefaults = {
 }
 
 export interface BoxConnections {
-    connections: Map<number, number[]>;
+    connections: Map<number, number[]>
 }
 
 export interface CombinedBoxInfo {
-    indices: number[];
-    direction: 'width' | 'depth';
-    connections?: number[];
-    isPartOfGroup?: boolean;
-    groupId?: number;
+    indices: number[]
+    direction: 'width' | 'depth'
+    connections?: number[]
+    isPartOfGroup?: boolean
+    groupId?: number
 }
 
 /**
@@ -261,7 +261,7 @@ export interface UIState {
 export interface SharingState {
     loadFromUrl: () => void
     shareConfiguration: () => Promise<boolean>
-  }
+}
 
 export interface StoreState extends BoxState, UIState, SharingState {
     updateInput: (name: string, value: number | boolean | string) => void

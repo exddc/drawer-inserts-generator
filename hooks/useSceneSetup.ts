@@ -1,8 +1,8 @@
-import { useEffect, RefObject } from 'react'
+import { useBoxStore } from '@/lib/store'
+import { setupGrid } from '@/lib/utils'
+import { RefObject, useEffect } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { setupGrid } from '@/lib/utils'
-import { useBoxStore } from '@/lib/store'
 
 export function useSceneSetup(
     containerRef: RefObject<HTMLDivElement>,
@@ -65,7 +65,7 @@ export function useSceneSetup(
             cameraRef,
             debugMode
         )
-        
+
         animate()
 
         // Handle window resize
@@ -74,7 +74,7 @@ export function useSceneSetup(
             cameraRef,
             rendererRef
         )
-        
+
         window.addEventListener('resize', handleResize)
 
         // Cleanup
@@ -180,9 +180,10 @@ function createResizeHandler(
     rendererRef: RefObject<THREE.WebGLRenderer>
 ): () => void {
     return function handleResize() {
-        if (!containerRef.current || !cameraRef.current || !rendererRef.current) return
+        if (!containerRef.current || !cameraRef.current || !rendererRef.current)
+            return
 
-        cameraRef.current.aspect = 
+        cameraRef.current.aspect =
             containerRef.current.clientWidth / containerRef.current.clientHeight
         cameraRef.current.updateProjectionMatrix()
         rendererRef.current.setSize(

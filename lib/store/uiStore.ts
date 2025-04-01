@@ -264,25 +264,32 @@ export const createUISlice: StateCreator<StoreState, [], [], UIState> = (
     canCombineSelectedBoxes: () => {
         const { selectedBoxIndices, boxWidths } = get()
         const indices = Array.from(selectedBoxIndices)
-        
-        return indices.length > 1 && indices.every(idx => idx < boxWidths.length)
+
+        return (
+            indices.length > 1 && indices.every((idx) => idx < boxWidths.length)
+        )
     },
 
     combineSelectedBoxes: () => {
-        const { selectedBoxIndices, canCombineSelectedBoxes, boxWidths, combinedBoxes } = get()
-        
+        const {
+            selectedBoxIndices,
+            canCombineSelectedBoxes,
+            boxWidths,
+            combinedBoxes,
+        } = get()
+
         if (!canCombineSelectedBoxes()) return
-        
+
         const indices = Array.from(selectedBoxIndices)
         const numCols = boxWidths.length
-        
+
         // Function to check if two boxes are adjacent
         const areAdjacent = (index1: number, index2: number): boolean => {
             const row1 = Math.floor(index1 / numCols)
             const col1 = index1 % numCols
             const row2 = Math.floor(index2 / numCols)
             const col2 = index2 % numCols
-            
+
             // Horizontally adjacent
             if (row1 === row2 && Math.abs(col1 - col2) === 1) {
                 return true
@@ -293,10 +300,10 @@ export const createUISlice: StateCreator<StoreState, [], [], UIState> = (
             }
             return false
         }
-        
+
         // Create connections between adjacent boxes
         let connections = new Map<number, number[]>()
-        
+
         // For each box, connect it to its adjacent boxes
         for (let i = 0; i < indices.length; i++) {
             for (let j = i + 1; j < indices.length; j++) {
@@ -305,40 +312,48 @@ export const createUISlice: StateCreator<StoreState, [], [], UIState> = (
                     if (!connections.has(indices[i])) {
                         connections.set(indices[i], [indices[j]])
                     } else {
-                        connections.set(indices[i], [...connections.get(indices[i])!, indices[j]])
+                        connections.set(indices[i], [
+                            ...connections.get(indices[i])!,
+                            indices[j],
+                        ])
                     }
-                    
+
                     if (!connections.has(indices[j])) {
                         connections.set(indices[j], [indices[i]])
                     } else {
-                        connections.set(indices[j], [...connections.get(indices[j])!, indices[i]])
+                        connections.set(indices[j], [
+                            ...connections.get(indices[j])!,
+                            indices[i],
+                        ])
                     }
                 }
             }
         }
-        
+
         // Find the first box (top-left) to use as primary
         const primaryIndex = indices.reduce((minIndex, index) => {
             const row = Math.floor(index / numCols)
             const col = index % numCols
             const minRow = Math.floor(minIndex / numCols)
             const minCol = minIndex % numCols
-            
+
             // Compare row first, then column
             if (row < minRow || (row === minRow && col < minCol)) {
                 return index
             }
             return minIndex
         }, indices[0])
-        
+
         // Determine direction for compatibility with existing code
         // For complex shapes, we'll use a fallback direction
         let direction: 'width' | 'depth' = 'width'
-        
+
         // Check if boxes are in same row
-        const rows = new Set(indices.map(index => Math.floor(index / numCols)))
-        const cols = new Set(indices.map(index => index % numCols))
-        
+        const rows = new Set(
+            indices.map((index) => Math.floor(index / numCols))
+        )
+        const cols = new Set(indices.map((index) => index % numCols))
+
         if (rows.size === 1) {
             direction = 'width'
         } else if (cols.size === 1) {
@@ -349,25 +364,24 @@ export const createUISlice: StateCreator<StoreState, [], [], UIState> = (
             const maxRow = Math.max(...Array.from(rows))
             const minCol = Math.min(...Array.from(cols))
             const maxCol = Math.max(...Array.from(cols))
-            
+
             // Use the longer dimension as primary direction
-            direction = (maxCol - minCol) > (maxRow - minRow) ? 'width' : 'depth'
+            direction = maxCol - minCol > maxRow - minRow ? 'width' : 'depth'
         }
-        
+
         // For compatibility with the existing code, also update combinedBoxes
         const newCombinedBoxes = new Map(combinedBoxes)
         newCombinedBoxes.set(primaryIndex, {
-            indices: indices.filter(idx => idx !== primaryIndex),
+            indices: indices.filter((idx) => idx !== primaryIndex),
             direction,
-            connections: Array.from(connections.entries()) // Store the connections
+            connections: Array.from(connections.entries()), // Store the connections
         })
-        
+
         // Update the state
         set({
             combinedBoxes: newCombinedBoxes,
             selectedBoxIndices: new Set([primaryIndex]),
             selectedBoxIndex: primaryIndex,
         })
-    }
-    
+    },
 })
