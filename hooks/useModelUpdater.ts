@@ -4,7 +4,7 @@ import { useBoxStore } from '@/lib/store'
 import { CombinedBoxInfo } from '@/lib/types'
 import { generateBasicBox } from '@/lib/boxGenerator'
 import { setupGrid } from '@/lib/utils'
-import {generateGrid} from '@/lib/gridGenerator'
+import { generateGrid, getCellInfo } from '@/lib/gridGenerator'
 
 /**
  * Custom hook to update the model and grid when parameters change
@@ -25,7 +25,6 @@ export function useModelUpdater(
         hasBottom,
         boxWidths,
         boxDepths,
-        selectedBoxIndex,
         selectedBoxIndices,
         hiddenBoxes,
         getBoxHexColor,
@@ -46,7 +45,23 @@ export function useModelUpdater(
         // Clear the box mesh group
         boxMeshGroupRef.current.clear()
 
-        // Generate Grid
+        // Testing
+        // Generate the horizontal box 
+        const Box = generateBasicBox({
+            width: width,
+            depth: depth,
+            height: height,
+            wallThickness: wallThickness,
+            cornerRadius: cornerRadius,
+            hasBottom: hasBottom,
+            color: getBoxHexColor(),
+            isHidden: false,
+            excludeWalls: ['front']
+        }, -width / 2, depth / 2)
+
+        boxMeshGroupRef.current.add(Box);
+
+        /* // Generate Grid
         const grid = generateGrid(width, depth, maxBoxWidth, maxBoxDepth)
 
         // Generate boxes based on grid
@@ -61,12 +76,69 @@ export function useModelUpdater(
                     hasBottom: hasBottom,
                     color: getBoxHexColor(),
                     index: cell.index,
-                    isSelected: false,
                     isHidden: false
                 }, cell.startX - width / 2, cell.startZ + depth / 2)
                 boxMeshGroupRef.current.add(box)
             })
-        })
+        }) */
+
+        // TODO - Move to separate hook and only trigger when selectedBoxIndex changes
+        // TODO - remove selectedBoxIndex
+        // Update selected box
+        if (selectedBoxIndices.size > 0) {
+            // TODO - Move to separate hook and only trigger when selectedBoxIndex changes
+            // Update selected boxes
+            selectedBoxIndices.forEach((index) => {
+                const box = getCellInfo(grid, index)
+
+                if (box){
+                    // Generate new box with updated color
+                    const newBox = generateBasicBox({
+                        width: box.width,
+                        depth: box.depth,
+                        height: height,
+                        wallThickness: wallThickness,
+                        cornerRadius: cornerRadius,
+                        hasBottom: hasBottom,
+                        color: getHighlightHexColor(),
+                        index: box.index,
+                        isHidden: false
+                    }, box.startX - width / 2, box.startZ + depth / 2)
+
+                    // Add new box to group
+                    boxMeshGroupRef.current.add(newBox)
+                }
+            })
+        }
+
+        // Hide boxes
+        // TODO - Move to separate hook and only trigger when hiddenBoxes changes
+        // TODO - Get working
+        if (hiddenBoxes.size > 0) {
+            hiddenBoxes.forEach((index) => {
+                const box = getCellInfo(grid, index)
+
+                if (box){
+                    // Generate new box with updated color
+                    const newBox = generateBasicBox({
+                        width: box.width,
+                        depth: box.depth,
+                        height: height,
+                        wallThickness: wallThickness,
+                        cornerRadius: cornerRadius,
+                        hasBottom: hasBottom,
+                        color: getBoxHexColor(),
+                        index: box.index,
+                        isHidden: true
+                    }, box.startX - width / 2, box.startZ + depth / 2)
+
+                    // Add new box to group
+                    boxMeshGroupRef.current.add(newBox)
+                }
+            })
+        }
+
+        
 
         // Update raycast manager when box mesh group changes
         if (window.raycastManager && cameraRef.current) {
@@ -84,7 +156,6 @@ export function useModelUpdater(
         hasBottom,
         boxWidths,
         boxDepths,
-        selectedBoxIndex,
         selectedBoxIndices,
         hiddenBoxes,
         getBoxHexColor,
