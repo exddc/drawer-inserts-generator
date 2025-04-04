@@ -1,22 +1,24 @@
 'use client'
+import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+
 import ActionsBar from '@/components/ActionsBar'
 import BoxContextMenu from '@/components/BoxContextMenu'
 import ConfigSidebar from '@/components/ConfigSidebar'
 import DebugInfoPanel from '@/components/DebugInfoPanel'
 import Header from '@/components/Header'
+
 import {
     ResizableHandle,
     ResizablePanel,
     ResizablePanelGroup,
 } from '@/components/ui/resizable'
+
 import { useInteractions } from '@/hooks/useInteractions'
 import { useModelUpdater } from '@/hooks/useModelUpdater'
 import { useSceneSetup } from '@/hooks/useSceneSetup'
-import { createBoxModel } from '@/lib/modelGenerator'
 import { useBoxStore } from '@/lib/store'
-import { useEffect, useRef } from 'react'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // Define the WindowWithContextMenu interface
 interface WindowWithContextMenu {
@@ -30,22 +32,10 @@ declare global {
 }
 
 export default function Home() {
-    const {
-        debugMode,
-        boxWidths,
-        boxDepths,
-        height,
-        wallThickness,
-        cornerRadius,
-        hasBottom,
-        selectedBoxIndex,
-        selectedBoxIndices,
-        hiddenBoxes,
-        getBoxHexColor,
-        getHighlightHexColor,
-        loadFromUrl,
-    } = useBoxStore()
+    // Access state from Zustand store
+    const { debugMode, loadFromUrl } = useBoxStore()
 
+    // Set up refs for Three.js components
     const containerRef = useRef<HTMLDivElement>(null)
     const rendererRef = useRef<THREE.WebGLRenderer>(null)
     const sceneRef = useRef<THREE.Scene>(null)
@@ -61,33 +51,6 @@ export default function Home() {
     useEffect(() => {
         loadFromUrl()
     }, [loadFromUrl])
-
-    // Initialize the scene, initial model, and add event listeners
-    useEffect(() => {
-        if (boxMeshGroupRef.current) {
-            createBoxModel(boxMeshGroupRef.current, {
-                boxWidths,
-                boxDepths,
-                height,
-                wallThickness,
-                cornerRadius,
-                hasBottom,
-                selectedBoxIndex,
-                selectedBoxIndices,
-                hiddenBoxes,
-                boxColor: getBoxHexColor(),
-                highlightColor: getHighlightHexColor(),
-            })
-
-            // Update raycast manager when box mesh group changes
-            if (window.raycastManager && cameraRef.current) {
-                window.raycastManager.init(
-                    cameraRef.current,
-                    boxMeshGroupRef.current
-                )
-            }
-        }
-    }, [])
 
     // Use custom hooks to handle all the Three.js setup and interactions
     useSceneSetup(

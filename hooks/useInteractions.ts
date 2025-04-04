@@ -1,7 +1,7 @@
-import { useEffect, RefObject } from 'react'
-import * as THREE from 'three'
 import { createRaycastManager } from '@/lib/RaycastManager'
 import { useBoxStore } from '@/lib/store'
+import { RefObject, useEffect } from 'react'
+import * as THREE from 'three'
 
 /**
  * Custom hook to handle all user interactions with the 3D scene:
@@ -35,9 +35,17 @@ export function useInteractions(
 
             const rect = containerRef.current.getBoundingClientRect()
             mouseRef.current.x =
-                ((event.clientX - rect.left) / containerRef.current.clientWidth) * 2 - 1
+                ((event.clientX - rect.left) /
+                    containerRef.current.clientWidth) *
+                    2 -
+                1
             mouseRef.current.y =
-                -((event.clientY - rect.top) / containerRef.current.clientHeight) * 2 + 1
+                -(
+                    (event.clientY - rect.top) /
+                    containerRef.current.clientHeight
+                ) *
+                    2 +
+                1
         }
 
         const handleClick = (event: MouseEvent) => {
@@ -142,7 +150,10 @@ export function useInteractions(
 
         return () => {
             if (containerRef.current) {
-                containerRef.current.removeEventListener('mousemove', handleMouseMove)
+                containerRef.current.removeEventListener(
+                    'mousemove',
+                    handleMouseMove
+                )
                 containerRef.current.removeEventListener('click', handleClick)
             }
             window.removeEventListener('keydown', handleKeyDown)

@@ -1,44 +1,25 @@
-import { createBoxSlice } from '@/lib/store/boxStore'
-import { createUISlice } from '@/lib/store/uiStore'
-import { StoreState } from '@/lib/types'
+// lib/store/index.ts
 import { create } from 'zustand'
+import { StoreState } from '../types'
+import { createBoxSlice } from './boxStore'
+import { createSharingSlice } from './sharingStore'
+import { createUISlice } from './uiStore'
 
-// Create the combined store with all slices
-export const useBoxStore = create<StoreState>((set, get, store) => ({
-    ...createBoxSlice(set, get, store),
-    ...createUISlice(set, get, store),
+// The createBoxSlice, createUISlice, and createSharingSlice functions should each
+// return an object with their respective state and methods
 
-    // Shared functionality that needs both slices
-    loadFromUrl: () => {
-        const { getConfigFromUrl } = require('../urlUtils')
-        const urlConfig = getConfigFromUrl()
-        if (!urlConfig) return
+export const useBoxStore = create<StoreState>()((set, get) => ({
+    // First, combine all the slices
+    ...createBoxSlice(set, get, {}),
+    ...createUISlice(set, get, {}),
+    ...createSharingSlice(set, get, {}),
 
-        const state = get()
-        Object.entries(urlConfig).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-                if (typeof value === 'number' || typeof value === 'boolean') {
-                    state.updateInput(key, value)
-                } else {
-                    console.warn(
-                        `Skipping update for key "${key}": value is not a number or boolean`,
-                        value
-                    )
-                }
-            }
-        })
-    },
-
-    shareConfiguration: async () => {
-        const { shareConfiguration } = require('../urlUtils')
-        return shareConfiguration(get())
-    },
-
-    // Shared update function that can update both box and UI state
+    // Then add the unified updateInput function
     updateInput: (name: string, value: number | boolean | string) => {
+        // Now we can safely access the methods from the slices
         const state = get()
 
-        // Box dimension properties
+        // Box-related inputs
         if (
             [
                 'width',
@@ -52,56 +33,26 @@ export const useBoxStore = create<StoreState>((set, get, store) => ({
                 'minBoxDepth',
                 'maxBoxDepth',
                 'useMultipleBoxes',
+                'uniqueBoxesExport',
             ].includes(name)
         ) {
-            return state.updateBoxInput(name, value)
+            state.updateBoxInput(name, value)
         }
-
-        // UI properties
-        if (
+        // UI-related inputs
+        else if (
             [
                 'debugMode',
-                'uniqueBoxesExport',
                 'showGrid',
                 'showAxes',
                 'boxColor',
                 'highlightColor',
             ].includes(name)
         ) {
-            return state.updateUIInput(name, value)
+            state.updateUIInput(name, value)
         }
-
-        // Default case - just set the property
-        set({ [name]: value } as any)
-    },
-
-    // When reset combined boxes, ensure we also reset selection
-    resetCombinedBoxes: () => {
-        const { combinedBoxes, selectedBoxIndices } = get()
-
-        // If nothing is selected, no need to do anything
-        if (selectedBoxIndices.size === 0) {
-            set({ combinedBoxes: new Map() })
-            return
+        // Default case
+        else {
+            set({ [name]: value } as any)
         }
-
-        // If a combined box is selected, clear selection
-        const newCombinedBoxes = new Map()
-        set({
-            combinedBoxes: newCombinedBoxes,
-            selectedBoxIndices: new Set(),
-            selectedBoxIndex: null,
-        })
     },
 }))
-
-// Initialize the store when in browser environment
-if (typeof window !== 'undefined') {
-    setTimeout(() => {
-        useBoxStore.getState().loadFromUrl()
-    }, 0)
-}
-
-// Re-export all types
-export * from './boxStore'
-export * from './uiStore'
