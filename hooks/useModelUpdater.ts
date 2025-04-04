@@ -56,7 +56,7 @@ export function useModelUpdater(
                 hasBottom: hasBottom,
                 color: getBoxHexColor(),
                 isHidden: false,
-                excludeWalls: ['front'],
+                excludeWalls: ['right'],
             },
             -width / 2,
             depth / 2
