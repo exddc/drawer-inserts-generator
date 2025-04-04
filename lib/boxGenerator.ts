@@ -301,7 +301,7 @@ export function generateBasicBox(
                         )
                         bottomShape.translate(
                             width / 2,
-                            wallThickness,
+                            wallThickness / 2 + cornerRadius,
                             wallThickness / 2
                         )
                         const bottomMesh = new THREE.Mesh(bottomShape)
@@ -320,7 +320,7 @@ export function generateBasicBox(
                         )
                         leftShape.translate(
                             wallThickness / 2,
-                            wallThickness,
+                            wallThickness / 2 + cornerRadius,
                             height / 2
                         )
                         const leftMesh = new THREE.Mesh(leftShape)
@@ -339,7 +339,7 @@ export function generateBasicBox(
                         )
                         rightShape.translate(
                             width - wallThickness / 2,
-                            wallThickness,
+                            wallThickness / 2 + cornerRadius,
                             height / 2
                         )
                         const rightMesh = new THREE.Mesh(rightShape)
@@ -391,7 +391,7 @@ export function generateBasicBox(
                         )
                         bottomShape.translate(
                             width / 2,
-                            depth - wallThickness,
+                            depth - wallThickness / 2 - cornerRadius,
                             wallThickness / 2
                         )
                         const bottomMesh = new THREE.Mesh(bottomShape)
@@ -410,7 +410,7 @@ export function generateBasicBox(
                         )
                         leftShape.translate(
                             wallThickness / 2,
-                            depth - wallThickness,
+                            depth - wallThickness / 2 - cornerRadius,
                             height / 2
                         )
                         const leftMesh = new THREE.Mesh(leftShape)
@@ -429,7 +429,7 @@ export function generateBasicBox(
                         )
                         rightShape.translate(
                             width - wallThickness / 2,
-                            depth - wallThickness,
+                            depth - wallThickness / 2 - cornerRadius,
                             height / 2
                         )
                         const rightMesh = new THREE.Mesh(rightShape)
@@ -480,7 +480,7 @@ export function generateBasicBox(
                             wallThickness
                         )
                         bottomShape.translate(
-                            wallThickness,
+                            wallThickness / 2 + cornerRadius,
                             depth / 2,
                             wallThickness / 2
                         )
@@ -499,7 +499,7 @@ export function generateBasicBox(
                             height
                         )
                         leftShape.translate(
-                            wallThickness,
+                            wallThickness / 2 + cornerRadius,
                             depth - wallThickness / 2,
                             height / 2
                         )
@@ -518,7 +518,7 @@ export function generateBasicBox(
                             height
                         )
                         rightShape.translate(
-                            wallThickness,
+                            wallThickness / 2 + cornerRadius,
                             wallThickness / 2,
                             height / 2
                         )
@@ -570,7 +570,7 @@ export function generateBasicBox(
                             wallThickness
                         )
                         bottomShape.translate(
-                            width,
+                            width - wallThickness / 2 - cornerRadius,
                             depth / 2,
                             wallThickness / 2
                         )
@@ -589,7 +589,7 @@ export function generateBasicBox(
                             height
                         )
                         leftShape.translate(
-                            width,
+                            width - wallThickness / 2 - cornerRadius,
                             depth - wallThickness / 2,
                             height / 2
                         )
@@ -608,7 +608,7 @@ export function generateBasicBox(
                             height
                         )
                         rightShape.translate(
-                            width,
+                            width - wallThickness / 2 - cornerRadius,
                             wallThickness / 2,
                             height / 2
                         )

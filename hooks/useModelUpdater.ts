@@ -56,13 +56,67 @@ export function useModelUpdater(
                 hasBottom: hasBottom,
                 color: getBoxHexColor(),
                 isHidden: false,
-                excludeWalls: ['right'],
+                excludeWalls: ['front', 'right'],
             },
-            -width / 2,
-            depth / 2
+            - width,
+            0
         )
 
         boxMeshGroupRef.current.add(Box)
+
+        const box2 = generateBasicBox(
+            {
+                width: width,
+                depth: depth,
+                height: height,
+                wallThickness: wallThickness,
+                cornerRadius: cornerRadius,
+                hasBottom: hasBottom,
+                color: getBoxHexColor(),
+                isHidden: false,
+                excludeWalls: ['back', 'right'],
+            },
+            - width,
+            depth 
+        )
+
+        boxMeshGroupRef.current.add(box2)
+
+        const box3 = generateBasicBox(
+            {
+                width: width,
+                depth: depth,
+                height: height,
+                wallThickness: wallThickness,
+                cornerRadius: cornerRadius,
+                hasBottom: hasBottom,
+                color: getBoxHexColor(),
+                isHidden: false,
+                excludeWalls: ['back', 'left'],
+            },
+            0,
+            depth
+        )
+
+        boxMeshGroupRef.current.add(box3)
+
+        const box4 = generateBasicBox(
+            {
+                width: width,
+                depth: depth,
+                height: height,
+                wallThickness: wallThickness,
+                cornerRadius: cornerRadius,
+                hasBottom: hasBottom,
+                color: getBoxHexColor(),
+                isHidden: false,
+                excludeWalls: ['front', 'left'],
+            },
+            0,
+            0
+        )
+        boxMeshGroupRef.current.add(box4)
+    
 
         /* // Generate Grid
         const grid = generateGrid(width, depth, maxBoxWidth, maxBoxDepth)
