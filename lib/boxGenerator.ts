@@ -14,7 +14,7 @@ export interface BoxDimensions {
     color?: number
     index?: number
     isHidden?: boolean
-    excludeWalls?: string[] // Walls to exclude
+    excludeWalls?: ('front' | 'back' | 'left' | 'right')[]
 }
 
 /**
@@ -256,7 +256,7 @@ export function generateBasicBox(
         mesh.receiveShadow = true
     }
 
-    if (excludeWalls.length > 0) {
+    if (excludeWalls != undefined && excludeWalls.length > 0) {
         for (const wall of excludeWalls) {
             switch (wall.toLowerCase()) {
                 case 'front':

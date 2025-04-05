@@ -117,9 +117,7 @@ export function useInteractions(
 
             // 'c' key to combine selected boxes
             if (event.key === 'c' && !event.shiftKey) {
-                if (canCombineSelectedBoxes()) {
-                    combineSelectedBoxes()
-                }
+                combineSelectedBoxes()
             }
 
             // 's' key to split a combined box

@@ -5,6 +5,25 @@ import { createBoxSlice } from './boxStore'
 import { createSharingSlice } from './sharingStore'
 import { createUISlice } from './uiStore'
 
+export interface GridState {
+    grid: GridCell[][]
+    setGrid: (grid: any[]) => void
+}
+
+export interface GridCell {
+    index: number
+    width: number
+    depth: number
+    startX: number
+    startZ: number
+    excludeWalls: ('front' | 'back' | 'left' | 'right')[]
+}
+
+export const useGridStore = create<GridState>((set) => ({
+    grid: [],
+    setGrid: (grid) => set({ grid }),
+}))
+
 // The createBoxSlice, createUISlice, and createSharingSlice functions should each
 // return an object with their respective state and methods
 

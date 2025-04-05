@@ -1,10 +1,4 @@
-interface GridCell {
-    index: number
-    width: number
-    depth: number
-    startX: number
-    startZ: number
-}
+import { GridCell } from "./store"
 
 /**
  * Generate the grid based on the given dimensions
@@ -13,7 +7,7 @@ export function generateGrid(
     width: number,
     depth: number,
     maxBoxWidth: number,
-    maxBoxDepth: number
+    maxBoxDepth: number,
 ) {
     const widthCells = width > maxBoxWidth ? Math.ceil(width / maxBoxWidth) : 1
     const depthCells = depth > maxBoxDepth ? Math.ceil(depth / maxBoxDepth) : 1
@@ -35,6 +29,7 @@ export function generateGrid(
                 depth: depthCells === 1 ? depth : cellDepth,
                 startX: 0,
                 startZ: 0,
+                excludeWalls: [],
             })
 
             index++
@@ -74,4 +69,14 @@ export function getCellInfo(
     }
 
     return undefined
+}
+
+export function combineSelectedBoxes(selectedBoxIndices: number[], grid: GridCell[][]){
+    for (let i = 0; i < grid.length; i++) {
+        for (let j = 0; j < grid[i].length; j++) {
+            if (selectedBoxIndices.includes(grid[i][j].index)) {
+                grid[i][j].excludeWalls = ['front']
+            }
+        }
+    }
 }

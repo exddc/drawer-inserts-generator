@@ -1,9 +1,10 @@
 import { generateBasicBox } from '@/lib/boxGenerator'
 import { getCellInfo } from '@/lib/gridGenerator'
-import { useBoxStore } from '@/lib/store'
+import { useBoxStore, useGridStore } from '@/lib/store'
 import { setupGrid } from '@/lib/utils'
 import { RefObject, useEffect } from 'react'
 import * as THREE from 'three'
+import { generateGrid } from '@/lib/gridGenerator'
 
 /**
  * Custom hook to update the model and grid when parameters change
@@ -34,6 +35,11 @@ export function useModelUpdater(
         maxBoxWidth,
     } = useBoxStore()
 
+    const {
+        grid,
+        setGrid
+    } = useGridStore()
+
     // Update the model when parameters change
     useEffect(() => {
         // Update grid based on new dimensions
@@ -44,6 +50,7 @@ export function useModelUpdater(
         // Clear the box mesh group
         boxMeshGroupRef.current.clear()
 
+        /*
         // Testing
         // Generate the horizontal box
         const Box = generateBasicBox(
@@ -115,11 +122,13 @@ export function useModelUpdater(
             0,
             0
         )
-        boxMeshGroupRef.current.add(box4)
+        boxMeshGroupRef.current.add(box4) */
     
 
-        /* // Generate Grid
-        const grid = generateGrid(width, depth, maxBoxWidth, maxBoxDepth)
+        // Generate Grid
+        setGrid(generateGrid(width, depth, maxBoxWidth, maxBoxDepth))
+
+        console.log("grid: " + grid)
 
         // Generate boxes based on grid
         grid.forEach((row, i) => {
@@ -133,11 +142,12 @@ export function useModelUpdater(
                     hasBottom: hasBottom,
                     color: getBoxHexColor(),
                     index: cell.index,
-                    isHidden: false
+                    isHidden: false,
+                    excludeWalls: cell.excludeWalls,
                 }, cell.startX - width / 2, cell.startZ + depth / 2)
                 boxMeshGroupRef.current.add(box)
             })
-        }) */
+        })
 
         // TODO - Move to separate hook and only trigger when selectedBoxIndex changes
         // TODO - remove selectedBoxIndex
