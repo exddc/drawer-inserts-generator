@@ -50,6 +50,11 @@ export function generateBasicBox(
             height,
             index,
             isHidden,
+            wallThickness,
+            cornerRadius,
+            hasBottom,
+            excludeWalls,
+            color,
         },
     }
 

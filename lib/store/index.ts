@@ -8,6 +8,8 @@ import { createUISlice } from './uiStore'
 export interface GridState {
     grid: GridCell[][]
     setGrid: (grid: any[]) => void
+    selectedIndices: number[]
+    setSelectedIndices: (indices: number[]) => void
 }
 
 export interface GridCell {
@@ -22,6 +24,8 @@ export interface GridCell {
 export const useGridStore = create<GridState>((set) => ({
     grid: [],
     setGrid: (grid) => set({ grid }),
+    selectedIndices: [],
+    setSelectedIndices: (indices) => set({ selectedIndices: indices }),
 }))
 
 // The createBoxSlice, createUISlice, and createSharingSlice functions should each

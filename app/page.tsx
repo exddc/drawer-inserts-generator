@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/resizable'
 
 import { useInteractions } from '@/hooks/useInteractions'
-import { useModelUpdater } from '@/hooks/useModelUpdater'
+import { useParameterChange } from '@/hooks/useParameterChange'
 import { useSceneSetup } from '@/hooks/useSceneSetup'
 import { useBoxStore } from '@/lib/store'
 
@@ -67,15 +67,16 @@ export default function Home() {
         mouseRef
     )
 
-    useModelUpdater(
+    // Update the model and grid when parameters change
+    useParameterChange(
         // @ts-ignore - To be fixed
         sceneRef,
         boxMeshGroupRef,
         gridHelperRef,
-        axesHelperRef,
         cameraRef
     )
 
+    // Handle all user interactions with the 3D scene
     useInteractions(
         // @ts-ignore - To be fixed
         containerRef,
