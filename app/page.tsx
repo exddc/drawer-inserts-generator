@@ -18,6 +18,7 @@ import {
 import { useInteractions } from '@/hooks/useInteractions'
 import { useParameterChange } from '@/hooks/useParameterChange'
 import { useSceneSetup } from '@/hooks/useSceneSetup'
+import { useSelectionHighlight } from '@/hooks/useSelectionHighlight'
 import { useBoxStore } from '@/lib/store'
 
 // Define the WindowWithContextMenu interface
@@ -80,10 +81,14 @@ export default function Home() {
     useInteractions(
         // @ts-ignore - To be fixed
         containerRef,
-        raycasterRef,
         cameraRef,
         boxMeshGroupRef,
         mouseRef
+    )
+
+    useSelectionHighlight(
+        // @ts-ignore - To be fixed
+        boxMeshGroupRef
     )
 
     return (

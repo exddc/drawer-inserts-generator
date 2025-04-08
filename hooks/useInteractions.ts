@@ -13,13 +13,12 @@ import { getCellInfo } from '@/lib/gridGenerator'
  */
 export function useInteractions(
     containerRef: RefObject<HTMLDivElement>,
-    raycasterRef: RefObject<THREE.Raycaster>,
     cameraRef: RefObject<THREE.PerspectiveCamera>,
     boxMeshGroupRef: RefObject<THREE.Group>,
     mouseRef: RefObject<THREE.Vector2>
 ) {
     const { getHighlightHexColor } = useBoxStore()
-    const { grid } = useGridStore()
+    const { setSelectedIndices, selectedIndices } = useGridStore();
 
 
     useEffect(() => {
@@ -57,6 +56,7 @@ export function useInteractions(
         
             // metaKey is Cmd on Mac, Ctrl on Windows
             const isMultiSelect = event.metaKey || event.ctrlKey
+            console.log('isMultiSelect', isMultiSelect)
         
             if (window.raycastManager) {
                 const boxIndex = window.raycastManager.getBoxIndexAtPosition(mouseX, mouseY)
@@ -66,33 +66,18 @@ export function useInteractions(
                     if (boxMeshGroup) {
                         // Get the mesh from the group
                         const boxToRemove = boxMeshGroup.children[boxIndex]
-                        const mesh = boxToRemove.children[0];
+                        const index = (boxToRemove.userData as any).dimensions.index;
         
-                        if (mesh) {
-                            const index = (boxToRemove.userData as any).dimensions.index;
-
-                            // Get the cell info
-                            const cell = getCellInfo(grid, index);
-                            if (cell) {
-                                // Remove the box
-                                boxMeshGroup.remove(boxToRemove);
-        
-                                // Rebuild the box with the selection color
-                                const newBox = generateBasicBox({
-                                    width: cell.width,
-                                    depth: cell.depth,
-                                    height: boxToRemove.userData.dimensions.height,
-                                    wallThickness: boxToRemove.userData.dimensions.wallThickness,
-                                    cornerRadius: boxToRemove.userData.dimensions.cornerRadius,
-                                    hasBottom: boxToRemove.userData.dimensions.hasBottom,
-                                    color: getHighlightHexColor(),
-                                    index: cell.index,
-                                    isHidden: false,
-                                    excludeWalls: cell.excludeWalls,
-                                }, boxToRemove.position.x, boxToRemove.position.z);
-
-                                boxMeshGroupRef.current.add(newBox);
-                            }
+                        if (isMultiSelect) {
+                            const currentSelectedIndices = useGridStore.getState().selectedIndices;
+                            const newSelectedIndices = currentSelectedIndices.includes(index)
+                                ? currentSelectedIndices.filter((i) => i !== index)
+                                : [...currentSelectedIndices, index];
+                            setSelectedIndices(newSelectedIndices);
+                            console.log('newSelectedIndices', newSelectedIndices)
+                        } else {
+                            setSelectedIndices([index]);
+                            console.log('single selection', index)
                         }
                     }
                 }
@@ -160,7 +145,6 @@ export function useInteractions(
     cameraRef,
     boxMeshGroupRef,
     mouseRef,
-    grid,
     getHighlightHexColor,
     ])
 
