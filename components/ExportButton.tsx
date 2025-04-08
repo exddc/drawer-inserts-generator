@@ -1,3 +1,4 @@
+// components/ExportButton.tsx
 'use client'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +15,7 @@ export default function ExportButton({
     scene,
     boxMeshGroup,
 }: ExportButtonProps) {
+    // Get all required state from the store
     const {
         width,
         depth,
@@ -34,6 +36,35 @@ export default function ExportButton({
         showAxes,
     } = useBoxStore()
 
+    // Create configuration object for export
+    const config = {
+        width,
+        depth,
+        height,
+        wallThickness,
+        cornerRadius,
+        hasBottom,
+        minBoxWidth,
+        maxBoxWidth,
+        minBoxDepth,
+        maxBoxDepth,
+        useMultipleBoxes,
+        debugMode,
+        uniqueBoxesExport,
+        showGrid,
+        showAxes,
+    }
+
+    // Handle multi-box or single-box export
+    const handleExportSTL = () => {
+        exportSTL(scene, boxMeshGroup, config, boxWidths, boxDepths)
+    }
+
+    const handleExportMultipleSTLs = () => {
+        exportMultipleSTLs(boxMeshGroup, config, boxWidths, boxDepths)
+    }
+
+    // Render different UI based on the useMultipleBoxes setting
     return (
         <>
             {useMultipleBoxes &&
@@ -44,123 +75,16 @@ export default function ExportButton({
                         <Button size="sm">Export Model</Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem
-                            onClick={() =>
-                                exportSTL(
-                                    scene,
-                                    boxMeshGroup,
-                                    {
-                                        width,
-                                        depth,
-                                        height,
-                                        wallThickness,
-                                        cornerRadius,
-                                        hasBottom,
-                                        minBoxWidth,
-                                        maxBoxWidth,
-                                        minBoxDepth,
-                                        maxBoxDepth,
-                                        useMultipleBoxes,
-                                        debugMode,
-                                        uniqueBoxesExport,
-                                        showGrid,
-                                        showAxes,
-                                    },
-                                    boxWidths,
-                                    boxDepths
-                                )
-                            }
-                        >
+                        <DropdownMenuItem onClick={handleExportSTL}>
                             Export as STL (Single Object)
                         </DropdownMenuItem>
-                        {/* <DropdownMenuItem
-                        onClick={() =>
-                            exportOBJ(
-                                scene,
-                                boxMeshGroup,
-                                {
-                                    width,
-                                    depth,
-                                    height,
-                                    wallThickness,
-                                    cornerRadius,
-                                    hasBottom,
-                                    minBoxWidth,
-                                    maxBoxWidth,
-                                    minBoxDepth,
-                                    maxBoxDepth,
-                                    useMultipleBoxes,
-                                    debugMode,
-                                    uniqueBoxesExport,
-                                    showGrid,
-                                    showAxes,
-                                },
-                                boxWidths,
-                                boxDepths
-                            )
-                        }
-                    >
-                        Export as OBJ (Multiple Objects)
-                    </DropdownMenuItem> */}
-                        <DropdownMenuItem
-                            onClick={() =>
-                                exportMultipleSTLs(
-                                    boxMeshGroup,
-                                    {
-                                        width,
-                                        depth,
-                                        height,
-                                        wallThickness,
-                                        cornerRadius,
-                                        hasBottom,
-                                        minBoxWidth,
-                                        maxBoxWidth,
-                                        minBoxDepth,
-                                        maxBoxDepth,
-                                        useMultipleBoxes,
-                                        debugMode,
-                                        uniqueBoxesExport,
-                                        showGrid,
-                                        showAxes,
-                                    },
-                                    boxWidths,
-                                    boxDepths
-                                )
-                            }
-                        >
+                        <DropdownMenuItem onClick={handleExportMultipleSTLs}>
                             Export as ZIP (Separate STL Files)
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             ) : (
-                <Button
-                    onClick={() =>
-                        exportSTL(
-                            scene,
-                            boxMeshGroup,
-                            {
-                                width,
-                                depth,
-                                height,
-                                wallThickness,
-                                cornerRadius,
-                                hasBottom,
-                                minBoxWidth,
-                                maxBoxWidth,
-                                minBoxDepth,
-                                maxBoxDepth,
-                                useMultipleBoxes,
-                                debugMode,
-                                uniqueBoxesExport,
-                                showGrid,
-                                showAxes,
-                            },
-                            boxWidths,
-                            boxDepths
-                        )
-                    }
-                    className="w-full"
-                >
+                <Button onClick={handleExportSTL} className="w-full">
                     Export STL
                 </Button>
             )}
