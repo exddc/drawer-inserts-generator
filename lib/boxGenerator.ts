@@ -363,7 +363,11 @@ export function generateBasicBox(
                         wallThickness + cornerRadius * 2,
                         height
                     )
-                    backWall.translate(width / 2, depth - wallThickness, height / 2)
+                    backWall.translate(
+                        width / 2,
+                        depth - wallThickness,
+                        height / 2
+                    )
                     const backWallMesh = new THREE.Mesh(backWall)
 
                     try {
