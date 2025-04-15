@@ -274,7 +274,7 @@ export function generateBasicBox(
                     frontWall.translate(width / 2, wallThickness, height / 2)
                     const frontWallMesh = new THREE.Mesh(frontWall)
 
-                    for (let i = 0; i < meshGroup.children.length; i++) {
+                    try {
                         // Get the first mesh from the group (which should be the walls mesh)
                         const boxMesh = meshGroup.children[0]
 
@@ -295,6 +295,8 @@ export function generateBasicBox(
                         // Replace the old mesh with the new one
                         meshGroup.remove(boxMesh)
                         meshGroup.add(resultMesh)
+                    } catch (error) {
+                        console.error('Error during CSG subtraction:', error)
                     }
 
                     // Add the straight wall for connections back in
@@ -364,7 +366,7 @@ export function generateBasicBox(
                     backWall.translate(width / 2, depth - wallThickness, height / 2)
                     const backWallMesh = new THREE.Mesh(backWall)
 
-                    for (let i = 0; i < meshGroup.children.length; i++) {
+                    try {
                         // Get the first mesh from the group (which should be the walls mesh)
                         const boxMesh = meshGroup.children[0]
 
@@ -385,6 +387,8 @@ export function generateBasicBox(
                         // Replace the old mesh with the new one
                         meshGroup.remove(boxMesh)
                         meshGroup.add(resultMesh)
+                    } catch (error) {
+                        console.error('Error during CSG subtraction:', error)
                     }
 
                     // Add the straight wall for connections back in
@@ -454,7 +458,7 @@ export function generateBasicBox(
                     leftWall.translate(wallThickness, depth / 2, height / 2)
                     const leftWallMesh = new THREE.Mesh(leftWall)
 
-                    for (let i = 0; i < meshGroup.children.length; i++) {
+                    try {
                         // Get the first mesh from the group (which should be the walls mesh)
                         const boxMesh = meshGroup.children[0]
 
@@ -475,6 +479,8 @@ export function generateBasicBox(
                         // Replace the old mesh with the new one
                         meshGroup.remove(boxMesh)
                         meshGroup.add(resultMesh)
+                    } catch (error) {
+                        console.error('Error during CSG subtraction:', error)
                     }
 
                     // Add the straight wall for connections back in
@@ -544,7 +550,7 @@ export function generateBasicBox(
                     rightWall.translate(width, depth / 2, height / 2)
                     const rightWallMesh = new THREE.Mesh(rightWall)
 
-                    for (let i = 0; i < meshGroup.children.length; i++) {
+                    try {
                         // Get the first mesh from the group (which should be the walls mesh)
                         const boxMesh = meshGroup.children[0]
 
@@ -565,6 +571,8 @@ export function generateBasicBox(
                         // Replace the old mesh with the new one
                         meshGroup.remove(boxMesh)
                         meshGroup.add(resultMesh)
+                    } catch (error) {
+                        console.error('Error during CSG subtraction:', error)
                     }
 
                     // Add the straight wall for connections back in
