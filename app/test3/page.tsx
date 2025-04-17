@@ -20,6 +20,7 @@ const wallThickness = 0.05 // how far inwards
 const cornerRadius = 0.2 // radius to round each corner
 const lineWidth = 5 // in pixels
 const height = 1 // height of the wall
+const generateBottom = true // whether to generate the bottom of the box
 
 //
 // 1) extract CCW outline of the filled cells (uncentered)
@@ -289,6 +290,32 @@ export default function DebugOffsetPage() {
         wallMesh.castShadow = true
         wallMesh.receiveShadow = true
         scene.add(wallMesh)
+
+        if (generateBottom) {
+            // 1) Build a flat Shape from outer2D
+            const bottomShape = new THREE.Shape()
+            bottomShape.moveTo(outer2D[0].x, outer2D[0].y)
+            for (let i = 1; i < outer2D.length; i++) {
+                bottomShape.lineTo(outer2D[i].x, outer2D[i].y)
+            }
+            bottomShape.closePath()
+
+            // 2) Extrude it to “thickness = wallThickness”
+            const bottomGeo = new THREE.ExtrudeGeometry(bottomShape, {
+                steps: 1,
+                depth: wallThickness,
+                bevelEnabled: false,
+            })
+
+            // 3) Orient it flat on the floor
+            bottomGeo.rotateX(Math.PI / 2)
+            bottomGeo.translate(0, wallThickness, 0)
+
+            // 4) Reuse the same material (or pick a new one)
+            const bottomMesh = new THREE.Mesh(bottomGeo, wallMat)
+            bottomMesh.receiveShadow = true
+            scene.add(bottomMesh)
+        }
 
         // Grid Helper
         scene.add(new THREE.GridHelper(10, 10))
