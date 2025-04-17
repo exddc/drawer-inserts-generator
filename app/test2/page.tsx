@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-
 import { Line2 } from 'three/examples/jsm/lines/Line2.js'
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
@@ -17,7 +16,8 @@ const GRID = [
     [1, 1, 1],
 ]
 const cellSize = 1
-const wallThickness = 0.2 // how far inwards
+const wallThickness = 0.05 // how far inwards
+const cornerRadius = 0.2 // radius to round each corner
 const lineWidth = 5 // in pixels
 
 //
@@ -118,6 +118,46 @@ function offsetPolygonCCW(pts: THREE.Vector2[], t: number) {
     return inner
 }
 
+//
+// 3) take a CCW polygon and replace each hard corner with a quadratic arc
+//
+function getRoundedOutline(
+    pts: THREE.Vector2[],
+    radius: number,
+    segmentsPerCorner = 5
+): THREE.Vector2[] {
+    if (radius <= 0 || pts.length < 3) return pts.slice()
+
+    const N = pts.length
+    const path = new THREE.Path()
+
+    // start at the first corner's incoming tangent
+    const prev0 = pts[N - 1]
+    const curr0 = pts[0]
+    const next0 = pts[1]
+    const dPrev0 = curr0.clone().sub(prev0).normalize()
+    const start = curr0.clone().sub(dPrev0.multiplyScalar(radius))
+    path.moveTo(start.x, start.y)
+
+    for (let i = 0; i < N; i++) {
+        const prev = pts[(i + N - 1) % N]
+        const curr = pts[i]
+        const next = pts[(i + 1) % N]
+
+        const dPrev = curr.clone().sub(prev).normalize()
+        const dNext = next.clone().sub(curr).normalize()
+        const pA = curr.clone().sub(dPrev.multiplyScalar(radius))
+        const pB = curr.clone().add(dNext.multiplyScalar(radius))
+
+        path.lineTo(pA.x, pA.y)
+        path.quadraticCurveTo(curr.x, curr.y, pB.x, pB.y)
+    }
+
+    path.closePath()
+    const ptsOut = path.getPoints(N * segmentsPerCorner)
+    return ptsOut.map((p) => new THREE.Vector2(p.x, p.y))
+}
+
 export default function DebugOffsetPage() {
     const ref = useRef<HTMLDivElement>(null)
 
@@ -143,8 +183,9 @@ export default function DebugOffsetPage() {
         const controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
 
-        // 1) Outer outline (red)
-        const outer2D = getOutline(GRID)
+        // 1) Outer outline (red), rounded
+        const rawOuter = getOutline(GRID)
+        const outer2D = getRoundedOutline(rawOuter, cornerRadius)
         const outerPos: number[] = []
         outer2D.forEach((v) => outerPos.push(v.x, 0, v.y))
         if (outer2D.length) {
@@ -163,8 +204,12 @@ export default function DebugOffsetPage() {
         outerLine.computeLineDistances()
         scene.add(outerLine)
 
-        // 2) Inner offset outline (blue)
-        const inner2D = offsetPolygonCCW(outer2D, wallThickness)
+        // 2) Inner offset outline (blue), rounded
+        const rawInner = offsetPolygonCCW(rawOuter, wallThickness)
+        const inner2D = getRoundedOutline(
+            rawInner,
+            cornerRadius - wallThickness
+        )
         const innerPos: number[] = []
         inner2D.forEach((v) => innerPos.push(v.x, 0, v.y))
         if (inner2D.length) {
