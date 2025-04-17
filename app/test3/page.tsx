@@ -246,8 +246,70 @@ export default function DebugOffsetPage() {
         innerLine.computeLineDistances()
         scene.add(innerLine)
 
+        // build the outer shape
+        const wallShape = new THREE.Shape()
+        if (outer2D.length) {
+            wallShape.moveTo(outer2D[0].x, outer2D[0].y)
+            for (let i = 1; i < outer2D.length; i++) {
+                wallShape.lineTo(outer2D[i].x, outer2D[i].y)
+            }
+            wallShape.closePath()
+        }
+
+        // build the hole
+        const holePath = new THREE.Path()
+        if (inner2D.length) {
+            holePath.moveTo(inner2D[0].x, inner2D[0].y)
+            for (let i = 1; i < inner2D.length; i++) {
+                holePath.lineTo(inner2D[i].x, inner2D[i].y)
+            }
+            holePath.closePath()
+            wallShape.holes.push(holePath)
+        }
+
+        // extrude settings
+        const extrudeSettings = {
+            steps: 1,
+            depth: height,
+            bevelEnabled: false,
+        }
+
+        // create and orient geometry
+        const wallGeo = new THREE.ExtrudeGeometry(wallShape, extrudeSettings)
+        wallGeo.rotateX(Math.PI / 2)
+        wallGeo.translate(0, height, 0)
+
+        // material + mesh
+        const wallMat = new THREE.MeshStandardMaterial({
+            color: 0x888888,
+            roughness: 0.4,
+            metalness: 0.2,
+        })
+        const wallMesh = new THREE.Mesh(wallGeo, wallMat)
+        wallMesh.castShadow = true
+        wallMesh.receiveShadow = true
+        scene.add(wallMesh)
+
         // Grid Helper
         scene.add(new THREE.GridHelper(10, 10))
+
+        // enable shadows in the renderer
+        renderer.shadowMap.enabled = true
+
+        // ambient fill light
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6)
+        scene.add(ambient)
+
+        // a directional “sun” light
+        const dir = new THREE.DirectionalLight(0xffffff, 0.6)
+        dir.position.set(5, 10, 5)
+        // allow it to cast shadows
+        dir.castShadow = true
+        scene.add(dir)
+
+        // make sure your wall can cast/receive shadows
+        wallMesh.castShadow = true
+        wallMesh.receiveShadow = true
 
         // Mount & Animate
         const canvas = renderer.domElement
