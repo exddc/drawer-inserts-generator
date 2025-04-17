@@ -11,7 +11,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 // CONFIGURATION
 //
 const GRID = [
-    [0, 0, 0],
+    [1, 1, 0],
     [1, 0, 1],
     [1, 1, 1],
 ]
@@ -139,18 +139,35 @@ function getRoundedOutline(
     const start = curr0.clone().sub(dPrev0.multiplyScalar(radius))
     path.moveTo(start.x, start.y)
 
-    for (let i = 0; i < N; i++) {
-        const prev = pts[(i + N - 1) % N]
+    for (let i = 0; i < pts.length; i++) {
+        const prev = pts[(i + pts.length - 1) % pts.length]
         const curr = pts[i]
-        const next = pts[(i + 1) % N]
+        const next = pts[(i + 1) % pts.length]
 
         const dPrev = curr.clone().sub(prev).normalize()
         const dNext = next.clone().sub(curr).normalize()
-        const pA = curr.clone().sub(dPrev.multiplyScalar(radius))
-        const pB = curr.clone().add(dNext.multiplyScalar(radius))
+        const cross = dPrev.x * dNext.y - dPrev.y * dNext.x
 
-        path.lineTo(pA.x, pA.y)
-        path.quadraticCurveTo(curr.x, curr.y, pB.x, pB.y)
+        // For convex, use the "radius" passed in.
+        if (cross >= 0) {
+            const pA = curr.clone().sub(dPrev.multiplyScalar(radius))
+            const pB = curr.clone().add(dNext.multiplyScalar(radius))
+            path.lineTo(pA.x, pA.y)
+            path.quadraticCurveTo(curr.x, curr.y, pB.x, pB.y)
+        } else {
+            // Concave: pick a smaller/larger radius depending on
+            // whether we're on the outer or inner pass.
+            // (outer call always passed radius === cornerRadius)
+            const concR =
+                radius === cornerRadius
+                    ? cornerRadius - wallThickness
+                    : cornerRadius
+
+            const pA = curr.clone().sub(dPrev.multiplyScalar(concR))
+            const pB = curr.clone().add(dNext.multiplyScalar(concR))
+            path.lineTo(pA.x, pA.y)
+            path.quadraticCurveTo(curr.x, curr.y, pB.x, pB.y)
+        }
     }
 
     path.closePath()
