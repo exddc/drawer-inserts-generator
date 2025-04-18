@@ -34,31 +34,16 @@ export default function DebugOffsetPage() {
         const controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
 
-        // 2) compute raw outlines
-        const rawOuter = getOutline(GRID)
-        const rawInner = offsetPolygonCCW(rawOuter, WALL_THICKNESS)
-
-        // 3) compute rounded outlines
-        const outerRounded = getRoundedOutline(rawOuter, CORNER_RADIUS)
-        const innerRounded = getRoundedOutline(
-            rawInner,
-            CORNER_RADIUS - WALL_THICKNESS
+        // 2) Generate Box
+        const box = generateCustomBox(
+            GRID,
+            WALL_THICKNESS,
+            CORNER_RADIUS,
+            GENERATE_BOTTOM
         )
+        scene.add(box)
 
-        // 4) draw lines
-        addOutlineLines(scene, outerRounded, 0xff0000)
-        addOutlineLines(scene, innerRounded, 0x0000ff)
-
-        // 5) build & add meshes
-        const wallMesh = buildWallMesh(outerRounded, innerRounded)
-        scene.add(wallMesh)
-
-        if (GENERATE_BOTTOM) {
-            const bottomMesh = buildBottomMesh(outerRounded)
-            scene.add(bottomMesh)
-        }
-
-        // 6) lights, grid, shadows
+        // 3) lights, grid, shadows
         scene.add(new THREE.AmbientLight(0xffffff, 0.6))
         const sun = new THREE.DirectionalLight(0xffffff, 0.6)
         sun.position.set(5, 10, 5)
@@ -67,10 +52,8 @@ export default function DebugOffsetPage() {
         scene.add(new THREE.GridHelper(10, 10))
 
         renderer.shadowMap.enabled = true
-        wallMesh.castShadow = true
-        wallMesh.receiveShadow = true
 
-        // 7) resize + animation loop
+        // 4) resize + animation loop
         window.addEventListener('resize', onWindowResize)
         let frameId: number
         ;(function animate() {
@@ -105,6 +88,41 @@ export default function DebugOffsetPage() {
             }}
         />
     )
+}
+
+//
+// MAIN HELPER
+//
+function generateCustomBox(
+    grid: number[][],
+    wall_thickness: number,
+    corner_radius: number,
+    generate_bottom: boolean
+): THREE.Group {
+    const group = new THREE.Group()
+
+    // 1) raw outlines
+    const rawOuter = getOutline(grid)
+    const rawInner = offsetPolygonCCW(rawOuter, wall_thickness)
+
+    // 2) rounded outlines
+    const outerRounded = getRoundedOutline(rawOuter, corner_radius)
+    const innerRounded = getRoundedOutline(
+        rawInner,
+        corner_radius - wall_thickness
+    )
+
+    // 3) wall mesh
+    const wallMesh = buildWallMesh(outerRounded, innerRounded)
+    group.add(wallMesh)
+
+    // 4) optional bottom
+    if (generate_bottom) {
+        const bottomMesh = buildBottomMesh(outerRounded)
+        group.add(bottomMesh)
+    }
+
+    return group
 }
 
 //
