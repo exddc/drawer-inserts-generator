@@ -40,10 +40,33 @@ export const uiDefaults = {
     combinedBoxes: new Map<number, CombinedBoxInfo>(),
 }
 
-// Type definitions
+export interface BoxConnections {
+    connections: Map<number, number[]>
+}
+
 export interface CombinedBoxInfo {
     indices: number[]
     direction: 'width' | 'depth'
+    connections?: number[]
+    isPartOfGroup?: boolean
+    groupId?: number
+}
+
+/**
+ * Definition of a box in the grid matrix
+ * This is used to store all properties of a box before creating the 3D object
+ */
+export interface GridBoxDefinition extends BoxParameters {
+    index: number
+    isSelected: boolean
+    isHidden: boolean
+    isCombined: boolean
+    isSecondaryBox?: boolean
+    primaryBoxIndex?: number
+    combinedIndices?: number[]
+    direction?: 'width' | 'depth'
+    x: number
+    z: number
 }
 
 export interface ActionsBarProps {
@@ -233,4 +256,13 @@ export interface UIState {
     isPrimaryBox: (index: number) => boolean
     getCombinedBoxIndices: (index: number) => number[]
     resetCombinedBoxes: () => void
+}
+
+export interface SharingState {
+    loadFromUrl: () => void
+    shareConfiguration: () => Promise<boolean>
+}
+
+export interface StoreState extends BoxState, UIState, SharingState {
+    updateInput: (name: string, value: number | boolean | string) => void
 }
