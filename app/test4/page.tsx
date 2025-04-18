@@ -41,6 +41,8 @@ export default function DebugOffsetPage() {
             CORNER_RADIUS,
             GENERATE_BOTTOM
         )
+        box.translateX(-(GRID[0].length * CELL_SIZE * 0.5))
+        box.translateZ(-(GRID.length * CELL_SIZE * 0.5))
         scene.add(box)
 
         // 3) lights, grid, shadows
