@@ -122,26 +122,57 @@ function generateCustomBox(
     generate_bottom: boolean
 ): THREE.Group {
     const group = new THREE.Group()
-
-    // 1) raw outlines
     const rawOuter = getOutline(grid)
     const rawInner = offsetPolygonCCW(rawOuter, wall_thickness)
-
-    // 2) rounded outlines
     const outerRounded = getRoundedOutline(rawOuter, corner_radius)
     const innerRounded = getRoundedOutline(
         rawInner,
         corner_radius - wall_thickness
     )
-
-    // 3) wall mesh
-    const wallMesh = buildWallMesh(outerRounded, innerRounded)
-    group.add(wallMesh)
-
-    // 4) optional bottom
+    group.add(buildWallMesh(outerRounded, innerRounded))
     if (generate_bottom) {
-        const bottomMesh = buildBottomMesh(outerRounded)
-        group.add(bottomMesh)
+        group.add(buildBottomMesh(outerRounded))
+    }
+
+    const widths = grid[0].map((c) => c.width)
+    const depths = grid.map((row) => row[0].depth)
+    const cumW: number[] = [0]
+    widths.forEach((w) => cumW.push(cumW[cumW.length - 1] + w))
+    const cumD: number[] = [0]
+    depths.forEach((d) => cumD.push(cumD[cumD.length - 1] + d))
+
+    // For each cell that is NOT filled, build a 1×1 cell‐grid
+    for (let z = 0; z < grid.length; z++) {
+        for (let x = 0; x < grid[0].length; x++) {
+            const cell = grid[z][x]
+            if (cell.filled) continue
+
+            // Build a 1×1 grid containing just this cell
+            const singleGrid: Cell[][] = [
+                [{ filled: true, width: cell.width, depth: cell.depth }],
+            ]
+            const rawO = getOutline(singleGrid)
+            const rawI = offsetPolygonCCW(rawO, wall_thickness)
+            const outR = getRoundedOutline(rawO, corner_radius)
+            const inR = getRoundedOutline(rawI, corner_radius - wall_thickness)
+            const x0 = cumW[x],
+                z0 = cumD[z]
+            outR.forEach((p) => {
+                p.x += x0
+                p.y += z0
+            })
+            inR.forEach((p) => {
+                p.x += x0
+                p.y += z0
+            })
+
+            const cellMesh = buildWallMesh(outR, inR)
+            if (generate_bottom) {
+                const cellBottom = buildBottomMesh(outR)
+                cellMesh.add(cellBottom)
+            }
+            group.add(cellMesh)
+        }
     }
 
     return group
