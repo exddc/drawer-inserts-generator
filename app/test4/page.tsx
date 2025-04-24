@@ -8,35 +8,35 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 // CONFIGURATION
 //
 type Cell = {
-    filled: boolean
+    group: number
     width: number
     depth: number
 }
 
 const GRID: Cell[][] = [
     [
-        { filled: true, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
-        { filled: false, width: 1, depth: 1 },
+        { group: 1, width: 1, depth: 1 },
+        { group: 1, width: 1, depth: 1 },
+        { group: 1, width: 1, depth: 1 },
+        { group: 0, width: 1, depth: 1 },
     ],
     [
-        { filled: true, width: 1, depth: 1 },
-        { filled: false, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
+        { group: 1, width: 1, depth: 1 },
+        { group: 0, width: 1, depth: 1 },
+        { group: 1, width: 1, depth: 1 },
+        { group: 1, width: 1, depth: 1 },
     ],
     [
-        { filled: false, width: 1, depth: 1 },
-        { filled: false, width: 1, depth: 1 },
-        { filled: false, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
+        { group: 0, width: 1, depth: 1 },
+        { group: 0, width: 1, depth: 1 },
+        { group: 0, width: 1, depth: 1 },
+        { group: 0, width: 1, depth: 1 },
     ],
     [
-        { filled: false, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
-        { filled: true, width: 1, depth: 1 },
+        { group: 0, width: 1, depth: 1 },
+        { group: 2, width: 1, depth: 1 },
+        { group: 2, width: 1, depth: 1 },
+        { group: 2, width: 1, depth: 1 },
     ],
 ]
 
@@ -122,17 +122,19 @@ function generateCustomBox(
     generate_bottom: boolean
 ): THREE.Group {
     const group = new THREE.Group()
-    const rawOuter = getOutline(grid)
-    const rawInner = offsetPolygonCCW(rawOuter, wall_thickness)
-    const outerRounded = getRoundedOutline(rawOuter, corner_radius)
-    const innerRounded = getRoundedOutline(
-        rawInner,
-        corner_radius - wall_thickness
+    const ids = Array.from(new Set(grid.flat().map((c) => c.group))).filter(
+        (i) => i > 0
     )
-    group.add(buildWallMesh(outerRounded, innerRounded))
-    if (generate_bottom) {
-        group.add(buildBottomMesh(outerRounded))
-    }
+
+    ids.forEach((id) => {
+        const rawO = getOutline(grid, id)
+        if (!rawO.length) return
+        const rawI = offsetPolygonCCW(rawO, wall_thickness)
+        const outR = getRoundedOutline(rawO, corner_radius)
+        const inR = getRoundedOutline(rawI, corner_radius - wall_thickness)
+        group.add(buildWallMesh(outR, inR))
+        if (generate_bottom) group.add(buildBottomMesh(outR))
+    })
 
     const widths = grid[0].map((c) => c.width)
     const depths = grid.map((row) => row[0].depth)
@@ -145,13 +147,13 @@ function generateCustomBox(
     for (let z = 0; z < grid.length; z++) {
         for (let x = 0; x < grid[0].length; x++) {
             const cell = grid[z][x]
-            if (cell.filled) continue
+            if (cell.group !== 0) continue
 
             // Build a 1×1 grid containing just this cell
             const singleGrid: Cell[][] = [
-                [{ filled: true, width: cell.width, depth: cell.depth }],
+                [{ group: 0, width: cell.width, depth: cell.depth }],
             ]
-            const rawO = getOutline(singleGrid)
+            const rawO = getOutline(singleGrid, 0)
             const rawI = offsetPolygonCCW(rawO, wall_thickness)
             const outR = getRoundedOutline(rawO, corner_radius)
             const inR = getRoundedOutline(rawI, corner_radius - wall_thickness)
@@ -269,7 +271,7 @@ function buildBottomMesh(outerPts: THREE.Vector2[]): THREE.Mesh {
 //
 // GEOMETRY UTILS
 //
-function getOutline(grid: Cell[][]): THREE.Vector2[] {
+function getOutline(grid: Cell[][], groupId: number): THREE.Vector2[] {
     const rows = grid.length
     const cols = grid[0].length
 
@@ -288,23 +290,23 @@ function getOutline(grid: Cell[][]): THREE.Vector2[] {
 
     for (let z = 0; z < rows; z++) {
         for (let x = 0; x < cols; x++) {
-            if (!grid[z][x].filled) continue
-            if (z === 0 || !grid[z - 1][x].filled)
+            if (grid[z][x].group !== groupId) continue
+            if (z === 0 || grid[z - 1][x].group !== groupId)
                 segs.push({
                     a: new THREE.Vector2(x, z),
                     b: new THREE.Vector2(x + 1, z),
                 })
-            if (x === cols - 1 || !grid[z][x + 1].filled)
+            if (x === cols - 1 || grid[z][x + 1].group !== groupId)
                 segs.push({
                     a: new THREE.Vector2(x + 1, z),
                     b: new THREE.Vector2(x + 1, z + 1),
                 })
-            if (z === rows - 1 || !grid[z + 1][x].filled)
+            if (z === rows - 1 || grid[z + 1][x].group !== groupId)
                 segs.push({
                     a: new THREE.Vector2(x + 1, z + 1),
                     b: new THREE.Vector2(x, z + 1),
                 })
-            if (x === 0 || !grid[z][x - 1].filled)
+            if (x === 0 || grid[z][x - 1].group !== groupId)
                 segs.push({
                     a: new THREE.Vector2(x, z + 1),
                     b: new THREE.Vector2(x, z),
