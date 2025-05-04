@@ -13,32 +13,7 @@ type Cell = {
     depth: number
 }
 
-const GRID: Cell[][] = [
-    [
-        { group: 1, width: 1, depth: 1 },
-        { group: 1, width: 1, depth: 1 },
-        { group: 1, width: 1, depth: 1 },
-        { group: 0, width: 1, depth: 1 },
-    ],
-    [
-        { group: 1, width: 1, depth: 1 },
-        { group: 0, width: 1, depth: 1 },
-        { group: 1, width: 1, depth: 1 },
-        { group: 1, width: 1, depth: 1 },
-    ],
-    [
-        { group: 0, width: 1, depth: 1 },
-        { group: 0, width: 1, depth: 1 },
-        { group: 0, width: 1, depth: 1 },
-        { group: 0, width: 1, depth: 1 },
-    ],
-    [
-        { group: 0, width: 1, depth: 1 },
-        { group: 2, width: 1, depth: 1 },
-        { group: 2, width: 1, depth: 1 },
-        { group: 2, width: 1, depth: 1 },
-    ],
-]
+const GRID: Cell[][] = generateGrid(5, 4)
 
 export default function Test() {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -52,6 +27,9 @@ export default function Test() {
     const [cornerRadius, setCornerRadius] = useState(0.2)
     const [wallHeight, setWallHeight] = useState(1)
     const [generateBottom, setGenerateBottom] = useState(true)
+
+    const [totalWidth, setTotalWidth] = useState(4)
+    const [totalDepth, setTotalDepth] = useState(4)
 
     useEffect(() => {
         if (!containerRef.current) return
@@ -107,16 +85,25 @@ export default function Test() {
         if (boxRef.current) scene.remove(boxRef.current)
 
         // add new
+        const grid = generateGrid(totalWidth, totalDepth)
         const box = generateCustomBox(
-            GRID,
+            grid,
             wallThickness,
             cornerRadius,
             wallHeight,
             generateBottom
         )
         boxRef.current = box
+        box.position.set(-totalWidth / 2, 0, -totalDepth / 2)
         scene.add(box)
-    }, [wallThickness, cornerRadius, wallHeight, generateBottom])
+    }, [
+        wallThickness,
+        cornerRadius,
+        wallHeight,
+        generateBottom,
+        totalWidth,
+        totalDepth,
+    ])
 
     return (
         <>
@@ -180,6 +167,32 @@ export default function Test() {
                             onChange={(e) =>
                                 setGenerateBottom(e.target.checked)
                             }
+                        />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        Total width: {totalWidth}
+                        <input
+                            type="range"
+                            min={1}
+                            max={10}
+                            step={1}
+                            value={totalWidth}
+                            onChange={(e) => setTotalWidth(+e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        Total depth: {totalDepth}
+                        <input
+                            type="range"
+                            min={1}
+                            max={10}
+                            step={1}
+                            value={totalDepth}
+                            onChange={(e) => setTotalDepth(+e.target.value)}
                         />
                     </label>
                 </div>
@@ -518,4 +531,16 @@ function getRoundedOutline(
     path.closePath()
     const ptsOut = path.getPoints(N * segmentsPerCorner)
     return ptsOut.map((p) => new THREE.Vector2(p.x, p.y))
+}
+
+function generateGrid(totalWidth: number, totalDepth: number): Cell[][] {
+    const cols = Math.floor(totalWidth)
+    const rows = Math.floor(totalDepth)
+    return Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => ({
+            group: 0,
+            width: 1,
+            depth: 1,
+        }))
+    )
 }
