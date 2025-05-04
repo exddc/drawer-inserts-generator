@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
@@ -40,55 +40,56 @@ const GRID: Cell[][] = [
     ],
 ]
 
-const WALL_THICKNESS = 0.05
-const CORNER_RADIUS = 0.2
-const WALL_HEIGHT = 1
-const GENERATE_BOTTOM = true
-
 export default function Test() {
     const containerRef = useRef<HTMLDivElement>(null)
+    const sceneRef = useRef<THREE.Scene>(null)
+    const cameraRef = useRef<THREE.PerspectiveCamera>(null)
+    const rendererRef = useRef<THREE.WebGLRenderer>(null)
+    const controlsRef = useRef<OrbitControls>(null)
+    const boxRef = useRef<THREE.Group>(null)
+
+    const [wallThickness, setWallThickness] = useState(0.05)
+    const [cornerRadius, setCornerRadius] = useState(0.2)
+    const [wallHeight, setWallHeight] = useState(1)
+    const [generateBottom, setGenerateBottom] = useState(true)
 
     useEffect(() => {
         if (!containerRef.current) return
-
-        // 1) init scene, camera, renderer
         const { scene, camera, renderer } = initBasics(containerRef.current)
+        sceneRef.current = scene
+        cameraRef.current = camera
+        rendererRef.current = renderer
+
         const controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
+        controlsRef.current = controls
 
-        // 2) Generate Box
-        const box = generateCustomBox(
-            GRID,
-            WALL_THICKNESS,
-            CORNER_RADIUS,
-            GENERATE_BOTTOM
-        )
-        scene.add(box)
-
-        // 3) lights, grid, shadows
+        // lights + grid
         scene.add(new THREE.AmbientLight(0xffffff, 0.6))
         const sun = new THREE.DirectionalLight(0xffffff, 0.6)
         sun.position.set(5, 10, 5)
         sun.castShadow = true
         scene.add(sun)
         scene.add(new THREE.GridHelper(10, 10))
-
         renderer.shadowMap.enabled = true
 
-        // 4) resize + animation loop
+        // resize handler
+        const onWindowResize = () => {
+            if (!cameraRef.current || !rendererRef.current) return
+            cameraRef.current.aspect = window.innerWidth / window.innerHeight
+            cameraRef.current.updateProjectionMatrix()
+            rendererRef.current.setSize(window.innerWidth, window.innerHeight)
+        }
         window.addEventListener('resize', onWindowResize)
+
+        // animation loop
         let frameId: number
-        ;(function animate() {
+        const animate = () => {
             controls.update()
             renderer.render(scene, camera)
             frameId = requestAnimationFrame(animate)
-        })()
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight
-            camera.updateProjectionMatrix()
-            renderer.setSize(window.innerWidth, window.innerHeight)
         }
+        animate()
 
         return () => {
             cancelAnimationFrame(frameId)
@@ -98,17 +99,103 @@ export default function Test() {
         }
     }, [])
 
+    useEffect(() => {
+        const scene = sceneRef.current
+        if (!scene) return
+
+        // remove old
+        if (boxRef.current) scene.remove(boxRef.current)
+
+        // add new
+        const box = generateCustomBox(
+            GRID,
+            wallThickness,
+            cornerRadius,
+            wallHeight,
+            generateBottom
+        )
+        boxRef.current = box
+        scene.add(box)
+    }, [wallThickness, cornerRadius, wallHeight, generateBottom])
+
     return (
-        <div
-            ref={containerRef}
-            style={{
-                width: '100vw',
-                height: '100vh',
-                margin: 0,
-                padding: 0,
-                overflow: 'hidden',
-            }}
-        />
+        <>
+            {/* 4) simple overlay */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: 10,
+                    left: 10,
+                    zIndex: 1,
+                    background: 'rgba(255,255,255,0.8)',
+                    padding: 8,
+                    borderRadius: 4,
+                }}
+            >
+                <div>
+                    <label>
+                        Wall thickness: {wallThickness.toFixed(2)}
+                        <input
+                            type="range"
+                            min={0.01}
+                            max={0.2}
+                            step={0.01}
+                            value={wallThickness}
+                            onChange={(e) => setWallThickness(+e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        Corner radius: {cornerRadius.toFixed(2)}
+                        <input
+                            type="range"
+                            min={0}
+                            max={0.5}
+                            step={0.01}
+                            value={cornerRadius}
+                            onChange={(e) => setCornerRadius(+e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        Wall height: {wallHeight.toFixed(2)}
+                        <input
+                            type="range"
+                            min={0.5}
+                            max={5}
+                            step={0.1}
+                            value={wallHeight}
+                            onChange={(e) => setWallHeight(+e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        Bottom:{' '}
+                        <input
+                            type="checkbox"
+                            checked={generateBottom}
+                            onChange={(e) =>
+                                setGenerateBottom(e.target.checked)
+                            }
+                        />
+                    </label>
+                </div>
+            </div>
+
+            <div
+                ref={containerRef}
+                style={{
+                    width: '100vw',
+                    height: '100vh',
+                    margin: 0,
+                    padding: 0,
+                    overflow: 'hidden',
+                }}
+            />
+        </>
     )
 }
 
@@ -119,6 +206,7 @@ function generateCustomBox(
     grid: Cell[][],
     wall_thickness: number,
     corner_radius: number,
+    wall_height: number,
     generate_bottom: boolean
 ): THREE.Group {
     const group = new THREE.Group()
@@ -130,10 +218,22 @@ function generateCustomBox(
         const rawO = getOutline(grid, id)
         if (!rawO.length) return
         const rawI = offsetPolygonCCW(rawO, wall_thickness)
-        const outR = getRoundedOutline(rawO, corner_radius)
-        const inR = getRoundedOutline(rawI, corner_radius - wall_thickness)
-        group.add(buildWallMesh(outR, inR))
-        if (generate_bottom) group.add(buildBottomMesh(outR))
+        const outR = getRoundedOutline(
+            rawO,
+            corner_radius,
+            5,
+            corner_radius,
+            wall_thickness
+        )
+        const inR = getRoundedOutline(
+            rawI,
+            corner_radius - wall_thickness,
+            5,
+            corner_radius,
+            wall_thickness
+        )
+        group.add(buildWallMesh(outR, inR, wall_height))
+        if (generate_bottom) group.add(buildBottomMesh(outR, wall_thickness))
     })
 
     const widths = grid[0].map((c) => c.width)
@@ -155,8 +255,20 @@ function generateCustomBox(
             ]
             const rawO = getOutline(singleGrid, 0)
             const rawI = offsetPolygonCCW(rawO, wall_thickness)
-            const outR = getRoundedOutline(rawO, corner_radius)
-            const inR = getRoundedOutline(rawI, corner_radius - wall_thickness)
+            const outR = getRoundedOutline(
+                rawO,
+                corner_radius,
+                5,
+                corner_radius,
+                wall_thickness
+            )
+            const inR = getRoundedOutline(
+                rawI,
+                corner_radius - wall_thickness,
+                5,
+                corner_radius,
+                wall_thickness
+            )
             const x0 = cumW[x],
                 z0 = cumD[z]
             outR.forEach((p) => {
@@ -168,9 +280,9 @@ function generateCustomBox(
                 p.y += z0
             })
 
-            const cellMesh = buildWallMesh(outR, inR)
+            const cellMesh = buildWallMesh(outR, inR, wall_height)
             if (generate_bottom) {
-                const cellBottom = buildBottomMesh(outR)
+                const cellBottom = buildBottomMesh(outR, wall_thickness)
                 cellMesh.add(cellBottom)
             }
             group.add(cellMesh)
@@ -213,7 +325,8 @@ function initBasics(container: HTMLDivElement): {
 //
 function buildWallMesh(
     outerPts: THREE.Vector2[],
-    innerPts: THREE.Vector2[]
+    innerPts: THREE.Vector2[],
+    wallHeight: number
 ): THREE.Mesh {
     const shape = new THREE.Shape()
     if (outerPts.length) {
@@ -232,11 +345,11 @@ function buildWallMesh(
 
     const geo = new THREE.ExtrudeGeometry(shape, {
         steps: 1,
-        depth: WALL_HEIGHT,
+        depth: wallHeight,
         bevelEnabled: false,
     })
     geo.rotateX(Math.PI / 2)
-    geo.translate(0, WALL_HEIGHT, 0)
+    geo.translate(0, wallHeight, 0)
 
     const mat = new THREE.MeshStandardMaterial({
         color: 0x888888,
@@ -246,7 +359,10 @@ function buildWallMesh(
     return new THREE.Mesh(geo, mat)
 }
 
-function buildBottomMesh(outerPts: THREE.Vector2[]): THREE.Mesh {
+function buildBottomMesh(
+    outerPts: THREE.Vector2[],
+    thickness: number
+): THREE.Mesh {
     const shape = new THREE.Shape()
     shape.moveTo(outerPts[0].x, outerPts[0].y)
     outerPts.slice(1).forEach((pt) => shape.lineTo(pt.x, pt.y))
@@ -254,11 +370,11 @@ function buildBottomMesh(outerPts: THREE.Vector2[]): THREE.Mesh {
 
     const geo = new THREE.ExtrudeGeometry(shape, {
         steps: 1,
-        depth: WALL_THICKNESS,
+        depth: thickness,
         bevelEnabled: false,
     })
     geo.rotateX(Math.PI / 2)
-    geo.translate(0, WALL_THICKNESS, 0)
+    geo.translate(0, thickness, 0)
 
     const mat = new THREE.MeshStandardMaterial({
         color: 0x888888,
@@ -363,7 +479,9 @@ function offsetPolygonCCW(pts: THREE.Vector2[], t: number) {
 function getRoundedOutline(
     pts: THREE.Vector2[],
     radius: number,
-    segmentsPerCorner = 5
+    segmentsPerCorner = 5,
+    corner_radius: number,
+    wall_thickness: number
 ): THREE.Vector2[] {
     if (radius <= 0 || pts.length < 3) return pts.slice()
     const N = pts.length
@@ -386,9 +504,9 @@ function getRoundedOutline(
 
         const r = isConvex
             ? radius
-            : radius === CORNER_RADIUS
-              ? CORNER_RADIUS - WALL_THICKNESS
-              : CORNER_RADIUS
+            : radius === corner_radius
+              ? corner_radius - wall_thickness
+              : corner_radius
 
         const pA = curr.clone().addScaledVector(dPrev, -r)
         const pB = curr.clone().addScaledVector(dNext, r)
