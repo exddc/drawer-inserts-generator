@@ -45,7 +45,7 @@ const CORNER_RADIUS = 0.2
 const WALL_HEIGHT = 1
 const GENERATE_BOTTOM = true
 
-export default function DebugOffsetPage() {
+export default function Test() {
     const containerRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
