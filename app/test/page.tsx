@@ -11,9 +11,8 @@ type Cell = {
     group: number
     width: number
     depth: number
+    color?: number
 }
-
-const GRID: Cell[][] = generateGrid(5, 4)
 
 export default function Test() {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -69,9 +68,57 @@ export default function Test() {
         }
         animate()
 
+        const raycaster = new THREE.Raycaster()
+        const mouse = new THREE.Vector2()
+        let selectedGroup: THREE.Group | null = null
+
+        function onPointerDown(event: MouseEvent) {
+            // normalize mouse coords into [-1,1]
+            const rect = renderer.domElement.getBoundingClientRect()
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+            raycaster.setFromCamera(mouse, camera)
+            // raycast against everything in your main scene
+            const hits = raycaster.intersectObjects(scene.children, true)
+            if (!hits.length) return
+
+            const mesh = hits[0].object as THREE.Mesh
+            const box = mesh.parent as THREE.Group
+
+            // Check if we've clicked on a valid box component (wall or bottom)
+            // Each box group contains a wall mesh (index 0) and possibly a bottom mesh (index 1)
+            const meshIndex = box.children.indexOf(mesh)
+            const isWall = meshIndex === 0
+            const isBottom = generateBottom && meshIndex === 1
+
+            // Only allow selection if we've hit a wall or bottom of a box
+            if (!(isWall || isBottom)) return
+
+            // reset old (walls + bottom)
+            if (selectedGroup) {
+                selectedGroup.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.material.color.setHex(0x888888)
+                    }
+                })
+            }
+            // highlight new (walls + bottom)
+            box.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.material.color.setHex(0xff0000)
+                }
+            })
+            selectedGroup = box
+        }
+        renderer.domElement.addEventListener('pointerdown', onPointerDown)
+
         return () => {
             cancelAnimationFrame(frameId)
             window.removeEventListener('resize', onWindowResize)
+            renderer.domElement.removeEventListener(
+                'pointerdown',
+                onPointerDown
+            )
             controls.dispose()
             renderer.dispose()
         }
@@ -245,8 +292,10 @@ function generateCustomBox(
             corner_radius,
             wall_thickness
         )
-        group.add(buildWallMesh(outR, inR, wall_height))
-        if (generate_bottom) group.add(buildBottomMesh(outR, wall_thickness))
+        const boxGroup = new THREE.Group()
+        boxGroup.add(buildWallMesh(outR, inR, wall_height))
+        if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
+        group.add(boxGroup)
     })
 
     const widths = grid[0].map((c) => c.width)
@@ -293,12 +342,12 @@ function generateCustomBox(
                 p.y += z0
             })
 
-            const cellMesh = buildWallMesh(outR, inR, wall_height)
-            if (generate_bottom) {
-                const cellBottom = buildBottomMesh(outR, wall_thickness)
-                cellMesh.add(cellBottom)
-            }
-            group.add(cellMesh)
+            const cellGroup = new THREE.Group()
+            cellGroup.userData.selectable = true
+            cellGroup.add(buildWallMesh(outR, inR, wall_height))
+            if (generate_bottom)
+                cellGroup.add(buildBottomMesh(outR, wall_thickness))
+            group.add(cellGroup)
         }
     }
 
