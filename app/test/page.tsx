@@ -78,35 +78,35 @@ export default function Test() {
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
             raycaster.setFromCamera(mouse, camera)
-            // raycast against everything in your main scene
+
+            // raycast against everything
             const hits = raycaster.intersectObjects(scene.children, true)
             if (!hits.length) return
 
-            const mesh = hits[0].object as THREE.Mesh
+            // pick the first hit on a wall (child 0) or bottom (child 1)
+            const hit = hits.find(({ object }) => {
+                if (!(object instanceof THREE.Mesh)) return false
+                // @ts-ignore
+                const idx = object.parent.children.indexOf(object)
+                const isWall = idx === 0
+                const isBottom = generateBottom && idx === 1
+                return isWall || isBottom
+            })
+            if (!hit) return
+
+            const mesh = hit.object as THREE.Mesh
             const box = mesh.parent as THREE.Group
 
-            // Check if we've clicked on a valid box component (wall or bottom)
-            // Each box group contains a wall mesh (index 0) and possibly a bottom mesh (index 1)
-            const meshIndex = box.children.indexOf(mesh)
-            const isWall = meshIndex === 0
-            const isBottom = generateBottom && meshIndex === 1
-
-            // Only allow selection if we've hit a wall or bottom of a box
-            if (!(isWall || isBottom)) return
-
-            // reset old (walls + bottom)
+            // reset old highlight
             if (selectedGroup) {
-                selectedGroup.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                        child.material.color.setHex(0x888888)
-                    }
+                selectedGroup.traverse((c) => {
+                    if (c instanceof THREE.Mesh)
+                        c.material.color.setHex(0x888888)
                 })
             }
-            // highlight new (walls + bottom)
-            box.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.material.color.setHex(0xff0000)
-                }
+            // highlight new
+            box.traverse((c) => {
+                if (c instanceof THREE.Mesh) c.material.color.setHex(0xff0000)
             })
             selectedGroup = box
         }
@@ -417,6 +417,7 @@ function buildWallMesh(
         color: 0x888888,
         roughness: 0.4,
         metalness: 0.2,
+        side: THREE.DoubleSide,
     })
     return new THREE.Mesh(geo, mat)
 }
@@ -442,6 +443,7 @@ function buildBottomMesh(
         color: 0x888888,
         roughness: 0.4,
         metalness: 0.2,
+        side: THREE.DoubleSide,
     })
     return new THREE.Mesh(geo, mat)
 }
