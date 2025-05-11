@@ -30,6 +30,8 @@ export default function Test() {
     const [totalWidth, setTotalWidth] = useState(4)
     const [totalDepth, setTotalDepth] = useState(4)
 
+    const gridRef = useRef<Cell[][]>(generateGrid(totalWidth, totalDepth))
+
     useEffect(() => {
         if (!containerRef.current) return
         const { scene, camera, renderer } = initBasics(containerRef.current)
@@ -102,26 +104,25 @@ export default function Test() {
         function onCombineClick() {
             if (selectedGroups.length < 2) return
 
-            // 1) Find a new group ID
-            const existingIds = new Set<number>(
+            // 1) pick a new unused ID
+            const existing = new Set<number>(
                 (boxRef.current!.children as THREE.Group[]).map(
                     (g) => g.userData.group as number
                 )
             )
             let newId = 1
-            while (existingIds.has(newId)) newId++
+            while (existing.has(newId)) newId++
 
-            // 2) Build an updated grid and assign the new ID to each selected cell
-            const grid = generateGrid(totalWidth, totalDepth) // :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
-            const children = boxRef.current!.children as THREE.Group[]
+            // 2) stamp that ID into the master grid for each selected box
+            const grid = gridRef.current!
             selectedGroups.forEach((grp) => {
-                const idx = children.indexOf(grp)
-                const x = idx % totalWidth
-                const z = Math.floor(idx / totalWidth)
-                grid[z][x].group = newId
+                const cells: { x: number; z: number }[] = grp.userData.cells
+                cells.forEach(({ x, z }) => {
+                    grid[z][x].group = newId
+                })
             })
 
-            // 3) Re-generate the entire box layer using your helper
+            // 3) rebuild the entire box‐layer from the updated grid
             const scene = sceneRef.current!
             scene.remove(boxRef.current!)
             const newBox = generateCustomBox(
@@ -130,12 +131,12 @@ export default function Test() {
                 cornerRadius,
                 wallHeight,
                 generateBottom
-            ) // :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
+            )
             boxRef.current = newBox
-            newBox.position.set(-totalWidth / 2, 0, -totalDepth / 2) // :contentReference[oaicite:4]{index=4}:contentReference[oaicite:5]{index=5}
+            newBox.position.set(-totalWidth / 2, 0, -totalDepth / 2)
             scene.add(newBox)
 
-            // 4) Clear highlights & reset selection
+            // 4) clear highlights & reset UI
             selectedGroups.forEach((grp) =>
                 grp.traverse((c) => {
                     if (c instanceof THREE.Mesh)
@@ -159,6 +160,7 @@ export default function Test() {
 
             const hit = hits.find(({ object }) => {
                 if (!(object instanceof THREE.Mesh)) return false
+                //@ts-ignore
                 const idx = object.parent.children.indexOf(object)
                 const isWall = idx === 0
                 const isBottom = generateBottom && idx === 1
@@ -218,7 +220,8 @@ export default function Test() {
         if (boxRef.current) scene.remove(boxRef.current)
 
         // add new
-        const grid = generateGrid(totalWidth, totalDepth)
+        gridRef.current = generateGrid(totalWidth, totalDepth) // reset when dimensions change
+        const grid = gridRef.current
         const box = generateCustomBox(
             grid,
             wallThickness,
@@ -368,6 +371,7 @@ function generateCustomBox(
     )
 
     ids.forEach((id) => {
+        const cellsForThisId: { x: number; z: number }[] = []
         const rawO = getOutline(grid, id)
         if (!rawO.length) return
         const rawI = offsetPolygonCCW(rawO, wall_thickness)
@@ -388,6 +392,7 @@ function generateCustomBox(
 
         const boxGroup = new THREE.Group()
         boxGroup.userData.group = id
+        boxGroup.userData.cells = cellsForThisId
         boxGroup.add(buildWallMesh(outR, inR, wall_height))
         if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
         group.add(boxGroup)
@@ -440,6 +445,7 @@ function generateCustomBox(
             const cellGroup = new THREE.Group()
             cellGroup.userData.selectable = true
             cellGroup.userData.group = 0
+            cellGroup.userData.cells = [{ x, z }]
             cellGroup.add(buildWallMesh(outR, inR, wall_height))
             if (generate_bottom)
                 cellGroup.add(buildBottomMesh(outR, wall_thickness))
