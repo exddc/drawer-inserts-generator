@@ -70,9 +70,28 @@ export default function Test() {
 
         const raycaster = new THREE.Raycaster()
         const mouse = new THREE.Vector2()
-        let selectedGroup: THREE.Group | null = null
+        let selectedGroups: THREE.Group[] = []
+
+        window.addEventListener('keydown', onKeyDown)
+
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape') {
+                // clear highlights
+                selectedGroups.forEach((grp) =>
+                    grp.traverse((c) => {
+                        if (c instanceof THREE.Mesh)
+                            c.material.color.setHex(0x888888)
+                    })
+                )
+                // reset selection array
+                selectedGroups = []
+            }
+        }
 
         function onPointerDown(event: MouseEvent) {
+            // detect modifier for multi‐select
+            const isMultiSelect = event.metaKey || event.ctrlKey
+
             // normalize mouse coords into [-1,1]
             const rect = renderer.domElement.getBoundingClientRect()
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -86,7 +105,6 @@ export default function Test() {
             // pick the first hit on a wall (child 0) or bottom (child 1)
             const hit = hits.find(({ object }) => {
                 if (!(object instanceof THREE.Mesh)) return false
-                // @ts-ignore
                 const idx = object.parent.children.indexOf(object)
                 const isWall = idx === 0
                 const isBottom = generateBottom && idx === 1
@@ -97,18 +115,34 @@ export default function Test() {
             const mesh = hit.object as THREE.Mesh
             const box = mesh.parent as THREE.Group
 
-            // reset old highlight
-            if (selectedGroup) {
-                selectedGroup.traverse((c) => {
+            // if no modifier, clear previous highlights
+            if (!isMultiSelect) {
+                selectedGroups.forEach((grp) =>
+                    grp.traverse((c) => {
+                        if (c instanceof THREE.Mesh)
+                            c.material.color.setHex(0x888888)
+                    })
+                )
+                selectedGroups = []
+            }
+
+            // toggle this box in the array
+            const idx = selectedGroups.indexOf(box)
+            if (idx !== -1) {
+                // was already selected → deselect
+                box.traverse((c) => {
                     if (c instanceof THREE.Mesh)
                         c.material.color.setHex(0x888888)
                 })
+                selectedGroups.splice(idx, 1)
+            } else {
+                // not yet selected → highlight & add
+                box.traverse((c) => {
+                    if (c instanceof THREE.Mesh)
+                        c.material.color.setHex(0xff0000)
+                })
+                selectedGroups.push(box)
             }
-            // highlight new
-            box.traverse((c) => {
-                if (c instanceof THREE.Mesh) c.material.color.setHex(0xff0000)
-            })
-            selectedGroup = box
         }
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
 
