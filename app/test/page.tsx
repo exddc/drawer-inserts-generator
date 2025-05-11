@@ -88,21 +88,75 @@ export default function Test() {
             }
         }
 
+        function updateCombineButton() {
+            const btn = document.getElementById(
+                'combine-btn'
+            ) as HTMLButtonElement | null
+            if (btn) btn.disabled = selectedGroups.length < 2
+        }
+
+        // 2) Hook it up to your button:
+        const combineBtn = document.getElementById('combine-btn')!
+        combineBtn.addEventListener('click', onCombineClick)
+
+        function onCombineClick() {
+            if (selectedGroups.length < 2) return
+
+            // 1) Find a new group ID
+            const existingIds = new Set<number>(
+                (boxRef.current!.children as THREE.Group[]).map(
+                    (g) => g.userData.group as number
+                )
+            )
+            let newId = 1
+            while (existingIds.has(newId)) newId++
+
+            // 2) Build an updated grid and assign the new ID to each selected cell
+            const grid = generateGrid(totalWidth, totalDepth) // :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+            const children = boxRef.current!.children as THREE.Group[]
+            selectedGroups.forEach((grp) => {
+                const idx = children.indexOf(grp)
+                const x = idx % totalWidth
+                const z = Math.floor(idx / totalWidth)
+                grid[z][x].group = newId
+            })
+
+            // 3) Re-generate the entire box layer using your helper
+            const scene = sceneRef.current!
+            scene.remove(boxRef.current!)
+            const newBox = generateCustomBox(
+                grid,
+                wallThickness,
+                cornerRadius,
+                wallHeight,
+                generateBottom
+            ) // :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
+            boxRef.current = newBox
+            newBox.position.set(-totalWidth / 2, 0, -totalDepth / 2) // :contentReference[oaicite:4]{index=4}:contentReference[oaicite:5]{index=5}
+            scene.add(newBox)
+
+            // 4) Clear highlights & reset selection
+            selectedGroups.forEach((grp) =>
+                grp.traverse((c) => {
+                    if (c instanceof THREE.Mesh)
+                        c.material.color.setHex(0x888888)
+                })
+            )
+            selectedGroups = []
+            updateCombineButton()
+        }
+
         function onPointerDown(event: MouseEvent) {
-            // detect modifier for multi‐select
             const isMultiSelect = event.metaKey || event.ctrlKey
 
-            // normalize mouse coords into [-1,1]
             const rect = renderer.domElement.getBoundingClientRect()
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
             raycaster.setFromCamera(mouse, camera)
 
-            // raycast against everything
             const hits = raycaster.intersectObjects(scene.children, true)
             if (!hits.length) return
 
-            // pick the first hit on a wall (child 0) or bottom (child 1)
             const hit = hits.find(({ object }) => {
                 if (!(object instanceof THREE.Mesh)) return false
                 const idx = object.parent.children.indexOf(object)
@@ -112,10 +166,8 @@ export default function Test() {
             })
             if (!hit) return
 
-            const mesh = hit.object as THREE.Mesh
-            const box = mesh.parent as THREE.Group
+            const box = (hit.object as THREE.Mesh).parent as THREE.Group
 
-            // if no modifier, clear previous highlights
             if (!isMultiSelect) {
                 selectedGroups.forEach((grp) =>
                     grp.traverse((c) => {
@@ -126,24 +178,24 @@ export default function Test() {
                 selectedGroups = []
             }
 
-            // toggle this box in the array
-            const idx = selectedGroups.indexOf(box)
-            if (idx !== -1) {
-                // was already selected → deselect
+            const i = selectedGroups.indexOf(box)
+            if (i !== -1) {
                 box.traverse((c) => {
                     if (c instanceof THREE.Mesh)
                         c.material.color.setHex(0x888888)
                 })
-                selectedGroups.splice(idx, 1)
+                selectedGroups.splice(i, 1)
             } else {
-                // not yet selected → highlight & add
                 box.traverse((c) => {
                     if (c instanceof THREE.Mesh)
                         c.material.color.setHex(0xff0000)
                 })
                 selectedGroups.push(box)
             }
+
+            updateCombineButton()
         }
+
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
 
         return () => {
@@ -277,6 +329,13 @@ export default function Test() {
                         />
                     </label>
                 </div>
+                <button
+                    id="combine-btn"
+                    disabled
+                    className="px-2 py-1 text-sm rounded-md font-medium text-white bg-blue-600 hover:enabled:bg-blue-700 disabled:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                    Combine
+                </button>
             </div>
 
             <div
@@ -326,7 +385,9 @@ function generateCustomBox(
             corner_radius,
             wall_thickness
         )
+
         const boxGroup = new THREE.Group()
+        boxGroup.userData.group = id
         boxGroup.add(buildWallMesh(outR, inR, wall_height))
         if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
         group.add(boxGroup)
@@ -378,6 +439,7 @@ function generateCustomBox(
 
             const cellGroup = new THREE.Group()
             cellGroup.userData.selectable = true
+            cellGroup.userData.group = 0
             cellGroup.add(buildWallMesh(outR, inR, wall_height))
             if (generate_bottom)
                 cellGroup.add(buildBottomMesh(outR, wall_thickness))
