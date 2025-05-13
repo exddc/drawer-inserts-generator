@@ -219,8 +219,12 @@ export default function Test() {
         // remove old
         if (boxRef.current) scene.remove(boxRef.current)
 
-        // add new
-        gridRef.current = generateGrid(totalWidth, totalDepth) // reset when dimensions change
+        // only resize the grid if cols/rows actually changeds
+        const old = gridRef.current
+        if (old.length !== totalDepth || old[0].length !== totalWidth) {
+            gridRef.current = resizeGrid(old, totalWidth, totalDepth)
+        }
+
         const grid = gridRef.current
         const box = generateCustomBox(
             grid,
@@ -708,5 +712,22 @@ function generateGrid(totalWidth: number, totalDepth: number): Cell[][] {
             width: 1,
             depth: 1,
         }))
+    )
+}
+
+function resizeGrid(
+    oldGrid: Cell[][],
+    totalWidth: number,
+    totalDepth: number
+): Cell[][] {
+    return Array.from({ length: totalDepth }, (_, z) =>
+        Array.from({ length: totalWidth }, (_, x) => {
+            // if this cell existed before, keep it
+            if (z < oldGrid.length && x < oldGrid[0].length) {
+                return oldGrid[z][x]
+            }
+            // otherwise make a fresh empty cell
+            return { group: 0, width: 1, depth: 1 }
+        })
     )
 }
