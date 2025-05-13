@@ -371,9 +371,21 @@ function generateCustomBox(
     )
 
     ids.forEach((id) => {
+        // 1) collect every cell in the grid that has this group-id
         const cellsForThisId: { x: number; z: number }[] = []
+        for (let z = 0; z < grid.length; z++) {
+            for (let x = 0; x < grid[0].length; x++) {
+                if (grid[z][x].group === id) {
+                    cellsForThisId.push({ x, z })
+                }
+            }
+        }
+
+        // 2) if there really is something to outline…
         const rawO = getOutline(grid, id)
         if (!rawO.length) return
+
+        // 3) now build your inner/outlines as before
         const rawI = offsetPolygonCCW(rawO, wall_thickness)
         const outR = getRoundedOutline(
             rawO,
@@ -390,6 +402,7 @@ function generateCustomBox(
             wall_thickness
         )
 
+        // 4) stick it on a Group and remember its cells
         const boxGroup = new THREE.Group()
         boxGroup.userData.group = id
         boxGroup.userData.cells = cellsForThisId
