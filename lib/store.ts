@@ -1,17 +1,9 @@
 import { create } from 'zustand'
-import { StoreState, Cell, Grid } from '@/lib/types'
+import { StoreState, Grid } from '@/lib/types'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { generateGrid } from '@/lib/gridHelper'
-
-const defaultParameters = {
-    totalWidth: 4,
-    totalDepth: 4,
-    wallThickness: 0.05,
-    cornerRadius: 0.2,
-    wallHeight: 1,
-    generateBottom: true,
-}
+import { defaultParameters } from '@/lib/defaults'
 
 export const useStore = create<StoreState>((set) => ({
     totalWidth: defaultParameters.totalWidth,

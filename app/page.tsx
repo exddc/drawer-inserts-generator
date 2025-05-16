@@ -1,5 +1,11 @@
 'use client'
 
+import ConfigSidebar from '@/components/ConfigSidebar'
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from '@/components/ui/resizable'
 import { generateCustomBox } from '@/lib/boxHelper'
 import { resizeGrid } from '@/lib/gridHelper'
 import { useStore } from '@/lib/store'
@@ -11,10 +17,33 @@ export default function Home() {
     const state = useStore()
 
     useEffect(() => {
-        if (!state.containerRef.current) return
-        const { scene, camera, renderer } = initBasics(
-            state.containerRef.current
-        )
+        const container = state.containerRef.current
+        if (!container) return
+
+        function initBasics(container: HTMLDivElement) {
+            const width = container.clientWidth
+            const height = container.clientHeight
+            const scene = new THREE.Scene()
+            scene.background = new THREE.Color(0xffffff)
+
+            const camera = new THREE.PerspectiveCamera(
+                60,
+                width / height,
+                0.1,
+                100
+            )
+            camera.position.set(5, 7, 5)
+            camera.lookAt(scene.position)
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true })
+            renderer.setPixelRatio(window.devicePixelRatio)
+            renderer.setSize(width, height)
+            container.appendChild(renderer.domElement)
+
+            return { scene, camera, renderer }
+        }
+
+        const { scene, camera, renderer } = initBasics(container)
         state.sceneRef.current = scene
         state.cameraRef.current = camera
         state.rendererRef.current = renderer
@@ -246,153 +275,31 @@ export default function Home() {
     ])
 
     return (
-        <div className="flex h-full flex-col overflow-hidden">
-            {/* 4) simple overlay */}
-            <div
-                style={{
-                    position: 'absolute',
-                    top: 80,
-                    left: 10,
-                    zIndex: 1,
-                    background: 'rgba(255,255,255,0.8)',
-                    padding: 8,
-                    borderRadius: 4,
-                }}
-            >
-                <div>
-                    <label>
-                        Wall thickness: {state.wallThickness.toFixed(2)}
-                        <input
-                            type="range"
-                            min={0.01}
-                            max={0.2}
-                            step={0.01}
-                            value={state.wallThickness}
-                            onChange={(e) =>
-                                state.setWallThickness(+e.target.value)
-                            }
-                        />
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        Corner radius: {state.cornerRadius.toFixed(2)}
-                        <input
-                            type="range"
-                            min={0}
-                            max={0.5}
-                            step={0.01}
-                            value={state.cornerRadius}
-                            onChange={(e) =>
-                                state.setCornerRadius(+e.target.value)
-                            }
-                        />
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        Wall height: {state.wallHeight.toFixed(2)}
-                        <input
-                            type="range"
-                            min={0.5}
-                            max={5}
-                            step={0.1}
-                            value={state.wallHeight}
-                            onChange={(e) =>
-                                state.setWallHeight(+e.target.value)
-                            }
-                        />
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        Bottom:{' '}
-                        <input
-                            type="checkbox"
-                            checked={state.generateBottom}
-                            onChange={(e) =>
-                                state.setGenerateBottom(e.target.checked)
-                            }
-                        />
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        Total width: {state.totalWidth}
-                        <input
-                            type="range"
-                            min={1}
-                            max={10}
-                            step={1}
-                            value={state.totalWidth}
-                            onChange={(e) =>
-                                state.setTotalWidth(+e.target.value)
-                            }
-                        />
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        Total depth: {state.totalDepth}
-                        <input
-                            type="range"
-                            min={1}
-                            max={10}
-                            step={1}
-                            value={state.totalDepth}
-                            onChange={(e) =>
-                                state.setTotalDepth(+e.target.value)
-                            }
-                        />
-                    </label>
-                </div>
-                <button
-                    id="combine-btn"
-                    disabled
-                    className="px-2 py-1 text-sm rounded-md font-medium text-white bg-blue-600 hover:enabled:bg-blue-700 disabled:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    Combine
-                </button>
-            </div>
+        <div className="bg-background flex h-full flex-col">
+            <div className="flex flex-grow flex-col overflow-hidden">
+                <ResizablePanelGroup direction="horizontal" className="h-full">
+                    {/* Settings Panel */}
+                    <ConfigSidebar />
 
-            <div
-                ref={state.containerRef}
-                style={{
-                    width: '100vw',
-                    height: '100vh',
-                    margin: 0,
-                    padding: 0,
-                    overflow: 'hidden',
-                }}
-            />
+                    <button
+                        id="combine-btn"
+                        disabled
+                        className="px-2 py-1 text-sm rounded-md font-medium text-white bg-blue-600 hover:enabled:bg-blue-700 disabled:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Combine
+                    </button>
+
+                    <ResizableHandle withHandle />
+
+                    {/* 3D Preview */}
+                    <ResizablePanel defaultSize={80} className="h-full">
+                        <div
+                            ref={state.containerRef}
+                            className="w-full h-full"
+                        />
+                    </ResizablePanel>
+                </ResizablePanelGroup>
+            </div>
         </div>
     )
-}
-
-//
-// INIT
-//
-function initBasics(container: HTMLDivElement): {
-    scene: THREE.Scene
-    camera: THREE.PerspectiveCamera
-    renderer: THREE.WebGLRenderer
-} {
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0xf4f4f4)
-
-    const camera = new THREE.PerspectiveCamera(
-        60,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        100
-    )
-    camera.position.set(5, 7, 5)
-    camera.lookAt(scene.position)
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
-    renderer.setPixelRatio(window.devicePixelRatio)
-    renderer.setSize(window.innerWidth, window.innerHeight)
-    container.appendChild(renderer.domElement)
-
-    return { scene, camera, renderer }
 }
