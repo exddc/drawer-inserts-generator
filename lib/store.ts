@@ -3,15 +3,17 @@ import { StoreState, Grid } from '@/lib/types'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { generateGrid } from '@/lib/gridHelper'
-import { defaultParameters } from '@/lib/defaults'
+import { parameters } from '@/lib/defaults'
 
 export const useStore = create<StoreState>((set) => ({
-    totalWidth: defaultParameters.totalWidth,
-    totalDepth: defaultParameters.totalDepth,
-    wallThickness: defaultParameters.wallThickness,
-    cornerRadius: defaultParameters.cornerRadius,
-    wallHeight: defaultParameters.wallHeight,
-    generateBottom: defaultParameters.generateBottom,
+    totalWidth: parameters.totalWidth.default,
+    totalDepth: parameters.totalDepth.default,
+    wallThickness: parameters.wallThickness.default,
+    cornerRadius: parameters.cornerRadius.default,
+    wallHeight: parameters.wallHeight.default,
+    generateBottom: true,
+    maxBoxWidth: parameters.maxBoxWidth.default,
+    maxBoxDepth: parameters.maxBoxDepth.default,
 
     setTotalWidth: (width: number) => set({ totalWidth: width }),
     setTotalDepth: (depth: number) => set({ totalDepth: depth }),
@@ -19,6 +21,8 @@ export const useStore = create<StoreState>((set) => ({
     setCornerRadius: (radius: number) => set({ cornerRadius: radius }),
     setWallHeight: (height: number) => set({ wallHeight: height }),
     setGenerateBottom: (generate: boolean) => set({ generateBottom: generate }),
+    setMaxBoxWidth: (width: number) => set({ maxBoxWidth: width }),
+    setMaxBoxDepth: (depth: number) => set({ maxBoxDepth: depth }),
 
     // Refs
     containerRef: { current: null as HTMLDivElement | null },
@@ -29,8 +33,20 @@ export const useStore = create<StoreState>((set) => ({
     boxRef: { current: null as THREE.Group | null },
     gridRef: {
         current: generateGrid(
-            defaultParameters.totalWidth,
-            defaultParameters.totalDepth
+            parameters.totalWidth.default,
+            parameters.totalDepth.default
         ) as Grid,
       },
+
+    // Helpers
+    helperGridSize: Math.max(
+        parameters.totalWidth.default,
+        parameters.totalDepth.default) + 2,
+    helperGridDivisions: Math.max(
+        parameters.totalWidth.default,
+        parameters.totalDepth.default) + 2,
+
+    setHelperGridSize: (size: number) => set({ helperGridSize: size }),
+    setHelperGridDivisions: (divisions: number) =>
+        set({ helperGridDivisions: divisions }),
 }))

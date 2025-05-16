@@ -18,6 +18,8 @@ export interface StoreState {
     cornerRadius: number
     wallHeight: number
     generateBottom: boolean
+    maxBoxWidth: number
+    maxBoxDepth: number
 
     setTotalWidth: (width: number) => void
     setTotalDepth: (depth: number) => void
@@ -25,6 +27,8 @@ export interface StoreState {
     setCornerRadius: (radius: number) => void
     setWallHeight: (height: number) => void
     setGenerateBottom: (generate: boolean) => void
+    setMaxBoxWidth: (width: number) => void
+    setMaxBoxDepth: (depth: number) => void
 
     // Refs
     containerRef: { current: HTMLDivElement | null }
@@ -34,4 +38,11 @@ export interface StoreState {
     controlsRef: { current: OrbitControls | null }
     boxRef: { current: THREE.Group | null }
     gridRef: { current: Grid }
+
+    // Helpers
+    helperGridSize: number
+    helperGridDivisions: number
+
+    setHelperGridSize: (size: number) => void
+    setHelperGridDivisions: (divisions: number) => void
 }

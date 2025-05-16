@@ -7,7 +7,6 @@ export function generateCustomBox(
     grid: Grid,
     wall_thickness: number,
     corner_radius: number,
-    wall_height: number,
     generate_bottom: boolean
 ): THREE.Group {
     const group = new THREE.Group()
@@ -51,7 +50,7 @@ export function generateCustomBox(
         const boxGroup = new THREE.Group()
         boxGroup.userData.group = id
         boxGroup.userData.cells = cellsForThisId
-        boxGroup.add(buildWallMesh(outR, inR, wall_height))
+        boxGroup.add(buildWallMesh(outR, inR))
         if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
         group.add(boxGroup)
     })
@@ -104,7 +103,7 @@ export function generateCustomBox(
             cellGroup.userData.selectable = true
             cellGroup.userData.group = 0
             cellGroup.userData.cells = [{ x, z }]
-            cellGroup.add(buildWallMesh(outR, inR, wall_height))
+            cellGroup.add(buildWallMesh(outR, inR))
             if (generate_bottom)
                 cellGroup.add(buildBottomMesh(outR, wall_thickness))
             group.add(cellGroup)

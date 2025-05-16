@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { TabsContent } from '@/components/ui/tabs'
-import { defaultConstraints } from '@/lib/defaults'
+import { parameters } from '@/lib/defaults'
 import { useStore } from '@/lib/store'
 import { ChevronsUpDown } from 'lucide-react'
 
@@ -42,9 +42,9 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     store.setTotalWidth(value[0])
                                 }
-                                min={defaultConstraints.totalWidth.min}
-                                max={defaultConstraints.totalWidth.max}
-                                step={defaultConstraints.totalWidth.steps}
+                                min={parameters.totalWidth.min}
+                                max={parameters.totalWidth.max}
+                                step={parameters.totalWidth.steps}
                                 className="flex-grow"
                             />
                             <Input
@@ -52,8 +52,8 @@ export default function ModelSettings() {
                                 name="total_width"
                                 value={store.totalWidth}
                                 onChange={store.setTotalWidth as any}
-                                min={defaultConstraints.totalWidth.min}
-                                max={defaultConstraints.totalWidth.max}
+                                min={parameters.totalWidth.min}
+                                max={parameters.totalWidth.max}
                                 className="w-20"
                             />
                         </div>
@@ -72,9 +72,9 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     store.setTotalDepth(value[0])
                                 }
-                                min={defaultConstraints.totalDepth.min}
-                                max={defaultConstraints.totalDepth.max}
-                                step={defaultConstraints.totalDepth.steps}
+                                min={parameters.totalDepth.min}
+                                max={parameters.totalDepth.max}
+                                step={parameters.totalDepth.steps}
                                 className="flex-grow"
                             />
                             <Input
@@ -82,8 +82,8 @@ export default function ModelSettings() {
                                 name="total_depth"
                                 value={store.totalDepth}
                                 onChange={store.setTotalDepth as any}
-                                min={defaultConstraints.totalDepth.min}
-                                max={defaultConstraints.totalDepth.max}
+                                min={parameters.totalDepth.min}
+                                max={parameters.totalDepth.max}
                                 className="w-20"
                             />
                         </div>
@@ -102,16 +102,9 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     store.setWallHeight(value[0])
                                 }
-                                min={
-                                    store.generateBottom
-                                        ? Math.max(
-                                              defaultConstraints.wallHeight.min,
-                                              store.wallThickness + 1
-                                          )
-                                        : defaultConstraints.wallHeight.min
-                                }
-                                max={defaultConstraints.wallHeight.max}
-                                step={defaultConstraints.wallHeight.steps}
+                                min={parameters.wallHeight.min}
+                                max={parameters.wallHeight.max}
+                                step={parameters.wallHeight.steps}
                                 className="flex-grow"
                             />
                             <Input
@@ -119,15 +112,8 @@ export default function ModelSettings() {
                                 name="total_height"
                                 value={store.wallHeight}
                                 onChange={store.setWallHeight as any}
-                                min={
-                                    store.generateBottom
-                                        ? Math.max(
-                                              defaultConstraints.wallHeight.min,
-                                              store.wallThickness + 1
-                                          )
-                                        : defaultConstraints.wallHeight.min
-                                }
-                                max={defaultConstraints.wallHeight.max}
+                                min={parameters.wallHeight.min}
+                                max={parameters.wallHeight.max}
                                 className="w-20"
                             />
                         </div>
@@ -146,9 +132,9 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     store.setWallThickness(value[0])
                                 }
-                                min={defaultConstraints.wallThickness.min}
-                                max={defaultConstraints.wallThickness.max}
-                                step={defaultConstraints.wallThickness.steps}
+                                min={parameters.wallThickness.min}
+                                max={parameters.wallThickness.max}
+                                step={parameters.wallThickness.steps}
                                 className="flex-grow"
                             />
                             <Input
@@ -156,8 +142,8 @@ export default function ModelSettings() {
                                 name="wallThickness"
                                 value={store.wallThickness}
                                 onChange={store.setWallThickness as any}
-                                min={defaultConstraints.wallThickness.min}
-                                max={defaultConstraints.wallThickness.max}
+                                min={parameters.wallThickness.min}
+                                max={parameters.wallThickness.max}
                                 className="w-20"
                             />
                         </div>
@@ -176,9 +162,9 @@ export default function ModelSettings() {
                                 onValueChange={(value) =>
                                     store.setCornerRadius(value[0])
                                 }
-                                min={defaultConstraints.cornerRadius.min}
-                                max={defaultConstraints.cornerRadius.max}
-                                step={defaultConstraints.cornerRadius.steps}
+                                min={parameters.cornerRadius.min}
+                                max={parameters.cornerRadius.max}
+                                step={parameters.cornerRadius.steps}
                                 className="flex-grow"
                             />
                             <Input
@@ -186,8 +172,8 @@ export default function ModelSettings() {
                                 name="cornerRadius"
                                 value={store.cornerRadius}
                                 onChange={store.setCornerRadius as any}
-                                min={defaultConstraints.cornerRadius.min}
-                                max={defaultConstraints.cornerRadius.max}
+                                min={parameters.cornerRadius.min}
+                                max={parameters.cornerRadius.max}
                                 className="w-20"
                             />
                         </div>
@@ -203,6 +189,79 @@ export default function ModelSettings() {
                             }
                         />
                         <Label htmlFor="hasBottom">Include Bottom</Label>
+                    </div>
+                </CollapsibleContent>
+            </Collapsible>
+
+            <div className="w-full h-[1px] bg-neutral-200 my-6"></div>
+            {/* Grid Layout Settings */}
+            <Collapsible defaultOpen={true}>
+                <div className="mb-4 flex items-center justify-between">
+                    <h3 className="font-medium">Grid Layout</h3>
+                    <CollapsibleTrigger className="cursor-pointer">
+                        <ChevronsUpDown className="inline-block h-4 w-4" />
+                    </CollapsibleTrigger>
+                </div>
+
+                <CollapsibleContent className="space-y-4">
+                    {/* Max Width slider */}
+                    <div className="space-y-2">
+                        <Label htmlFor="max_width">
+                            Max Box Width (mm): {store.maxBoxWidth}
+                        </Label>
+                        <div className="mt-2 flex items-center space-x-2">
+                            <Slider
+                                id="max_width-slider"
+                                name="max_width"
+                                value={[store.maxBoxWidth]}
+                                onValueChange={(value) =>
+                                    store.setMaxBoxWidth(value[0])
+                                }
+                                min={parameters.maxBoxWidth.min}
+                                max={parameters.maxBoxWidth.max}
+                                step={parameters.maxBoxWidth.steps}
+                                className="flex-grow"
+                            />
+                            <Input
+                                type="number"
+                                name="max_width"
+                                value={store.maxBoxWidth}
+                                onChange={store.setMaxBoxWidth as any}
+                                min={parameters.maxBoxWidth.min}
+                                max={parameters.maxBoxWidth.max}
+                                className="w-20"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Max Depth slider */}
+                    <div className="space-y-2">
+                        <Label htmlFor="total_depth">
+                            Total Depth (mm): {store.totalDepth}
+                        </Label>
+                        <div className="mt-2 flex items-center space-x-2">
+                            <Slider
+                                id="total_depth-slider"
+                                name="total_depth"
+                                value={[store.totalDepth]}
+                                onValueChange={(value) =>
+                                    store.setTotalDepth(value[0])
+                                }
+                                min={parameters.totalDepth.min}
+                                max={parameters.totalDepth.max}
+                                step={parameters.totalDepth.steps}
+                                className="flex-grow"
+                            />
+                            <Input
+                                type="number"
+                                name="total_depth"
+                                value={store.totalDepth}
+                                onChange={store.setTotalDepth as any}
+                                min={parameters.totalDepth.min}
+                                max={parameters.totalDepth.max}
+                                className="w-20"
+                            />
+                        </div>
                     </div>
                 </CollapsibleContent>
             </Collapsible>

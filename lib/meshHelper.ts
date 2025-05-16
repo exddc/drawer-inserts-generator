@@ -1,10 +1,12 @@
 import * as THREE from 'three'
+import { material } from '@/lib/defaults'
+import { useStore } from '@/lib/store'
 
 export function buildWallMesh(
     outerPts: THREE.Vector2[],
     innerPts: THREE.Vector2[],
-    wallHeight: number
 ): THREE.Mesh {
+    const wallHeight = useStore.getState().wallHeight
     const shape = new THREE.Shape()
     if (outerPts.length) {
         shape.moveTo(outerPts[0].x, outerPts[0].y)
@@ -29,9 +31,9 @@ export function buildWallMesh(
     geo.translate(0, wallHeight, 0)
 
     const mat = new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        roughness: 0.4,
-        metalness: 0.2,
+        color: material.standard.color,
+        roughness: material.standard.roughness,
+        metalness: material.standard.metalness,
         side: THREE.DoubleSide,
     })
     return new THREE.Mesh(geo, mat)
@@ -55,9 +57,9 @@ export function buildBottomMesh(
     geo.translate(0, thickness, 0)
 
     const mat = new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        roughness: 0.4,
-        metalness: 0.2,
+        color: material.standard.color,
+        roughness: material.standard.roughness,
+        metalness: material.standard.metalness,
         side: THREE.DoubleSide,
     })
     return new THREE.Mesh(geo, mat)

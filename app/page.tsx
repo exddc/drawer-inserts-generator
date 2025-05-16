@@ -7,6 +7,7 @@ import {
     ResizablePanelGroup,
 } from '@/components/ui/resizable'
 import { generateCustomBox } from '@/lib/boxHelper'
+import { cameraSettings, material } from '@/lib/defaults'
 import { resizeGrid } from '@/lib/gridHelper'
 import { useStore } from '@/lib/store'
 import { useEffect } from 'react'
@@ -27,12 +28,16 @@ export default function Home() {
             scene.background = new THREE.Color(0xffffff)
 
             const camera = new THREE.PerspectiveCamera(
-                60,
+                cameraSettings.fov,
                 width / height,
-                0.1,
-                100
+                cameraSettings.near,
+                cameraSettings.far
             )
-            camera.position.set(5, 7, 5)
+            camera.position.set(
+                cameraSettings.position.x,
+                cameraSettings.position.y,
+                cameraSettings.position.z
+            )
             camera.lookAt(scene.position)
 
             const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -65,7 +70,12 @@ export default function Home() {
         sun.position.set(5, 10, 5)
         sun.castShadow = true
         scene.add(sun)
-        scene.add(new THREE.GridHelper(10, 10))
+        scene.add(
+            new THREE.GridHelper(
+                state.helperGridSize,
+                state.helperGridDivisions
+            )
+        )
         renderer.shadowMap.enabled = true
 
         // resize handler
@@ -102,24 +112,16 @@ export default function Home() {
                 selectedGroups.forEach((grp) =>
                     grp.traverse((c) => {
                         if (c instanceof THREE.Mesh)
-                            c.material.color.setHex(0x888888)
+                            c.material.color.setHex(material.standard.color)
                     })
                 )
                 // reset selection array
                 selectedGroups = []
             }
+            if (event.key === 'c') {
+                onCombineClick()
+            }
         }
-
-        function updateCombineButton() {
-            const btn = document.getElementById(
-                'combine-btn'
-            ) as HTMLButtonElement | null
-            if (btn) btn.disabled = selectedGroups.length < 2
-        }
-
-        // 2) Hook it up to your button:
-        const combineBtn = document.getElementById('combine-btn')!
-        combineBtn.addEventListener('click', onCombineClick)
 
         function onCombineClick() {
             if (selectedGroups.length < 2) return
@@ -149,7 +151,6 @@ export default function Home() {
                 grid,
                 state.wallThickness,
                 state.cornerRadius,
-                state.wallHeight,
                 state.generateBottom
             )
             state.boxRef.current = newBox
@@ -160,11 +161,10 @@ export default function Home() {
             selectedGroups.forEach((grp) =>
                 grp.traverse((c) => {
                     if (c instanceof THREE.Mesh)
-                        c.material.color.setHex(0x888888)
+                        c.material.color.setHex(material.standard.color)
                 })
             )
             selectedGroups = []
-            updateCombineButton()
         }
 
         function onPointerDown(event: MouseEvent) {
@@ -196,7 +196,7 @@ export default function Home() {
                 selectedGroups.forEach((grp) =>
                     grp.traverse((c) => {
                         if (c instanceof THREE.Mesh)
-                            c.material.color.setHex(0x888888)
+                            c.material.color.setHex(material.standard.color)
                     })
                 )
                 selectedGroups = []
@@ -206,18 +206,16 @@ export default function Home() {
             if (i !== -1) {
                 box.traverse((c) => {
                     if (c instanceof THREE.Mesh)
-                        c.material.color.setHex(0x888888)
+                        c.material.color.setHex(material.standard.color)
                 })
                 selectedGroups.splice(i, 1)
             } else {
                 box.traverse((c) => {
                     if (c instanceof THREE.Mesh)
-                        c.material.color.setHex(0xff0000)
+                        c.material.color.setHex(material.selected.color)
                 })
                 selectedGroups.push(box)
             }
-
-            updateCombineButton()
         }
 
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
@@ -259,7 +257,6 @@ export default function Home() {
             grid,
             state.wallThickness,
             state.cornerRadius,
-            state.wallHeight,
             state.generateBottom
         )
         state.boxRef.current = box
@@ -279,15 +276,9 @@ export default function Home() {
             <div className="flex flex-grow flex-col overflow-hidden">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
                     {/* Settings Panel */}
-                    <ConfigSidebar />
-
-                    <button
-                        id="combine-btn"
-                        disabled
-                        className="px-2 py-1 text-sm rounded-md font-medium text-white bg-blue-600 hover:enabled:bg-blue-700 disabled:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        Combine
-                    </button>
+                    <ResizablePanel defaultSize={20} className="h-full">
+                        <ConfigSidebar />
+                    </ResizablePanel>
 
                     <ResizableHandle withHandle />
 
