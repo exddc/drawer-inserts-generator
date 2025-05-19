@@ -248,7 +248,9 @@ export default function Home() {
             state.gridRef.current = resizeGrid(
                 old,
                 state.totalWidth,
-                state.totalDepth
+                state.totalDepth,
+                state.maxBoxWidth,
+                state.maxBoxDepth
             )
         }
 

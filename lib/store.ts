@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { StoreState, Grid } from '@/lib/types'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { generateGrid } from '@/lib/gridHelper'
 import { parameters } from '@/lib/defaults'
 
 export const useStore = create<StoreState>((set) => ({
@@ -32,10 +31,7 @@ export const useStore = create<StoreState>((set) => ({
     controlsRef: { current: null as OrbitControls | null },
     boxRef: { current: null as THREE.Group | null },
     gridRef: {
-        current: generateGrid(
-            parameters.totalWidth.default,
-            parameters.totalDepth.default
-        ) as Grid,
+        current: [] as Grid,
       },
 
     // Helpers
