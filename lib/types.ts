@@ -38,11 +38,9 @@ export interface StoreState {
     controlsRef: { current: OrbitControls | null }
     boxRef: { current: THREE.Group | null }
     gridRef: { current: Grid }
+    helperGridRef: { current: THREE.GridHelper | null }
 
     // Helpers
-    helperGridSize: number
-    helperGridDivisions: number
-
-    setHelperGridSize: (size: number) => void
-    setHelperGridDivisions: (divisions: number) => void
+    showHelperGrid: boolean
+    setShowHelperGrid: (show: boolean) => void
 }

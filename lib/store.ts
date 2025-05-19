@@ -33,16 +33,10 @@ export const useStore = create<StoreState>((set) => ({
     gridRef: {
         current: [] as Grid,
       },
+    helperGridRef: { current: null as THREE.GridHelper | null },
 
     // Helpers
-    helperGridSize: Math.max(
-        parameters.totalWidth.default,
-        parameters.totalDepth.default) + 2,
-    helperGridDivisions: Math.max(
-        parameters.totalWidth.default,
-        parameters.totalDepth.default) + 2,
+    showHelperGrid: true,
 
-    setHelperGridSize: (size: number) => set({ helperGridSize: size }),
-    setHelperGridDivisions: (divisions: number) =>
-        set({ helperGridDivisions: divisions }),
+    setShowHelperGrid: (show: boolean) => set({ showHelperGrid: show }),
 }))

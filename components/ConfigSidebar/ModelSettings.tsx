@@ -236,29 +236,29 @@ export default function ModelSettings() {
 
                     {/* Max Depth slider */}
                     <div className="space-y-2">
-                        <Label htmlFor="total_depth">
-                            Total Depth (mm): {store.totalDepth}
+                        <Label htmlFor="max_depth">
+                            Total Depth (mm): {store.maxBoxDepth}
                         </Label>
                         <div className="mt-2 flex items-center space-x-2">
                             <Slider
-                                id="total_depth-slider"
-                                name="total_depth"
-                                value={[store.totalDepth]}
+                                id="max_depth-slider"
+                                name="max_depth"
+                                value={[store.maxBoxDepth]}
                                 onValueChange={(value) =>
-                                    store.setTotalDepth(value[0])
+                                    store.setMaxBoxDepth(value[0])
                                 }
-                                min={parameters.totalDepth.min}
-                                max={parameters.totalDepth.max}
-                                step={parameters.totalDepth.steps}
+                                min={parameters.maxBoxDepth.min}
+                                max={parameters.maxBoxDepth.max}
+                                step={parameters.maxBoxDepth.steps}
                                 className="flex-grow"
                             />
                             <Input
                                 type="number"
-                                name="total_depth"
-                                value={store.totalDepth}
-                                onChange={store.setTotalDepth as any}
-                                min={parameters.totalDepth.min}
-                                max={parameters.totalDepth.max}
+                                name="max_depth"
+                                value={store.maxBoxDepth}
+                                onChange={store.setMaxBoxDepth as any}
+                                min={parameters.maxBoxDepth.min}
+                                max={parameters.maxBoxDepth.max}
                                 className="w-20"
                             />
                         </div>

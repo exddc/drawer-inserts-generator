@@ -65,17 +65,19 @@ export default function Home() {
         })
 
         // lights + grid
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-        const sun = new THREE.DirectionalLight(0xffffff, 0.6)
-        sun.position.set(5, 10, 5)
-        sun.castShadow = true
-        scene.add(sun)
-        scene.add(
-            new THREE.GridHelper(
-                state.helperGridSize,
-                state.helperGridDivisions
-            )
-        )
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
+        scene.add(ambientLight)
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+        directionalLight.position.set(150, 200, 100)
+        directionalLight.castShadow = true
+        scene.add(directionalLight)
+
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.2)
+        directionalLight2.position.set(-150, 500, -100)
+        directionalLight2.castShadow = true
+        scene.add(directionalLight2)
+
         renderer.shadowMap.enabled = true
 
         // resize handler
@@ -271,7 +273,29 @@ export default function Home() {
         state.generateBottom,
         state.totalWidth,
         state.totalDepth,
+        state.maxBoxWidth,
+        state.maxBoxDepth,
     ])
+
+    useEffect(() => {
+        const scene = state.sceneRef.current
+        if (!scene) return
+
+        const size = Math.max(state.totalWidth, state.totalDepth) + 50
+        const divisions = Math.ceil(size / 10)
+
+        if (state.helperGridRef.current) {
+            scene.remove(state.helperGridRef.current)
+        }
+
+        if (state.showHelperGrid) {
+            const grid = new THREE.GridHelper(size, divisions)
+            state.helperGridRef.current = grid
+            scene.add(grid)
+        } else {
+            state.helperGridRef.current = null
+        }
+    }, [state.totalWidth, state.totalDepth, state.showHelperGrid])
 
     return (
         <div className="bg-background flex h-full flex-col">

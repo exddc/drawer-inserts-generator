@@ -1,18 +1,18 @@
 export const parameters = {
-    totalWidth: { default: 4, min: 1, max: 10, steps: 1 },
-    totalDepth: { default: 4, min: 1, max: 10, steps: 1 },
-    wallThickness: { default: 0.05, min: 0.01, max: 1, steps: 0.01 },
-    cornerRadius: { default: 0.2, min: 0, max: 1, steps: 0.01 },
-    wallHeight: { default: 1, min: 0.1, max: 2, steps: 0.1 },
-    maxBoxWidth: { default: 3, min: 1, max: 10, steps: 1 },
-    maxBoxDepth: { default: 3, min: 1, max: 10, steps: 1 },
+    totalWidth: { default: 150, min: 1, max: 500, steps: 1 },
+    totalDepth: { default: 150, min: 1, max: 500, steps: 1 },
+    wallThickness: { default: 2, min: 0.1, max: 15, steps: 0.1 },
+    cornerRadius: { default: 4, min: 0, max: 30, steps: 0.1 },
+    wallHeight: { default: 30, min: 0.1, max: 100, steps: 0.1 },
+    maxBoxWidth: { default: 100, min: 1, max: 500, steps: 1 },
+    maxBoxDepth: { default: 100, min: 1, max: 500, steps: 1 },
 }
 
 export const cameraSettings = {
-    fov: 60,
+    fov: 75,
     near: 0.1,
-    far: 100,
-    position: { x: 5, y: 5, z: 5 },
+    far: 1000,
+    position: { x: 100, y: 100, z: 100 },
 }
 
 export const material = {
