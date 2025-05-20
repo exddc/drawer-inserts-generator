@@ -1,5 +1,6 @@
 'use client'
 
+import ActionsBar from '@/components/ActionsBar'
 import ConfigSidebar from '@/components/ConfigSidebar'
 import {
     ResizableHandle,
@@ -314,6 +315,8 @@ export default function Home() {
                             ref={state.containerRef}
                             className="w-full h-full"
                         />
+
+                        <ActionsBar />
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </div>

@@ -40,6 +40,8 @@ export interface StoreState {
     gridRef: { current: Grid }
     helperGridRef: { current: THREE.GridHelper | null }
 
+    // Helpers
+
     // General
     actionsBarPosition: 'top' | 'bottom'
     setActionsBarPosition: (position: 'top' | 'bottom') => void

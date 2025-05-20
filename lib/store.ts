@@ -35,6 +35,8 @@ export const useStore = create<StoreState>((set) => ({
       },
     helperGridRef: { current: null as THREE.GridHelper | null },
 
+    // Helpers
+
     // General
     showHelperGrid: true,
     setShowHelperGrid: (show: boolean) => set({ showHelperGrid: show }),

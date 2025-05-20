@@ -1,23 +1,11 @@
 'use client'
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { useBoxStore } from '@/lib/store'
-import { Combine, SquareSplitHorizontal } from 'lucide-react'
+import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
+import { useStore } from '@/lib/store'
 
 export default function CombineBoxesButton() {
-    const {
-        selectedBoxIndices,
-        canCombineSelectedBoxes,
-        combineSelectedBoxes,
-        isPrimaryBox,
-        resetCombinedBoxes,
-    } = useBoxStore()
+    const store = useStore()
 
-    const selectedBoxesCount = selectedBoxIndices.size
+    /* const selectedBoxesCount = selectedBoxIndices.size
     const firstSelectedIndex =
         selectedBoxesCount > 0 ? Array.from(selectedBoxIndices)[0] : -1
 
@@ -36,13 +24,13 @@ export default function CombineBoxesButton() {
             combineSelectedBoxes()
         }
     }
-
+ 
     const disabled = !canSplit && !canCombine
-
+*/
     return (
         <TooltipProvider>
             <Tooltip>
-                <TooltipTrigger
+                {/* <TooltipTrigger
                     className={
                         'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
                         (disabled
@@ -64,7 +52,7 @@ export default function CombineBoxesButton() {
                     ) : (
                         <p>Combine Selected Boxes (C)</p>
                     )}
-                </TooltipContent>
+                </TooltipContent> */}
             </Tooltip>
         </TooltipProvider>
     )
