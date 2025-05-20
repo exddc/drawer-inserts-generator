@@ -40,7 +40,15 @@ export interface StoreState {
     gridRef: { current: Grid }
     helperGridRef: { current: THREE.GridHelper | null }
 
-    // Helpers
+    // General
+    actionsBarPosition: 'top' | 'bottom'
+    setActionsBarPosition: (position: 'top' | 'bottom') => void
+
     showHelperGrid: boolean
     setShowHelperGrid: (show: boolean) => void
+
+    standardColor: number
+    selectedColor: number
+    setStandardColor: (color: number) => void
+    setSelectedColor: (color: number) => void
 }

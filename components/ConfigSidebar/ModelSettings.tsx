@@ -194,6 +194,7 @@ export default function ModelSettings() {
             </Collapsible>
 
             <div className="w-full h-[1px] bg-neutral-200 my-6"></div>
+
             {/* Grid Layout Settings */}
             <Collapsible defaultOpen={true}>
                 <div className="mb-4 flex items-center justify-between">
@@ -265,6 +266,8 @@ export default function ModelSettings() {
                     </div>
                 </CollapsibleContent>
             </Collapsible>
+
+            <div className="w-full h-[1px] bg-neutral-200 mt-6"></div>
         </TabsContent>
     )
 }

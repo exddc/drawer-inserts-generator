@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { StoreState, Grid } from '@/lib/types'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { parameters } from '@/lib/defaults'
+import { parameters, material } from '@/lib/defaults'
 
 export const useStore = create<StoreState>((set) => ({
     totalWidth: parameters.totalWidth.default,
@@ -35,8 +35,15 @@ export const useStore = create<StoreState>((set) => ({
       },
     helperGridRef: { current: null as THREE.GridHelper | null },
 
-    // Helpers
+    // General
     showHelperGrid: true,
-
     setShowHelperGrid: (show: boolean) => set({ showHelperGrid: show }),
+
+    actionsBarPosition: 'bottom',
+    setActionsBarPosition: (position: 'top' | 'bottom') => set({ actionsBarPosition: position }),
+
+    standardColor: material.standard.color,
+    selectedColor: material.selected.color,
+    setStandardColor: (color: number) => set({ standardColor: color }),
+    setSelectedColor: (color: number) => set({ selectedColor: color }),
 }))
