@@ -153,7 +153,11 @@ export default function Home() {
                 state.generateBottom
             )
             state.boxRef.current = newBox
-            newBox.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
+            newBox.position.set(
+                -useStore.getState().totalWidth / 2,
+                0,
+                -useStore.getState().totalDepth / 2
+            )
             scene.add(newBox)
 
             // 4) reset selection
@@ -183,7 +187,11 @@ export default function Home() {
                 state.generateBottom
             )
             state.boxRef.current = newBox
-            newBox.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
+            newBox.position.set(
+                -useStore.getState().totalWidth / 2,
+                0,
+                -useStore.getState().totalDepth / 2
+            )
             scene.add(newBox)
 
             // 3) reset selection
@@ -296,6 +304,12 @@ export default function Home() {
             state.generateBottom
         )
         state.boxRef.current = box
+        console.log(
+            'resize position',
+            -state.totalWidth / 2,
+            0,
+            -state.totalDepth / 2
+        )
         box.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
         scene.add(box)
     }, [
