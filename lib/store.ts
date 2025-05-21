@@ -36,6 +36,8 @@ export const useStore = create<StoreState>((set) => ({
     helperGridRef: { current: null as THREE.GridHelper | null },
 
     // Helpers
+    selectedGroups: [] as THREE.Group[],
+    setSelectedGroups: (groups) => set({ selectedGroups: groups }),
 
     // General
     showHelperGrid: true,

@@ -120,9 +120,13 @@ export default function Home() {
                 )
                 // reset selection array
                 selectedGroups = []
+                state.setSelectedGroups(selectedGroups)
             }
             if (event.key === 'c') {
                 onCombineClick()
+            }
+            if (event.key === 's') {
+                onSplitClick()
             }
         }
 
@@ -168,6 +172,43 @@ export default function Home() {
                 })
             )
             selectedGroups = []
+            state.setSelectedGroups(selectedGroups)
+        }
+
+        function onSplitClick() {
+            if (selectedGroups.length === 0) return
+
+            // 1) reset each selected group’s cells back to group 0
+            const grid = state.gridRef.current!
+            selectedGroups.forEach((grp) => {
+                const cells: { x: number; z: number }[] = grp.userData.cells
+                cells.forEach(({ x, z }) => {
+                    grid[z][x].group = 0
+                })
+            })
+
+            // 2) rebuild the entire box‐layer
+            const scene = state.sceneRef.current!
+            scene.remove(state.boxRef.current!)
+            const newBox = generateCustomBox(
+                grid,
+                state.wallThickness,
+                state.cornerRadius,
+                state.generateBottom
+            )
+            state.boxRef.current = newBox
+            newBox.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
+            scene.add(newBox)
+
+            // 3) clear highlights & reset selection
+            selectedGroups.forEach((grp) =>
+                grp.traverse((c) => {
+                    if (c instanceof THREE.Mesh)
+                        c.material.color.setHex(material.standard.color)
+                })
+            )
+            selectedGroups = []
+            state.setSelectedGroups(selectedGroups)
         }
 
         function onPointerDown(event: MouseEvent) {
@@ -203,6 +244,7 @@ export default function Home() {
                     })
                 )
                 selectedGroups = []
+                state.setSelectedGroups(selectedGroups)
             }
 
             const i = selectedGroups.indexOf(box)
@@ -212,12 +254,14 @@ export default function Home() {
                         c.material.color.setHex(material.standard.color)
                 })
                 selectedGroups.splice(i, 1)
+                state.setSelectedGroups(selectedGroups)
             } else {
                 box.traverse((c) => {
                     if (c instanceof THREE.Mesh)
                         c.material.color.setHex(material.selected.color)
                 })
                 selectedGroups.push(box)
+                state.setSelectedGroups(selectedGroups)
             }
         }
 
@@ -234,6 +278,10 @@ export default function Home() {
             renderer.dispose()
         }
     }, [])
+
+    useEffect(() => {
+        console.log('page needs to rerender', state.selectedGroups)
+    }, [state.selectedGroups])
 
     useEffect(() => {
         const scene = state.sceneRef.current

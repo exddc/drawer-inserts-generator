@@ -2,7 +2,6 @@
 import * as React from 'react'
 import * as THREE from 'three'
 
-import CombineBoxesButton from '@/components/CombineBoxesButton'
 import {
     Menubar,
     MenubarContent,
@@ -19,6 +18,7 @@ import {
 import { cameraSettings } from '@/lib/defaults'
 import { useStore } from '@/lib/store'
 import { Box, Camera, Grid2X2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export default function ActionsBar() {
     const store = useStore()
@@ -32,6 +32,7 @@ export default function ActionsBar() {
             cameraSettings.position.z
         )
     )
+    const [enableClearSelection, setEnableClearSelection] = useState(false)
 
     const resetCamera = () => {
         if (!camera.current || !controls.current) return
@@ -58,6 +59,14 @@ export default function ActionsBar() {
             new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape' })
         )
     }, [])
+
+    useEffect(() => {
+        if (store.selectedGroups.length > 0) {
+            setEnableClearSelection(true)
+        } else {
+            setEnableClearSelection(false)
+        }
+    }, [store.selectedGroups])
 
     return (
         <div
@@ -111,9 +120,13 @@ export default function ActionsBar() {
                     <Tooltip>
                         <TooltipTrigger
                             className={
-                                'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100'
+                                'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
+                                (enableClearSelection
+                                    ? ' cursor-pointer'
+                                    : ' cursor-not-allowed text-neutral-400')
                             }
-                            onClick={clearSelectedBoxes}
+                            onClick={() => store.setSelectedGroups([])}
+                            disabled={!enableClearSelection}
                         >
                             <X className="h-4 w-4" />
                         </TooltipTrigger>
@@ -124,8 +137,28 @@ export default function ActionsBar() {
 
                     <div className="mx-1 h-8 w-px self-center bg-gray-300 dark:bg-gray-600" />
 
-                    {/* Add CombineBoxesButton */}
-                    <CombineBoxesButton />
+                    {/* <Tooltip>
+                        <TooltipTrigger
+                            className={
+                                'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100'
+                            }
+                            onClick={handleClick}
+                            disabled={disabled}
+                        >
+                            {canSplit ? (
+                                <SquareSplitHorizontal className="h-4 w-4" />
+                            ) : (
+                                <Combine className="h-4 w-4" />
+                            )}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {canSplit ? (
+                                <p>Split Combined Box (S)</p>
+                            ) : (
+                                <p>Combine Selected Boxes (C)</p>
+                            )}
+                        </TooltipContent>
+                    </Tooltip> */}
                 </div>
             </TooltipProvider>
         </div>

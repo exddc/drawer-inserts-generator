@@ -41,6 +41,8 @@ export interface StoreState {
     helperGridRef: { current: THREE.GridHelper | null }
 
     // Helpers
+    selectedGroups: THREE.Group[]
+    setSelectedGroups: (groups: THREE.Group[]) => void
 
     // General
     actionsBarPosition: 'top' | 'bottom'
