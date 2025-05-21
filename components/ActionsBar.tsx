@@ -17,7 +17,14 @@ import {
 } from '@/components/ui/tooltip'
 import { cameraSettings } from '@/lib/defaults'
 import { useStore } from '@/lib/store'
-import { Box, Camera, Grid2X2, X } from 'lucide-react'
+import {
+    Box,
+    Camera,
+    Combine,
+    Grid2X2,
+    SquareSplitHorizontal,
+    X,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export default function ActionsBar() {
@@ -33,6 +40,7 @@ export default function ActionsBar() {
         )
     )
     const [enableClearSelection, setEnableClearSelection] = useState(false)
+    const [canSplit, setCanSplit] = useState(false)
 
     const resetCamera = () => {
         if (!camera.current || !controls.current) return
@@ -54,15 +62,20 @@ export default function ActionsBar() {
         controls.current.update()
     }
 
-    const clearSelectedBoxes = React.useCallback(() => {
-        window.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape' })
-        )
-    }, [])
-
     useEffect(() => {
         if (store.selectedGroups.length > 0) {
             setEnableClearSelection(true)
+            if (store.selectedGroups.length == 1) {
+                console.log(
+                    'Selected group userData',
+                    store.selectedGroups[0].userData.group
+                )
+                if (store.selectedGroups[0].userData.group != 0) {
+                    setCanSplit(true)
+                }
+            } else {
+                setCanSplit(false)
+            }
         } else {
             setEnableClearSelection(false)
         }
@@ -95,9 +108,7 @@ export default function ActionsBar() {
                             </MenubarContent>
                         </MenubarMenu>
                     </Menubar>
-
                     <div className="mx-1 h-8 w-px self-center bg-gray-300 dark:bg-gray-600" />
-
                     {/* Direct Actions */}
                     {/* <Tooltip>
                         <TooltipTrigger
@@ -116,7 +127,6 @@ export default function ActionsBar() {
                             <p>Toggle Visibility (H)</p>
                         </TooltipContent>
                     </Tooltip> */}
-
                     <Tooltip>
                         <TooltipTrigger
                             className={
@@ -134,16 +144,33 @@ export default function ActionsBar() {
                             <p>Clear Selection (Esc)</p>
                         </TooltipContent>
                     </Tooltip>
-
                     <div className="mx-1 h-8 w-px self-center bg-gray-300 dark:bg-gray-600" />
-
-                    {/* <Tooltip>
+                    <Tooltip>
                         <TooltipTrigger
                             className={
-                                'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100'
+                                'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
+                                (enableClearSelection
+                                    ? ' cursor-pointer'
+                                    : ' cursor-not-allowed text-neutral-400')
                             }
-                            onClick={handleClick}
-                            disabled={disabled}
+                            disabled={!enableClearSelection}
+                            onClick={() => {
+                                if (canSplit) {
+                                    window.dispatchEvent(
+                                        new KeyboardEvent('keydown', {
+                                            key: 's',
+                                            code: 's',
+                                        })
+                                    )
+                                } else {
+                                    window.dispatchEvent(
+                                        new KeyboardEvent('keydown', {
+                                            key: 'c',
+                                            code: 'c',
+                                        })
+                                    )
+                                }
+                            }}
                         >
                             {canSplit ? (
                                 <SquareSplitHorizontal className="h-4 w-4" />
@@ -158,7 +185,7 @@ export default function ActionsBar() {
                                 <p>Combine Selected Boxes (C)</p>
                             )}
                         </TooltipContent>
-                    </Tooltip> */}
+                    </Tooltip>{' '}
                 </div>
             </TooltipProvider>
         </div>
