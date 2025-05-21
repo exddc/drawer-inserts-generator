@@ -1,50 +1,7 @@
-'use client'
-import ExportButton from '@/components/ExportButton'
-import ShareButton from '@/components/ShareButton'
-import { HeaderProps } from '@/lib/types'
-import { useEffect, useState } from 'react'
-
-export default function Header({
-    title = 'Box Grid Generator',
-    sceneRef,
-    boxMeshGroupRef,
-}: HeaderProps) {
-    const [isSceneReady, setIsSceneReady] = useState(false)
-
-    useEffect(() => {
-        const checkRefsAvailable = () => {
-            if (sceneRef.current && boxMeshGroupRef.current) {
-                setIsSceneReady(true)
-                return true
-            }
-            return false
-        }
-
-        if (checkRefsAvailable()) return
-
-        const intervalId = setInterval(() => {
-            if (checkRefsAvailable()) {
-                clearInterval(intervalId)
-            }
-        }, 100)
-
-        return () => {
-            clearInterval(intervalId)
-        }
-    }, [sceneRef, boxMeshGroupRef])
+export default function Header() {
     return (
         <header className="flex max-w-screen items-center justify-between border-b p-4">
-            <h1 className="text-xl font-bold">{title}</h1>
-
-            {isSceneReady && (
-                <div className="grid grid-cols-2 gap-4">
-                    <ShareButton />
-                    <ExportButton
-                        scene={sceneRef.current!}
-                        boxMeshGroup={boxMeshGroupRef.current!}
-                    />
-                </div>
-            )}
+            <h1 className="text-xl font-bold">Box Grid Generator</h1>
         </header>
     )
 }

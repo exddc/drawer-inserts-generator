@@ -1,6 +1,7 @@
 'use client'
 import GeneralSettings from '@/components/ConfigSidebar/GeneralSettings'
 import ModelSettings from '@/components/ConfigSidebar/ModelSettings'
+import ExportButton from '@/components/ExportButton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function ConfigSidebar() {
@@ -20,6 +21,8 @@ export default function ConfigSidebar() {
 
                 <GeneralSettings />
             </Tabs>
+
+            <ExportButton />
         </div>
     )
 }
