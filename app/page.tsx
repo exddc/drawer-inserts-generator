@@ -111,14 +111,6 @@ export default function Home() {
 
         function onKeyDown(event: KeyboardEvent) {
             if (event.key === 'Escape') {
-                // clear highlights
-                selectedGroups.forEach((grp) =>
-                    grp.traverse((c) => {
-                        if (c instanceof THREE.Mesh)
-                            c.material.color.setHex(material.standard.color)
-                    })
-                )
-                // reset selection array
                 selectedGroups = []
                 state.setSelectedGroups(selectedGroups)
             }
@@ -164,13 +156,7 @@ export default function Home() {
             newBox.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
             scene.add(newBox)
 
-            // 4) clear highlights & reset UI
-            selectedGroups.forEach((grp) =>
-                grp.traverse((c) => {
-                    if (c instanceof THREE.Mesh)
-                        c.material.color.setHex(material.standard.color)
-                })
-            )
+            // 4) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
         }
@@ -200,13 +186,7 @@ export default function Home() {
             newBox.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
             scene.add(newBox)
 
-            // 3) clear highlights & reset selection
-            selectedGroups.forEach((grp) =>
-                grp.traverse((c) => {
-                    if (c instanceof THREE.Mesh)
-                        c.material.color.setHex(material.standard.color)
-                })
-            )
+            // 3) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
         }
@@ -237,32 +217,16 @@ export default function Home() {
             const box = (hit.object as THREE.Mesh).parent as THREE.Group
 
             if (!isMultiSelect) {
-                selectedGroups.forEach((grp) =>
-                    grp.traverse((c) => {
-                        if (c instanceof THREE.Mesh)
-                            c.material.color.setHex(material.standard.color)
-                    })
-                )
                 selectedGroups = []
-                state.setSelectedGroups(selectedGroups)
             }
 
             const i = selectedGroups.indexOf(box)
             if (i !== -1) {
-                box.traverse((c) => {
-                    if (c instanceof THREE.Mesh)
-                        c.material.color.setHex(material.standard.color)
-                })
                 selectedGroups.splice(i, 1)
-                state.setSelectedGroups(selectedGroups)
             } else {
-                box.traverse((c) => {
-                    if (c instanceof THREE.Mesh)
-                        c.material.color.setHex(material.selected.color)
-                })
                 selectedGroups.push(box)
-                state.setSelectedGroups(selectedGroups)
             }
+            state.setSelectedGroups([...selectedGroups])
         }
 
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
@@ -280,7 +244,26 @@ export default function Home() {
     }, [])
 
     useEffect(() => {
-        console.log('page needs to rerender', state.selectedGroups)
+        const boxGroup = state.boxRef.current
+        if (!boxGroup) return
+        const std = material.standard.color
+        const sel = material.selected.color
+
+        // clear
+        boxGroup.children.forEach((child) => {
+            if (!(child instanceof THREE.Group)) return
+            child.traverse((c) => {
+                if (c instanceof THREE.Mesh)
+                    c.material.color.setHex(material.standard.color)
+            })
+        })
+
+        // highlight selected
+        state.selectedGroups.forEach((grp) =>
+            grp.traverse((c) => {
+                if (c instanceof THREE.Mesh) c.material.color.setHex(sel)
+            })
+        )
     }, [state.selectedGroups])
 
     useEffect(() => {
