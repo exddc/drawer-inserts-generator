@@ -1,6 +1,10 @@
-import * as THREE from 'three'
+import {
+    getOutline,
+    getRoundedOutline,
+    offsetPolygonCCW,
+} from '@/lib/lineHelper'
 import { Cell, Grid } from '@/lib/types'
-import { getOutline, offsetPolygonCCW, getRoundedOutline } from '@/lib/lineHelper'
+import * as THREE from 'three'
 import { buildBottomMesh, buildWallMesh } from './meshHelper'
 
 export function generateCustomBox(

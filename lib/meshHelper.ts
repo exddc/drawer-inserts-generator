@@ -1,10 +1,10 @@
-import * as THREE from 'three'
 import { material } from '@/lib/defaults'
 import { useStore } from '@/lib/store'
+import * as THREE from 'three'
 
 export function buildWallMesh(
     outerPts: THREE.Vector2[],
-    innerPts: THREE.Vector2[],
+    innerPts: THREE.Vector2[]
 ): THREE.Mesh {
     const wallHeight = useStore.getState().wallHeight
     const shape = new THREE.Shape()

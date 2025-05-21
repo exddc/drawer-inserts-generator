@@ -1,5 +1,5 @@
+import { Grid } from '@/lib/types'
 import * as THREE from 'three'
-import { StoreState, Cell, Grid } from '@/lib/types'
 
 export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
     const rows = grid.length

@@ -25,5 +25,5 @@ export const material = {
         color: 0xff0000,
         roughness: 0.4,
         metalness: 0.2,
-    }
+    },
 }

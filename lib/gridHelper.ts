@@ -12,10 +12,9 @@ export function resizeGrid(
 
     return depths.map((depth, rowIdx) =>
         widths.map((width, colIdx) => {
-        const hasOld =
-            rowIdx < oldGrid.length && colIdx < oldGrid[0].length
-        const group = hasOld ? oldGrid[rowIdx][colIdx].group : 0
-        return { group, width, depth }
+            const hasOld = rowIdx < oldGrid.length && colIdx < oldGrid[0].length
+            const group = hasOld ? oldGrid[rowIdx][colIdx].group : 0
+            return { group, width, depth }
         })
     )
 }

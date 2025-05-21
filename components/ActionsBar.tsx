@@ -66,10 +66,6 @@ export default function ActionsBar() {
         if (store.selectedGroups.length > 0) {
             setEnableClearSelection(true)
             if (store.selectedGroups.length == 1) {
-                console.log(
-                    'Selected group userData',
-                    store.selectedGroups[0].userData.group
-                )
                 if (store.selectedGroups[0].userData.group != 0) {
                     setCanSplit(true)
                 }
