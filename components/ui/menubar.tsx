@@ -14,7 +14,7 @@ function Menubar({
         <MenubarPrimitive.Root
             data-slot="menubar"
             className={cn(
-                'bg-background flex h-9 items-center gap-1 rounded-md border p-1 shadow-xs',
+                'bg-background flex h-9 items-center gap-1 rounded-md border p-1',
                 className
             )}
             {...props}
@@ -191,7 +191,10 @@ function MenubarSeparator({
     return (
         <MenubarPrimitive.Separator
             data-slot="menubar-separator"
-            className={cn('bg-border -mx-1 my-1 h-px', className)}
+            className={cn(
+                'bg-gray-300 dark:bg-gray-600 w-px h-full',
+                className
+            )}
             {...props}
         />
     )
