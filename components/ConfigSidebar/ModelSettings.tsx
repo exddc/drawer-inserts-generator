@@ -13,10 +13,71 @@ import { TabsContent } from '@/components/ui/tabs'
 import { parameters } from '@/lib/defaults'
 import { useStore } from '@/lib/store'
 import { ChevronsUpDown } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export default function ModelSettings() {
     // Get all required state from the store
     const store = useStore()
+
+    // Update state types to allow empty string
+    const [localTotalWidth, setLocalTotalWidth] = useState<string | number>(
+        store.totalWidth
+    )
+    const [localTotalDepth, setLocalTotalDepth] = useState<string | number>(
+        store.totalDepth
+    )
+    const [localWallHeight, setLocalWallHeight] = useState<string | number>(
+        store.wallHeight
+    )
+    const [localWallThickness, setLocalWallThickness] = useState<
+        string | number
+    >(store.wallThickness)
+    const [localCornerRadius, setLocalCornerRadius] = useState<string | number>(
+        store.cornerRadius
+    )
+    const [localMaxBoxWidth, setLocalMaxBoxWidth] = useState<string | number>(
+        store.maxBoxWidth
+    )
+    const [localMaxBoxDepth, setLocalMaxBoxDepth] = useState<string | number>(
+        store.maxBoxDepth
+    )
+
+    // Helper function to handle input updates
+    const handleInputUpdate = (
+        value: string | number,
+        setLocal: (value: string | number) => void,
+        setStore: (value: number) => void,
+        min: number
+    ) => {
+        const numValue = value === '' ? min : Number(value)
+        setLocal(value)
+        setStore(numValue)
+    }
+
+    // Helper function to handle key press
+    const handleKeyPress = (
+        e: React.KeyboardEvent<HTMLInputElement>,
+        value: string | number,
+        setLocal: (value: string | number) => void,
+        setStore: (value: number) => void,
+        min: number
+    ) => {
+        if (e.key === 'Enter') {
+            handleInputUpdate(value, setLocal, setStore, min)
+            e.currentTarget.blur()
+        }
+    }
+
+    // Update local state when store values change
+    useEffect(() => {
+        setLocalTotalWidth(store.totalWidth)
+        setLocalTotalDepth(store.totalDepth)
+        setLocalWallHeight(store.wallHeight)
+        setLocalWallThickness(store.wallThickness)
+        setLocalCornerRadius(store.cornerRadius)
+        setLocalMaxBoxWidth(store.maxBoxWidth)
+        setLocalMaxBoxDepth(store.maxBoxDepth)
+    }, [store])
 
     return (
         <TabsContent value="modelSettings" className="space-y-4">
@@ -50,8 +111,31 @@ export default function ModelSettings() {
                             <Input
                                 type="number"
                                 name="total_width"
-                                value={store.totalWidth}
-                                onChange={store.setTotalWidth as any}
+                                value={localTotalWidth}
+                                onChange={(e) =>
+                                    setLocalTotalWidth(
+                                        e.target.value === ''
+                                            ? ''
+                                            : Number(e.target.value)
+                                    )
+                                }
+                                onKeyDown={(e) =>
+                                    handleKeyPress(
+                                        e,
+                                        localTotalWidth,
+                                        setLocalTotalWidth,
+                                        store.setTotalWidth,
+                                        parameters.totalWidth.min
+                                    )
+                                }
+                                onBlur={(e) =>
+                                    handleInputUpdate(
+                                        e.target.value,
+                                        setLocalTotalWidth,
+                                        store.setTotalWidth,
+                                        parameters.totalWidth.min
+                                    )
+                                }
                                 min={parameters.totalWidth.min}
                                 max={parameters.totalWidth.max}
                                 className="w-20"
@@ -80,8 +164,31 @@ export default function ModelSettings() {
                             <Input
                                 type="number"
                                 name="total_depth"
-                                value={store.totalDepth}
-                                onChange={store.setTotalDepth as any}
+                                value={localTotalDepth}
+                                onChange={(e) =>
+                                    setLocalTotalDepth(
+                                        e.target.value === ''
+                                            ? ''
+                                            : Number(e.target.value)
+                                    )
+                                }
+                                onKeyDown={(e) =>
+                                    handleKeyPress(
+                                        e,
+                                        localTotalDepth,
+                                        setLocalTotalDepth,
+                                        store.setTotalDepth,
+                                        parameters.totalDepth.min
+                                    )
+                                }
+                                onBlur={(e) =>
+                                    handleInputUpdate(
+                                        e.target.value,
+                                        setLocalTotalDepth,
+                                        store.setTotalDepth,
+                                        parameters.totalDepth.min
+                                    )
+                                }
                                 min={parameters.totalDepth.min}
                                 max={parameters.totalDepth.max}
                                 className="w-20"
@@ -110,8 +217,31 @@ export default function ModelSettings() {
                             <Input
                                 type="number"
                                 name="total_height"
-                                value={store.wallHeight}
-                                onChange={store.setWallHeight as any}
+                                value={localWallHeight}
+                                onChange={(e) =>
+                                    setLocalWallHeight(
+                                        e.target.value === ''
+                                            ? ''
+                                            : Number(e.target.value)
+                                    )
+                                }
+                                onKeyDown={(e) =>
+                                    handleKeyPress(
+                                        e,
+                                        localWallHeight,
+                                        setLocalWallHeight,
+                                        store.setWallHeight,
+                                        parameters.wallHeight.min
+                                    )
+                                }
+                                onBlur={(e) =>
+                                    handleInputUpdate(
+                                        e.target.value,
+                                        setLocalWallHeight,
+                                        store.setWallHeight,
+                                        parameters.wallHeight.min
+                                    )
+                                }
                                 min={parameters.wallHeight.min}
                                 max={parameters.wallHeight.max}
                                 className="w-20"
@@ -140,8 +270,31 @@ export default function ModelSettings() {
                             <Input
                                 type="number"
                                 name="wallThickness"
-                                value={store.wallThickness}
-                                onChange={store.setWallThickness as any}
+                                value={localWallThickness}
+                                onChange={(e) =>
+                                    setLocalWallThickness(
+                                        e.target.value === ''
+                                            ? ''
+                                            : Number(e.target.value)
+                                    )
+                                }
+                                onKeyDown={(e) =>
+                                    handleKeyPress(
+                                        e,
+                                        localWallThickness,
+                                        setLocalWallThickness,
+                                        store.setWallThickness,
+                                        parameters.wallThickness.min
+                                    )
+                                }
+                                onBlur={(e) =>
+                                    handleInputUpdate(
+                                        e.target.value,
+                                        setLocalWallThickness,
+                                        store.setWallThickness,
+                                        parameters.wallThickness.min
+                                    )
+                                }
                                 min={parameters.wallThickness.min}
                                 max={parameters.wallThickness.max}
                                 className="w-20"
@@ -170,8 +323,31 @@ export default function ModelSettings() {
                             <Input
                                 type="number"
                                 name="cornerRadius"
-                                value={store.cornerRadius}
-                                onChange={store.setCornerRadius as any}
+                                value={localCornerRadius}
+                                onChange={(e) =>
+                                    setLocalCornerRadius(
+                                        e.target.value === ''
+                                            ? ''
+                                            : Number(e.target.value)
+                                    )
+                                }
+                                onKeyDown={(e) =>
+                                    handleKeyPress(
+                                        e,
+                                        localCornerRadius,
+                                        setLocalCornerRadius,
+                                        store.setCornerRadius,
+                                        parameters.cornerRadius.min
+                                    )
+                                }
+                                onBlur={(e) =>
+                                    handleInputUpdate(
+                                        e.target.value,
+                                        setLocalCornerRadius,
+                                        store.setCornerRadius,
+                                        parameters.cornerRadius.min
+                                    )
+                                }
                                 min={parameters.cornerRadius.min}
                                 max={parameters.cornerRadius.max}
                                 className="w-20"
@@ -226,8 +402,31 @@ export default function ModelSettings() {
                             <Input
                                 type="number"
                                 name="max_width"
-                                value={store.maxBoxWidth}
-                                onChange={store.setMaxBoxWidth as any}
+                                value={localMaxBoxWidth}
+                                onChange={(e) =>
+                                    setLocalMaxBoxWidth(
+                                        e.target.value === ''
+                                            ? ''
+                                            : Number(e.target.value)
+                                    )
+                                }
+                                onKeyDown={(e) =>
+                                    handleKeyPress(
+                                        e,
+                                        localMaxBoxWidth,
+                                        setLocalMaxBoxWidth,
+                                        store.setMaxBoxWidth,
+                                        parameters.maxBoxWidth.min
+                                    )
+                                }
+                                onBlur={(e) =>
+                                    handleInputUpdate(
+                                        e.target.value,
+                                        setLocalMaxBoxWidth,
+                                        store.setMaxBoxWidth,
+                                        parameters.maxBoxWidth.min
+                                    )
+                                }
                                 min={parameters.maxBoxWidth.min}
                                 max={parameters.maxBoxWidth.max}
                                 className="w-20"
@@ -256,8 +455,31 @@ export default function ModelSettings() {
                             <Input
                                 type="number"
                                 name="max_depth"
-                                value={store.maxBoxDepth}
-                                onChange={store.setMaxBoxDepth as any}
+                                value={localMaxBoxDepth}
+                                onChange={(e) =>
+                                    setLocalMaxBoxDepth(
+                                        e.target.value === ''
+                                            ? ''
+                                            : Number(e.target.value)
+                                    )
+                                }
+                                onKeyDown={(e) =>
+                                    handleKeyPress(
+                                        e,
+                                        localMaxBoxDepth,
+                                        setLocalMaxBoxDepth,
+                                        store.setMaxBoxDepth,
+                                        parameters.maxBoxDepth.min
+                                    )
+                                }
+                                onBlur={(e) =>
+                                    handleInputUpdate(
+                                        e.target.value,
+                                        setLocalMaxBoxDepth,
+                                        store.setMaxBoxDepth,
+                                        parameters.maxBoxDepth.min
+                                    )
+                                }
                                 min={parameters.maxBoxDepth.min}
                                 max={parameters.maxBoxDepth.max}
                                 className="w-20"
