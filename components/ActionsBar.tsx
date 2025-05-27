@@ -7,6 +7,7 @@ import {
     MenubarContent,
     MenubarItem,
     MenubarMenu,
+    MenubarSeparator,
     MenubarTrigger,
 } from '@/components/ui/menubar'
 import {
@@ -103,8 +104,68 @@ export default function ActionsBar() {
                                 </MenubarItem>
                             </MenubarContent>
                         </MenubarMenu>
+                        <MenubarSeparator />
+
+                        <Tooltip>
+                            <TooltipTrigger
+                                className={
+                                    'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
+                                    (enableClearSelection
+                                        ? ' cursor-pointer'
+                                        : ' cursor-not-allowed text-neutral-400')
+                                }
+                                disabled={!enableClearSelection}
+                                onClick={() => {
+                                    if (canSplit) {
+                                        window.dispatchEvent(
+                                            new KeyboardEvent('keydown', {
+                                                key: 's',
+                                                code: 's',
+                                            })
+                                        )
+                                    } else {
+                                        window.dispatchEvent(
+                                            new KeyboardEvent('keydown', {
+                                                key: 'c',
+                                                code: 'c',
+                                            })
+                                        )
+                                    }
+                                }}
+                            >
+                                {canSplit ? (
+                                    <SquareSplitHorizontal className="h-4 w-4" />
+                                ) : (
+                                    <Combine className="h-4 w-4" />
+                                )}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {canSplit ? (
+                                    <p>Split Combined Box (S)</p>
+                                ) : (
+                                    <p>Combine Selected Boxes (C)</p>
+                                )}
+                            </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger
+                                className={
+                                    'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
+                                    (enableClearSelection
+                                        ? ' cursor-pointer'
+                                        : ' cursor-not-allowed text-neutral-400')
+                                }
+                                onClick={() => store.setSelectedGroups([])}
+                                disabled={!enableClearSelection}
+                            >
+                                <X className="h-4 w-4" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Clear Selection (Esc)</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </Menubar>
-                    <div className="mx-1 h-8 w-px self-center bg-gray-300 dark:bg-gray-600" />
                     {/* Direct Actions */}
                     {/* <Tooltip>
                         <TooltipTrigger
@@ -123,65 +184,6 @@ export default function ActionsBar() {
                             <p>Toggle Visibility (H)</p>
                         </TooltipContent>
                     </Tooltip> */}
-                    <Tooltip>
-                        <TooltipTrigger
-                            className={
-                                'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
-                                (enableClearSelection
-                                    ? ' cursor-pointer'
-                                    : ' cursor-not-allowed text-neutral-400')
-                            }
-                            onClick={() => store.setSelectedGroups([])}
-                            disabled={!enableClearSelection}
-                        >
-                            <X className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Clear Selection (Esc)</p>
-                        </TooltipContent>
-                    </Tooltip>
-                    <div className="mx-1 h-8 w-px self-center bg-gray-300 dark:bg-gray-600" />
-                    <Tooltip>
-                        <TooltipTrigger
-                            className={
-                                'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
-                                (enableClearSelection
-                                    ? ' cursor-pointer'
-                                    : ' cursor-not-allowed text-neutral-400')
-                            }
-                            disabled={!enableClearSelection}
-                            onClick={() => {
-                                if (canSplit) {
-                                    window.dispatchEvent(
-                                        new KeyboardEvent('keydown', {
-                                            key: 's',
-                                            code: 's',
-                                        })
-                                    )
-                                } else {
-                                    window.dispatchEvent(
-                                        new KeyboardEvent('keydown', {
-                                            key: 'c',
-                                            code: 'c',
-                                        })
-                                    )
-                                }
-                            }}
-                        >
-                            {canSplit ? (
-                                <SquareSplitHorizontal className="h-4 w-4" />
-                            ) : (
-                                <Combine className="h-4 w-4" />
-                            )}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            {canSplit ? (
-                                <p>Split Combined Box (S)</p>
-                            ) : (
-                                <p>Combine Selected Boxes (C)</p>
-                            )}
-                        </TooltipContent>
-                    </Tooltip>{' '}
                 </div>
             </TooltipProvider>
         </div>
