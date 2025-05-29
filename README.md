@@ -2,7 +2,7 @@
 
 Simple parameterized generator to create a grid of boxes for 3D printing. The grid is generated in a way that the boxes are connected to each other, so that they can be printed as a single object or as a set of separate objects.
 
-[![](https://static.timoweiss.me/572_2x_shots_so.png)](https://box-grid.timoweiss.me)
+[![](https://static.timoweiss.me/box-generator-browser-screenshot.png)](https://box-grid.timoweiss.me)
 
 Play with it here: [box-grid.timoweiss.me](https://box-grid.timoweiss.me)
 
