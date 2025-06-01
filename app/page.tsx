@@ -1,6 +1,7 @@
 'use client'
 
 import ActionsBar from '@/components/ActionsBar'
+import BoxContextMenu from '@/components/BoxContextMenu'
 import ConfigSidebar from '@/components/ConfigSidebar'
 import {
     ResizableHandle,
@@ -61,9 +62,6 @@ export default function Home() {
             LEFT: THREE.MOUSE.ROTATE,
             MIDDLE: THREE.MOUSE.PAN,
         }
-        renderer.domElement.addEventListener('contextmenu', (e) => {
-            e.preventDefault()
-        })
 
         // lights + grid
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
@@ -358,9 +356,10 @@ export default function Home() {
                     <ResizablePanel defaultSize={80} className="h-full">
                         <div
                             ref={state.containerRef}
-                            className="w-full h-full"
-                        />
-
+                            className="relative h-full w-full"
+                        >
+                            {state.containerRef.current && <BoxContextMenu />}
+                        </div>
                         <ActionsBar />
                     </ResizablePanel>
                 </ResizablePanelGroup>
