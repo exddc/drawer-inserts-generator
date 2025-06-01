@@ -6,8 +6,8 @@ import {
     Combine,
     Eye,
     MousePointerClick,
+    SquareDashed,
     SquareSplitHorizontal,
-    Trash2,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
@@ -27,6 +27,8 @@ export default function BoxContextMenu() {
     const storeContainerRef = useStore((state) => state.containerRef)
     const cameraRef = useStore((state) => state.cameraRef)
     const boxRef = useStore((state) => state.boxRef)
+    const setSelectedGroups = useStore((state) => state.setSelectedGroups)
+    const selectedGroups = useStore((state) => state.selectedGroups)
 
     useEffect(() => {
         const container = storeContainerRef.current
@@ -110,15 +112,44 @@ export default function BoxContextMenu() {
     }, [open])
 
     const handleMenuItemClick = (action?: string) => {
-        if (action) {
-            console.log(`Context menu action: ${action}`)
+        if (!action || !boxInfos) {
+            setOpen(false)
+            return
         }
+
+        if (action === 'Select Box') {
+            // Find the box group that matches the boxInfos using the unique ID
+            const boxGroup = boxRef.current?.children.find(
+                (child) => child.userData.id === boxInfos.id
+            ) as THREE.Group | undefined
+
+            if (boxGroup) {
+                setSelectedGroups([boxGroup])
+            }
+        } else if (action === 'Add to Selection') {
+            // Find the box group that matches the boxInfos using the unique ID
+            const boxGroup = boxRef.current?.children.find(
+                (child) => child.userData.id === boxInfos.id
+            ) as THREE.Group | undefined
+
+            if (boxGroup) {
+                // Add to existing selection if not already selected
+                if (!selectedGroups.includes(boxGroup)) {
+                    setSelectedGroups([...selectedGroups, boxGroup])
+                }
+            }
+        }
+
         setOpen(false)
     }
 
     if (!open) return null
 
     const isBoxSpecificMenu = boxInfos != null
+
+    const isBoxSelected =
+        boxInfos &&
+        selectedGroups.some((group) => group.userData.id === boxInfos.id)
 
     return (
         <div
@@ -144,29 +175,56 @@ export default function BoxContextMenu() {
                             {`W: ${boxInfos.dimensions.width?.toFixed(1) ?? 'N/A'} D: ${boxInfos.dimensions.depth?.toFixed(1) ?? 'N/A'} H: ${boxInfos.dimensions.height?.toFixed(1) ?? 'N/A'} mm`}
                         </div>
                     )}
-                    <div className="px-2 py-1.5 text-sm font-semibold">Box</div>
-
-                    <div
-                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => handleMenuItemClick('Select Box')}
-                    >
-                        <MousePointerClick className="mr-2 h-4 w-4" />
-                        Select Box
-                        <span className="ml-auto text-xs tracking-widest text-muted-foreground">
-                            Click
-                        </span>
+                    <div className="px-2 py-1.5 text-sm font-semibold">
+                        Box {boxInfos.id}
+                        {boxInfos.group != 0
+                            ? `(| Group ${boxInfos.group})`
+                            : ''}
                     </div>
 
-                    <div
-                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => handleMenuItemClick('Add to Selection')}
-                    >
-                        <Boxes className="mr-2 h-4 w-4" />
-                        Add to Selection
-                        <span className="ml-auto text-xs tracking-widest text-muted-foreground">
-                            Cmd+Click
-                        </span>
-                    </div>
+                    {isBoxSelected ? (
+                        <div
+                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            onClick={() => {
+                                setSelectedGroups([])
+                                setOpen(false)
+                            }}
+                        >
+                            <SquareDashed className="mr-2 h-4 w-4" />
+                            Clear Selection
+                            <span className="ml-auto text-xs tracking-widest text-muted-foreground">
+                                Esc
+                            </span>
+                        </div>
+                    ) : (
+                        <>
+                            <div
+                                className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                onClick={() =>
+                                    handleMenuItemClick('Select Box')
+                                }
+                            >
+                                <MousePointerClick className="mr-2 h-4 w-4" />
+                                Select Box
+                                <span className="ml-auto text-xs tracking-widest text-muted-foreground">
+                                    Click
+                                </span>
+                            </div>
+
+                            <div
+                                className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                onClick={() =>
+                                    handleMenuItemClick('Add to Selection')
+                                }
+                            >
+                                <Boxes className="mr-2 h-4 w-4" />
+                                Add to Selection
+                                <span className="ml-auto text-xs tracking-widest text-muted-foreground">
+                                    Cmd+Click
+                                </span>
+                            </div>
+                        </>
+                    )}
 
                     <div className="-mx-1 my-1 h-px bg-border" />
 
@@ -249,7 +307,7 @@ export default function BoxContextMenu() {
                         className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => handleMenuItemClick('Clear Selection')}
                     >
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        <SquareDashed className="mr-2 h-4 w-4" />
                         Clear Selection
                         <span className="ml-auto text-xs tracking-widest text-muted-foreground">
                             Esc

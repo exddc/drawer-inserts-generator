@@ -19,6 +19,9 @@ export function generateCustomBox(
         (i) => i > 0
     )
 
+    // Add a counter for unique IDs
+    let nextBoxId = 1
+
     // Calculate cumulative dimensions once
     const widths = grid[0].map(c => c.width)
     const depths = grid.map(row => row[0].depth)
@@ -74,6 +77,7 @@ export function generateCustomBox(
         // 4) stick it on a Group and remember its cells and dimensions
         const boxGroup = new THREE.Group()
         boxGroup.userData.group = id
+        boxGroup.userData.id = nextBoxId++
         boxGroup.userData.cells = cellsForThisId
         boxGroup.userData.dimensions = {
             width,
@@ -125,6 +129,7 @@ export function generateCustomBox(
             const cellGroup = new THREE.Group()
             cellGroup.userData.selectable = true
             cellGroup.userData.group = 0
+            cellGroup.userData.id = nextBoxId++
             cellGroup.userData.cells = [{ x, z }]
             // Add dimensions for individual cells
             cellGroup.userData.dimensions = {
