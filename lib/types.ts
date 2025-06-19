@@ -56,3 +56,14 @@ export interface StoreState {
     setStandardColor: (color: number) => void
     setSelectedColor: (color: number) => void
 }
+
+export interface BoxInfo {
+    id: number
+    group: number
+    dimensions?: {
+        width: number
+        depth: number
+        height: number
+    }
+    cells: Array<{ x: number; z: number }>
+}

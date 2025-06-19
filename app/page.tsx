@@ -118,6 +118,9 @@ export default function Home() {
             if (event.key === 's') {
                 onSplitClick()
             }
+            if (event.key === 'h') {
+                onHideClick()
+            }
         }
 
         function onCombineClick() {
@@ -166,7 +169,7 @@ export default function Home() {
         function onSplitClick() {
             if (selectedGroups.length === 0) return
 
-            // 1) reset each selected group’s cells back to group 0
+            // 1) reset each selected group's cells back to group 0
             const grid = state.gridRef.current!
             selectedGroups.forEach((grp) => {
                 const cells: { x: number; z: number }[] = grp.userData.cells
@@ -191,6 +194,18 @@ export default function Home() {
                 -useStore.getState().totalDepth / 2
             )
             scene.add(newBox)
+
+            // 3) reset selection
+            selectedGroups = []
+            state.setSelectedGroups(selectedGroups)
+        }
+
+        function onHideClick() {
+            if (selectedGroups.length === 0) return
+
+            selectedGroups.forEach((grp) => {
+                grp.visible = !grp.visible
+            })
 
             // 3) reset selection
             selectedGroups = []
@@ -252,8 +267,6 @@ export default function Home() {
     useEffect(() => {
         const boxGroup = state.boxRef.current
         if (!boxGroup) return
-        const std = material.standard.color
-        const sel = material.selected.color
 
         // clear
         boxGroup.children.forEach((child) => {
@@ -267,7 +280,8 @@ export default function Home() {
         // highlight selected
         state.selectedGroups.forEach((grp) =>
             grp.traverse((c) => {
-                if (c instanceof THREE.Mesh) c.material.color.setHex(sel)
+                if (c instanceof THREE.Mesh)
+                    c.material.color.setHex(material.selected.color)
             })
         )
     }, [state.selectedGroups])

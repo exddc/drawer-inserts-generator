@@ -1,6 +1,7 @@
 'use client'
 
 import { useStore } from '@/lib/store'
+import { BoxInfo } from '@/lib/types'
 import {
     Boxes,
     Combine,
@@ -21,7 +22,7 @@ declare global {
 export default function BoxContextMenu() {
     const [open, setOpen] = useState(false)
     const [pos, setPos] = useState({ x: 0, y: 0 })
-    const [boxInfos, setBoxInfos] = useState<any | null>(null)
+    const [boxInfos, setBoxInfos] = useState<BoxInfo | null>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
     const storeContainerRef = useStore((state) => state.containerRef)
@@ -64,7 +65,7 @@ export default function BoxContextMenu() {
             })
 
             if (hit && hit.object.parent) {
-                setBoxInfos(hit.object.parent.userData)
+                setBoxInfos(hit.object.parent.userData as BoxInfo)
             } else {
                 setBoxInfos(null)
             }
@@ -170,6 +171,13 @@ export default function BoxContextMenu() {
                     })
                 )
             }
+        } else if (action === 'Toggle Box Visibility') {
+            window.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'h',
+                    code: 'h',
+                })
+            )
         } else if (action === 'Clear Selection') {
             setSelectedGroups([])
         }
@@ -248,20 +256,24 @@ export default function BoxContextMenu() {
                         </>
                     )}
 
-                    <div className="-mx-1 my-1 h-px bg-border" />
+                    {isBoxSelected && (
+                        <>
+                            <div className="-mx-1 my-1 h-px bg-border" />
 
-                    <div
-                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() =>
-                            handleMenuItemClick('Toggle Box Visibility')
-                        }
-                    >
-                        <Eye className="mr-2 h-4 w-4" />
-                        Toggle Box Visibility
-                        <span className="ml-auto text-xs tracking-widest text-muted-foreground">
-                            H
-                        </span>
-                    </div>
+                            <div
+                                className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                onClick={() =>
+                                    handleMenuItemClick('Toggle Box Visibility')
+                                }
+                            >
+                                <Eye className="mr-2 h-4 w-4" />
+                                Toggle Box Visibility
+                                <span className="ml-auto text-xs tracking-widest text-muted-foreground">
+                                    H
+                                </span>
+                            </div>
+                        </>
+                    )}
 
                     <div className="-mx-1 my-1 h-px bg-border" />
 
