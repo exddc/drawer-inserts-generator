@@ -30,6 +30,8 @@ export default function BoxContextMenu() {
     const setSelectedGroups = useStore((state) => state.setSelectedGroups)
     const selectedGroups = useStore((state) => state.selectedGroups)
 
+    const [canSplit, setCanSplit] = useState(false)
+
     useEffect(() => {
         const container = storeContainerRef.current
         const cam = cameraRef.current
@@ -111,6 +113,18 @@ export default function BoxContextMenu() {
         }
     }, [open])
 
+    useEffect(() => {
+        if (selectedGroups.length === 1) {
+            if (selectedGroups[0].userData.group !== 0) {
+                setCanSplit(true)
+            } else {
+                setCanSplit(false)
+            }
+        } else {
+            setCanSplit(false)
+        }
+    }, [selectedGroups])
+
     const handleMenuItemClick = (action?: string) => {
         if (!action || !boxInfos) {
             setOpen(false)
@@ -138,6 +152,26 @@ export default function BoxContextMenu() {
                     setSelectedGroups([...selectedGroups, boxGroup])
                 }
             }
+        } else if (action === 'Split Box') {
+            if (canSplit) {
+                window.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 's',
+                        code: 's',
+                    })
+                )
+            }
+        } else if (action === 'Combine Selected Boxes') {
+            if (selectedGroups.length >= 2) {
+                window.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'c',
+                        code: 'c',
+                    })
+                )
+            }
+        } else if (action === 'Clear Selection') {
+            setSelectedGroups([])
         }
 
         setOpen(false)
@@ -150,6 +184,8 @@ export default function BoxContextMenu() {
     const isBoxSelected =
         boxInfos &&
         selectedGroups.some((group) => group.userData.id === boxInfos.id)
+
+    const canCombine = selectedGroups.length >= 2
 
     return (
         <div
@@ -182,21 +218,7 @@ export default function BoxContextMenu() {
                             : ''}
                     </div>
 
-                    {isBoxSelected ? (
-                        <div
-                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                            onClick={() => {
-                                setSelectedGroups([])
-                                setOpen(false)
-                            }}
-                        >
-                            <SquareDashed className="mr-2 h-4 w-4" />
-                            Clear Selection
-                            <span className="ml-auto text-xs tracking-widest text-muted-foreground">
-                                Esc
-                            </span>
-                        </div>
-                    ) : (
+                    {!isBoxSelected && (
                         <>
                             <div
                                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
@@ -243,28 +265,47 @@ export default function BoxContextMenu() {
 
                     <div className="-mx-1 my-1 h-px bg-border" />
 
-                    <div
-                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => handleMenuItemClick('Split Box')}
-                    >
-                        <SquareSplitHorizontal className="mr-2 h-4 w-4" />
-                        Split Box
-                        <span className="ml-auto text-xs tracking-widest text-muted-foreground">
-                            S
-                        </span>
-                    </div>
+                    {canSplit && (
+                        <div
+                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            onClick={() => handleMenuItemClick('Split Box')}
+                        >
+                            <SquareSplitHorizontal className="mr-2 h-4 w-4" />
+                            Split Box
+                            <span className="ml-auto text-xs tracking-widest text-muted-foreground">
+                                S
+                            </span>
+                        </div>
+                    )}
+
+                    {canCombine && (
+                        <div
+                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            onClick={() =>
+                                handleMenuItemClick('Combine Selected Boxes')
+                            }
+                            title="Combine selected boxes"
+                        >
+                            <Combine className="mr-2 h-4 w-4" />
+                            Combine Selected Boxes
+                            <span className="ml-auto text-xs tracking-widest text-muted-foreground">
+                                C
+                            </span>
+                        </div>
+                    )}
+
+                    {(canSplit || canCombine) && (
+                        <div className="-mx-1 my-1 h-px bg-border" />
+                    )}
 
                     <div
                         className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() =>
-                            handleMenuItemClick('Combine Selected Boxes')
-                        }
-                        title="Combine selected boxes"
+                        onClick={() => handleMenuItemClick('Clear Selection')}
                     >
-                        <Combine className="mr-2 h-4 w-4" />
-                        Combine Selected Boxes
+                        <SquareDashed className="mr-2 h-4 w-4" />
+                        Clear Selection
                         <span className="ml-auto text-xs tracking-widest text-muted-foreground">
-                            C
+                            Esc
                         </span>
                     </div>
                 </>
