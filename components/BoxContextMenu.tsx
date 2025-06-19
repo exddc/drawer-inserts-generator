@@ -1,5 +1,6 @@
 'use client'
 
+import { keyPress } from '@/lib/keyHelper'
 import { useStore } from '@/lib/store'
 import { BoxInfo } from '@/lib/types'
 import {
@@ -47,7 +48,7 @@ export default function BoxContextMenu() {
 
         const onContextMenu = (e: MouseEvent) => {
             e.preventDefault()
-            if (menuRef.current && menuRef.current.contains(e.target as Node)) {
+            if (menuRef.current?.contains(e.target as Node)) {
                 setPos({ x: e.clientX, y: e.clientY })
                 return
             }
@@ -64,7 +65,7 @@ export default function BoxContextMenu() {
                 return typeof p.userData.group === 'number'
             })
 
-            if (hit && hit.object.parent) {
+            if (hit?.object.parent) {
                 setBoxInfos(hit.object.parent.userData as BoxInfo)
             } else {
                 setBoxInfos(null)
@@ -132,7 +133,7 @@ export default function BoxContextMenu() {
             | 'Add to Selection'
             | 'Split Box'
             | 'Combine Selected Boxes'
-            | 'Toggle Box Visibility'
+            | 'Toggle Visibility'
             | 'Clear Selection'
     ) => {
         if (!action) {
@@ -163,30 +164,14 @@ export default function BoxContextMenu() {
             }
         } else if (action === 'Split Box') {
             if (canSplit) {
-                window.dispatchEvent(
-                    new KeyboardEvent('keydown', {
-                        key: 's',
-                        code: 's',
-                    })
-                )
+                keyPress('s')
             }
         } else if (action === 'Combine Selected Boxes') {
             if (selectedGroups.length >= 2) {
-                window.dispatchEvent(
-                    new KeyboardEvent('keydown', {
-                        key: 'c',
-                        code: 'c',
-                    })
-                )
+                keyPress('c')
             }
-        } else if (action === 'Toggle Box Visibility') {
-            console.log('toggle box visibility')
-            window.dispatchEvent(
-                new KeyboardEvent('keydown', {
-                    key: 'h',
-                    code: 'h',
-                })
-            )
+        } else if (action === 'Toggle Visibility') {
+            keyPress('h')
         } else if (action === 'Clear Selection') {
             setSelectedGroups([])
         }
@@ -212,6 +197,7 @@ export default function BoxContextMenu() {
     return (
         <div
             ref={menuRef}
+            role="menu"
             className="fixed z-50 min-w-[300px] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-80"
             style={{
                 left: pos.x,
@@ -277,7 +263,7 @@ export default function BoxContextMenu() {
                             <div
                                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                                 onClick={() =>
-                                    handleMenuItemClick('Toggle Box Visibility')
+                                    handleMenuItemClick('Toggle Visibility')
                                 }
                             >
                                 <Eye className="mr-2 h-4 w-4" />
@@ -344,7 +330,7 @@ export default function BoxContextMenu() {
                     <div
                         className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => {
-                            handleMenuItemClick('Toggle Box Visibility')
+                            handleMenuItemClick('Toggle Visibility')
                         }}
                     >
                         <Eye className="mr-2 h-4 w-4" />
