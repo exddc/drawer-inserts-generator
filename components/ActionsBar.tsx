@@ -16,6 +16,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cameraSettings } from '@/lib/defaults'
+import { keyPress } from '@/lib/keyHelper'
 import { useStore } from '@/lib/store'
 import {
     Box,
@@ -152,19 +153,9 @@ export default function ActionsBar() {
                             disabled={!enableClearSelection}
                             onClick={() => {
                                 if (canSplit) {
-                                    window.dispatchEvent(
-                                        new KeyboardEvent('keydown', {
-                                            key: 's',
-                                            code: 's',
-                                        })
-                                    )
+                                    keyPress('s')
                                 } else {
-                                    window.dispatchEvent(
-                                        new KeyboardEvent('keydown', {
-                                            key: 'c',
-                                            code: 'c',
-                                        })
-                                    )
+                                    keyPress('c')
                                 }
                             }}
                         >

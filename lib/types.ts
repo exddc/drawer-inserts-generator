@@ -67,3 +67,5 @@ export interface BoxInfo {
     }
     cells: Array<{ x: number; z: number }>
 }
+
+export type ValidKey = 's' | 'c' | 'h' | string;
