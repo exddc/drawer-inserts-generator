@@ -203,11 +203,34 @@ export default function Home() {
         function onHideClick() {
             if (selectedGroups.length === 0) return
 
+            const grid = state.gridRef.current!
+
             selectedGroups.forEach((grp) => {
-                grp.visible = !grp.visible
+                const newVisibility = !grp.visible
+                grp.visible = newVisibility
+
+                const cells: { x: number; z: number }[] = grp.userData.cells
+                cells.forEach(({ x, z }) => {
+                    grid[z][x].visible = newVisibility
+                })
             })
 
-            // 3) reset selection
+            const scene = state.sceneRef.current!
+            scene.remove(state.boxRef.current!)
+            const newBox = generateCustomBox(
+                grid,
+                state.wallThickness,
+                state.cornerRadius,
+                state.generateBottom
+            )
+            state.boxRef.current = newBox
+            newBox.position.set(
+                -useStore.getState().totalWidth / 2,
+                0,
+                -useStore.getState().totalDepth / 2
+            )
+            scene.add(newBox)
+
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
         }

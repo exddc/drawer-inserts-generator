@@ -6,6 +6,7 @@ export type Cell = {
     width: number
     depth: number
     color?: number
+    visible?: boolean
 }
 
 export type Grid = Cell[][]
@@ -66,6 +67,7 @@ export interface BoxInfo {
         height: number
     }
     cells: Array<{ x: number; z: number }>
+    visible?: boolean
 }
 
 export type ValidKey = 's' | 'c' | 'h' | string;

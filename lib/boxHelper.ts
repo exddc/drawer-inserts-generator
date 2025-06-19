@@ -33,10 +33,15 @@ export function generateCustomBox(
     ids.forEach((id) => {
         // 1) collect every cell in the grid that has this group-id
         const cellsForThisId: { x: number; z: number }[] = []
+        let isBoxVisible = false // Default to false, if any cell is visible, the box is visible
         for (let z = 0; z < grid.length; z++) {
             for (let x = 0; x < grid[0].length; x++) {
                 if (grid[z][x].group === id) {
                     cellsForThisId.push({ x, z })
+                    if (grid[z][x].visible !== false) {
+                        // If cell is not explicitly hidden, it's visible
+                        isBoxVisible = true
+                    }
                 }
             }
         }
@@ -84,6 +89,9 @@ export function generateCustomBox(
             depth,
             height: useStore.getState().wallHeight
         }
+        boxGroup.visible = isBoxVisible // Set visibility here based on cells
+        boxGroup.userData.visible = isBoxVisible // Store in userData for persistence
+
         boxGroup.add(buildWallMesh(outR, inR))
         if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
         group.add(boxGroup)
@@ -131,6 +139,9 @@ export function generateCustomBox(
             cellGroup.userData.group = 0
             cellGroup.userData.id = nextBoxId++
             cellGroup.userData.cells = [{ x, z }]
+            cellGroup.visible = cell.visible !== false // Set visibility for single cells too
+            cellGroup.userData.visible = cell.visible !== false // Store in userData
+
             // Add dimensions for individual cells
             cellGroup.userData.dimensions = {
                 width: cell.width,
