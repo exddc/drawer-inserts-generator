@@ -126,8 +126,16 @@ export default function BoxContextMenu() {
         }
     }, [selectedGroups])
 
-    const handleMenuItemClick = (action?: string) => {
-        if (!action || !boxInfos) {
+    const handleMenuItemClick = (
+        action?:
+            | 'Select Box'
+            | 'Add to Selection'
+            | 'Split Box'
+            | 'Combine Selected Boxes'
+            | 'Toggle Box Visibility'
+            | 'Clear Selection'
+    ) => {
+        if (!action) {
             setOpen(false)
             return
         }
@@ -135,7 +143,7 @@ export default function BoxContextMenu() {
         if (action === 'Select Box') {
             // Find the box group that matches the boxInfos using the unique ID
             const boxGroup = boxRef.current?.children.find(
-                (child) => child.userData.id === boxInfos.id
+                (child) => child.userData.id === boxInfos?.id
             ) as THREE.Group | undefined
 
             if (boxGroup) {
@@ -144,7 +152,7 @@ export default function BoxContextMenu() {
         } else if (action === 'Add to Selection') {
             // Find the box group that matches the boxInfos using the unique ID
             const boxGroup = boxRef.current?.children.find(
-                (child) => child.userData.id === boxInfos.id
+                (child) => child.userData.id === boxInfos?.id
             ) as THREE.Group | undefined
 
             if (boxGroup) {
@@ -172,6 +180,7 @@ export default function BoxContextMenu() {
                 )
             }
         } else if (action === 'Toggle Box Visibility') {
+            console.log('toggle box visibility')
             window.dispatchEvent(
                 new KeyboardEvent('keydown', {
                     key: 'h',
@@ -194,6 +203,11 @@ export default function BoxContextMenu() {
         selectedGroups.some((group) => group.userData.id === boxInfos.id)
 
     const canCombine = selectedGroups.length >= 2
+
+    if (selectedGroups.length === 0) {
+        // if no boxes are selected, don't show the menu
+        return null
+    }
 
     return (
         <div
@@ -329,9 +343,9 @@ export default function BoxContextMenu() {
 
                     <div
                         className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() =>
-                            handleMenuItemClick('Toggle Selected Visibility')
-                        }
+                        onClick={() => {
+                            handleMenuItemClick('Toggle Box Visibility')
+                        }}
                     >
                         <Eye className="mr-2 h-4 w-4" />
                         Toggle Selected Visibility
@@ -340,19 +354,21 @@ export default function BoxContextMenu() {
                         </span>
                     </div>
 
-                    <div
-                        className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() =>
-                            handleMenuItemClick('Combine Selected Boxes')
-                        }
-                        title="Combine selected boxes"
-                    >
-                        <Combine className="mr-2 h-4 w-4" />
-                        Combine Selected Boxes
-                        <span className="ml-auto text-xs tracking-widest text-muted-foreground">
-                            C
-                        </span>
-                    </div>
+                    {canCombine && (
+                        <div
+                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            onClick={() =>
+                                handleMenuItemClick('Combine Selected Boxes')
+                            }
+                            title="Combine selected boxes"
+                        >
+                            <Combine className="mr-2 h-4 w-4" />
+                            Combine Selected Boxes
+                            <span className="ml-auto text-xs tracking-widest text-muted-foreground">
+                                C
+                            </span>
+                        </div>
+                    )}
 
                     <div className="-mx-1 my-1 h-px bg-border" />
 
