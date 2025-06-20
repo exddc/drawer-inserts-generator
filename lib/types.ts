@@ -44,6 +44,8 @@ export interface StoreState {
     // Helpers
     selectedGroups: THREE.Group[]
     setSelectedGroups: (groups: THREE.Group[]) => void
+    hiddenBoxIds: Set<number>
+    setHiddenBoxIds: (ids: Set<number>) => void
 
     // General
     actionsBarPosition: 'top' | 'bottom'
@@ -56,6 +58,9 @@ export interface StoreState {
     selectedColor: number
     setStandardColor: (color: number) => void
     setSelectedColor: (color: number) => void
+
+    redrawTrigger: number;
+    forceRedraw: () => void;
 }
 
 export interface BoxInfo {

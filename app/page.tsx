@@ -3,6 +3,7 @@
 import ActionsBar from '@/components/ActionsBar'
 import BoxContextMenu from '@/components/BoxContextMenu'
 import ConfigSidebar from '@/components/ConfigSidebar'
+import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import {
     ResizableHandle,
     ResizablePanel,
@@ -123,6 +124,24 @@ export default function Home() {
             }
         }
 
+        // Helper function to update hiddenBoxIds based on current box visibility
+        const updateHiddenBoxIds = () => {
+            const currentBoxRef = state.boxRef.current
+            if (!currentBoxRef) return
+
+            const newHiddenIds = new Set<number>()
+            currentBoxRef.children.forEach((child) => {
+                if (
+                    child instanceof THREE.Group &&
+                    !child.visible &&
+                    child.userData.id
+                ) {
+                    newHiddenIds.add(child.userData.id)
+                }
+            })
+            state.setHiddenBoxIds(newHiddenIds)
+        }
+
         function onCombineClick() {
             if (selectedGroups.length < 2) return
 
@@ -164,6 +183,7 @@ export default function Home() {
             // 4) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
+            updateHiddenBoxIds() // Update hidden boxes after combine
         }
 
         function onSplitClick() {
@@ -198,6 +218,7 @@ export default function Home() {
             // 3) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
+            updateHiddenBoxIds() // Update hidden boxes after split
         }
 
         function onHideClick() {
@@ -233,6 +254,7 @@ export default function Home() {
 
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
+            updateHiddenBoxIds() // Update hidden boxes after hiding/unhiding
         }
 
         function onPointerDown(event: MouseEvent) {
@@ -356,6 +378,7 @@ export default function Home() {
         state.totalDepth,
         state.maxBoxWidth,
         state.maxBoxDepth,
+        state.redrawTrigger,
     ])
 
     useEffect(() => {
@@ -396,6 +419,7 @@ export default function Home() {
                             className="relative h-full w-full"
                         >
                             {state.containerRef.current && <BoxContextMenu />}
+                            <HiddenBoxesDisplay />
                         </div>
                         <ActionsBar />
                     </ResizablePanel>
