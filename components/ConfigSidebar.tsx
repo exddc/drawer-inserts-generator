@@ -11,11 +11,9 @@ export default function ConfigSidebar() {
             <div className="h-full pb-8 pt-2">
                 <Tabs defaultValue="modelSettings" className="mb-20">
                     <TabsList className="mb-4 grid w-full grid-cols-2">
-                        <TabsTrigger value="modelSettings">
-                            Model Settings
-                        </TabsTrigger>
+                        <TabsTrigger value="modelSettings">Model</TabsTrigger>
                         <TabsTrigger value="generalSettings">
-                            General Settings
+                            General
                         </TabsTrigger>
                     </TabsList>
 
