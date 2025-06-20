@@ -22,6 +22,7 @@ import {
     Box,
     Camera,
     Combine,
+    EyeOff,
     Grid2X2,
     SquareSplitHorizontal,
     X,
@@ -107,23 +108,23 @@ export default function ActionsBar() {
                     </Menubar>
                     <div className="mx-1 h-8 w-px self-center bg-gray-300 dark:bg-gray-600" />
                     {/* Direct Actions */}
-                    {/* <Tooltip>
+                    <Tooltip>
                         <TooltipTrigger
                             className={
                                 'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
-                                (hasSelection
+                                (enableClearSelection
                                     ? ' cursor-pointer'
                                     : ' cursor-default text-neutral-400')
                             }
-                            onClick={toggleSelectedBoxesVisibility}
-                            disabled={!hasSelection}
+                            onClick={() => keyPress('h')}
+                            disabled={!enableClearSelection}
                         >
                             <EyeOff className="h-4 w-4" />
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>Toggle Visibility (H)</p>
                         </TooltipContent>
-                    </Tooltip> */}
+                    </Tooltip>
                     <Tooltip>
                         <TooltipTrigger
                             className={
