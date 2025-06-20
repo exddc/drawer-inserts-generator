@@ -6,6 +6,7 @@ import {
 import { Cell, Grid } from '@/lib/types'
 import * as THREE from 'three'
 import { buildBottomMesh, buildWallMesh } from './meshHelper'
+import { useStore } from '@/lib/store'
 
 export function generateCustomBox(
     grid: Grid,
@@ -18,13 +19,29 @@ export function generateCustomBox(
         (i) => i > 0
     )
 
+    // Add a counter for unique IDs
+    let nextBoxId = 1
+
+    // Calculate cumulative dimensions once
+    const widths = grid[0].map(c => c.width)
+    const depths = grid.map(row => row[0].depth)
+    const cumW: number[] = [0]
+    widths.forEach(w => cumW.push(cumW[cumW.length - 1] + w))
+    const cumD: number[] = [0]
+    depths.forEach(d => cumD.push(cumD[cumD.length - 1] + d))
+
     ids.forEach((id) => {
         // 1) collect every cell in the grid that has this group-id
         const cellsForThisId: { x: number; z: number }[] = []
+        let isBoxVisible = false // Default to false, if any cell is visible, the box is visible
         for (let z = 0; z < grid.length; z++) {
             for (let x = 0; x < grid[0].length; x++) {
                 if (grid[z][x].group === id) {
                     cellsForThisId.push({ x, z })
+                    if (grid[z][x].visible !== false) {
+                        // If cell is not explicitly hidden, it's visible
+                        isBoxVisible = true
+                    }
                 }
             }
         }
@@ -50,21 +67,35 @@ export function generateCustomBox(
             wall_thickness
         )
 
-        // 4) stick it on a Group and remember its cells
+        // Find min and max coordinates for this group
+        const xCoords = cellsForThisId.map(cell => cell.x)
+        const zCoords = cellsForThisId.map(cell => cell.z)
+        const minX = Math.min(...xCoords)
+        const maxX = Math.max(...xCoords)
+        const minZ = Math.min(...zCoords)
+        const maxZ = Math.max(...zCoords)
+
+        // Calculate actual dimensions
+        const width = cumW[maxX + 1] - cumW[minX]
+        const depth = cumD[maxZ + 1] - cumD[minZ]
+
+        // 4) stick it on a Group and remember its cells and dimensions
         const boxGroup = new THREE.Group()
         boxGroup.userData.group = id
+        boxGroup.userData.id = nextBoxId++
         boxGroup.userData.cells = cellsForThisId
+        boxGroup.userData.dimensions = {
+            width,
+            depth,
+            height: useStore.getState().wallHeight
+        }
+        boxGroup.visible = isBoxVisible // Set visibility here based on cells
+        boxGroup.userData.visible = isBoxVisible // Store in userData for persistence
+
         boxGroup.add(buildWallMesh(outR, inR))
         if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
         group.add(boxGroup)
     })
-
-    const widths = grid[0].map((c) => c.width)
-    const depths = grid.map((row) => row[0].depth)
-    const cumW: number[] = [0]
-    widths.forEach((w) => cumW.push(cumW[cumW.length - 1] + w))
-    const cumD: number[] = [0]
-    depths.forEach((d) => cumD.push(cumD[cumD.length - 1] + d))
 
     // For each cell that is NOT filled, build a 1×1 cell‐grid
     for (let z = 0; z < grid.length; z++) {
@@ -106,7 +137,17 @@ export function generateCustomBox(
             const cellGroup = new THREE.Group()
             cellGroup.userData.selectable = true
             cellGroup.userData.group = 0
+            cellGroup.userData.id = nextBoxId++
             cellGroup.userData.cells = [{ x, z }]
+            cellGroup.visible = cell.visible !== false // Set visibility for single cells too
+            cellGroup.userData.visible = cell.visible !== false // Store in userData
+
+            // Add dimensions for individual cells
+            cellGroup.userData.dimensions = {
+                width: cell.width,
+                depth: cell.depth,
+                height: useStore.getState().wallHeight
+            }
             cellGroup.add(buildWallMesh(outR, inR))
             if (generate_bottom)
                 cellGroup.add(buildBottomMesh(outR, wall_thickness))

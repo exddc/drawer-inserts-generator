@@ -1,7 +1,9 @@
 'use client'
 
 import ActionsBar from '@/components/ActionsBar'
+import BoxContextMenu from '@/components/BoxContextMenu'
 import ConfigSidebar from '@/components/ConfigSidebar'
+import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import {
     ResizableHandle,
     ResizablePanel,
@@ -61,9 +63,6 @@ export default function Home() {
             LEFT: THREE.MOUSE.ROTATE,
             MIDDLE: THREE.MOUSE.PAN,
         }
-        renderer.domElement.addEventListener('contextmenu', (e) => {
-            e.preventDefault()
-        })
 
         // lights + grid
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
@@ -120,6 +119,27 @@ export default function Home() {
             if (event.key === 's') {
                 onSplitClick()
             }
+            if (event.key === 'h') {
+                onHideClick()
+            }
+        }
+
+        // Helper function to update hiddenBoxIds based on current box visibility
+        const updateHiddenBoxIds = () => {
+            const currentBoxRef = state.boxRef.current
+            if (!currentBoxRef) return
+
+            const newHiddenIds = new Set<number>()
+            currentBoxRef.children.forEach((child) => {
+                if (
+                    child instanceof THREE.Group &&
+                    !child.visible &&
+                    child.userData.id
+                ) {
+                    newHiddenIds.add(child.userData.id)
+                }
+            })
+            state.setHiddenBoxIds(newHiddenIds)
         }
 
         function onCombineClick() {
@@ -163,12 +183,13 @@ export default function Home() {
             // 4) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
+            updateHiddenBoxIds() // Update hidden boxes after combine
         }
 
         function onSplitClick() {
             if (selectedGroups.length === 0) return
 
-            // 1) reset each selected group’s cells back to group 0
+            // 1) reset each selected group's cells back to group 0
             const grid = state.gridRef.current!
             selectedGroups.forEach((grp) => {
                 const cells: { x: number; z: number }[] = grp.userData.cells
@@ -197,6 +218,43 @@ export default function Home() {
             // 3) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
+            updateHiddenBoxIds() // Update hidden boxes after split
+        }
+
+        function onHideClick() {
+            if (selectedGroups.length === 0) return
+
+            const grid = state.gridRef.current!
+
+            selectedGroups.forEach((grp) => {
+                const newVisibility = !grp.visible
+                grp.visible = newVisibility
+
+                const cells: { x: number; z: number }[] = grp.userData.cells
+                cells.forEach(({ x, z }) => {
+                    grid[z][x].visible = newVisibility
+                })
+            })
+
+            const scene = state.sceneRef.current!
+            scene.remove(state.boxRef.current!)
+            const newBox = generateCustomBox(
+                grid,
+                state.wallThickness,
+                state.cornerRadius,
+                state.generateBottom
+            )
+            state.boxRef.current = newBox
+            newBox.position.set(
+                -useStore.getState().totalWidth / 2,
+                0,
+                -useStore.getState().totalDepth / 2
+            )
+            scene.add(newBox)
+
+            selectedGroups = []
+            state.setSelectedGroups(selectedGroups)
+            updateHiddenBoxIds()
         }
 
         function onPointerDown(event: MouseEvent) {
@@ -254,8 +312,6 @@ export default function Home() {
     useEffect(() => {
         const boxGroup = state.boxRef.current
         if (!boxGroup) return
-        const std = material.standard.color
-        const sel = material.selected.color
 
         // clear
         boxGroup.children.forEach((child) => {
@@ -269,7 +325,8 @@ export default function Home() {
         // highlight selected
         state.selectedGroups.forEach((grp) =>
             grp.traverse((c) => {
-                if (c instanceof THREE.Mesh) c.material.color.setHex(sel)
+                if (c instanceof THREE.Mesh)
+                    c.material.color.setHex(material.selected.color)
             })
         )
     }, [state.selectedGroups])
@@ -315,6 +372,7 @@ export default function Home() {
         state.totalDepth,
         state.maxBoxWidth,
         state.maxBoxDepth,
+        state.redrawTrigger,
     ])
 
     useEffect(() => {
@@ -352,9 +410,11 @@ export default function Home() {
                     <ResizablePanel defaultSize={80} className="h-full">
                         <div
                             ref={state.containerRef}
-                            className="w-full h-full"
-                        />
-
+                            className="relative h-full w-full"
+                        >
+                            {state.containerRef.current && <BoxContextMenu />}
+                            <HiddenBoxesDisplay />
+                        </div>
                         <ActionsBar />
                     </ResizablePanel>
                 </ResizablePanelGroup>

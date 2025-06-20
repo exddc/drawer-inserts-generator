@@ -6,6 +6,7 @@ export type Cell = {
     width: number
     depth: number
     color?: number
+    visible?: boolean
 }
 
 export type Grid = Cell[][]
@@ -43,6 +44,8 @@ export interface StoreState {
     // Helpers
     selectedGroups: THREE.Group[]
     setSelectedGroups: (groups: THREE.Group[]) => void
+    hiddenBoxIds: Set<number>
+    setHiddenBoxIds: (ids: Set<number>) => void
 
     // General
     actionsBarPosition: 'top' | 'bottom'
@@ -55,4 +58,21 @@ export interface StoreState {
     selectedColor: number
     setStandardColor: (color: number) => void
     setSelectedColor: (color: number) => void
+
+    redrawTrigger: number;
+    forceRedraw: () => void;
 }
+
+export interface BoxInfo {
+    id: number
+    group: number
+    dimensions?: {
+        width: number
+        depth: number
+        height: number
+    }
+    cells: Array<{ x: number; z: number }>
+    visible?: boolean
+}
+
+export type ValidKey = 's' | 'c' | 'h' | string;

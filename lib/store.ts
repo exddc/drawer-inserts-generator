@@ -38,6 +38,8 @@ export const useStore = create<StoreState>((set) => ({
     // Helpers
     selectedGroups: [] as THREE.Group[],
     setSelectedGroups: (groups) => set({ selectedGroups: groups }),
+    hiddenBoxIds: new Set<number>(),
+    setHiddenBoxIds: (ids: Set<number>) => set({ hiddenBoxIds: ids }),
 
     // General
     showHelperGrid: true,
@@ -51,4 +53,8 @@ export const useStore = create<StoreState>((set) => ({
     selectedColor: material.selected.color,
     setStandardColor: (color: number) => set({ standardColor: color }),
     setSelectedColor: (color: number) => set({ selectedColor: color }),
+
+    redrawTrigger: 0,
+    forceRedraw: () =>
+        set((state) => ({ redrawTrigger: state.redrawTrigger + 1 })),
 }))
