@@ -361,12 +361,6 @@ export default function Home() {
             state.generateBottom
         )
         state.boxRef.current = box
-        console.log(
-            'resize position',
-            -state.totalWidth / 2,
-            0,
-            -state.totalDepth / 2
-        )
         box.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
         scene.add(box)
     }, [
