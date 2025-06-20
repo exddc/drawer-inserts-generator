@@ -254,7 +254,7 @@ export default function Home() {
 
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds() // Update hidden boxes after hiding/unhiding
+            updateHiddenBoxIds()
         }
 
         function onPointerDown(event: MouseEvent) {
