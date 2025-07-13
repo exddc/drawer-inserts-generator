@@ -124,7 +124,6 @@ export default function Home() {
             }
         }
 
-        // Helper function to update hiddenBoxIds based on current box visibility
         const updateHiddenBoxIds = () => {
             const currentBoxRef = state.boxRef.current
             if (!currentBoxRef) return
@@ -145,7 +144,6 @@ export default function Home() {
         function onCombineClick() {
             if (selectedGroups.length < 2) return
 
-            // 1) pick a new unused ID
             const existing = new Set<number>(
                 (state.boxRef.current!.children as THREE.Group[]).map(
                     (g) => g.userData.group as number
@@ -154,7 +152,6 @@ export default function Home() {
             let newId = 1
             while (existing.has(newId)) newId++
 
-            // 2) stamp that ID into the master grid for each selected box
             const grid = state.gridRef.current!
             selectedGroups.forEach((grp) => {
                 const cells: { x: number; z: number }[] = grp.userData.cells
@@ -163,7 +160,6 @@ export default function Home() {
                 })
             })
 
-            // 3) rebuild the entire box‐layer from the updated grid
             const scene = state.sceneRef.current!
             scene.remove(state.boxRef.current!)
             const newBox = generateCustomBox(
@@ -180,16 +176,14 @@ export default function Home() {
             )
             scene.add(newBox)
 
-            // 4) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds() // Update hidden boxes after combine
+            updateHiddenBoxIds()
         }
 
         function onSplitClick() {
             if (selectedGroups.length === 0) return
 
-            // 1) reset each selected group's cells back to group 0
             const grid = state.gridRef.current!
             selectedGroups.forEach((grp) => {
                 const cells: { x: number; z: number }[] = grp.userData.cells
@@ -198,7 +192,6 @@ export default function Home() {
                 })
             })
 
-            // 2) rebuild the entire box‐layer
             const scene = state.sceneRef.current!
             scene.remove(state.boxRef.current!)
             const newBox = generateCustomBox(
@@ -215,10 +208,9 @@ export default function Home() {
             )
             scene.add(newBox)
 
-            // 3) reset selection
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds() // Update hidden boxes after split
+            updateHiddenBoxIds()
         }
 
         function onHideClick() {
@@ -335,10 +327,8 @@ export default function Home() {
         const scene = state.sceneRef.current
         if (!scene) return
 
-        // remove old
         if (state.boxRef.current) scene.remove(state.boxRef.current)
 
-        // only resize the grid if cols/rows actually changeds
         const old = state.gridRef.current
         if (
             old.length !== state.totalDepth ||
