@@ -34,6 +34,21 @@ export default function GeneralSettings() {
                     Show Grid
                 </Label>
             </div>
+            <div className="mb-2 flex items-center space-x-2">
+                <Checkbox
+                    id="showCornerLines"
+                    checked={store.showCornerLines}
+                    onCheckedChange={(checked) =>
+                        store.setShowCornerLines(!!checked)
+                    }
+                />
+                <Label
+                    htmlFor="showCornerLines"
+                    className="flex items-center gap-2"
+                >
+                    Show Corner Lines
+                </Label>
+            </div>
 
             <div className="mt-4 space-y-2">
                 <Label htmlFor="actionsBarPosition">Actions Bar Position</Label>

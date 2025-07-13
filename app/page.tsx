@@ -373,6 +373,7 @@ export default function Home() {
         state.maxBoxWidth,
         state.maxBoxDepth,
         state.redrawTrigger,
+        state.showCornerLines,
     ])
 
     useEffect(() => {

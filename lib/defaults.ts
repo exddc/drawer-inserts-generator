@@ -27,3 +27,10 @@ export const material = {
         metalness: 0.2,
     },
 }
+
+export const cornerLine = {
+    show: false,
+    color: 0x000000,
+    opacity: 0.4,
+    linewidth: 1,
+}

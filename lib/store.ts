@@ -1,4 +1,4 @@
-import { material, parameters } from '@/lib/defaults'
+import { cornerLine, material, parameters } from '@/lib/defaults'
 import { Grid, StoreState } from '@/lib/types'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -57,4 +57,13 @@ export const useStore = create<StoreState>((set) => ({
     redrawTrigger: 0,
     forceRedraw: () =>
         set((state) => ({ redrawTrigger: state.redrawTrigger + 1 })),
+
+    // Corner Lines
+    showCornerLines: cornerLine.show,
+    cornerLineColor: cornerLine.color,
+    cornerLineOpacity: cornerLine.opacity,
+    
+    setShowCornerLines: (show: boolean) => set({ showCornerLines: show }),
+    setCornerLineColor: (color: number) => set({ cornerLineColor: color }),
+    setCornerLineOpacity: (opacity: number) => set({ cornerLineOpacity: opacity }),
 }))

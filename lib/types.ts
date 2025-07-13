@@ -61,6 +61,15 @@ export interface StoreState {
 
     redrawTrigger: number;
     forceRedraw: () => void;
+
+    // Corner Lines
+    showCornerLines: boolean
+    cornerLineColor: number
+    cornerLineOpacity: number
+    
+    setShowCornerLines: (show: boolean) => void
+    setCornerLineColor: (color: number) => void
+    setCornerLineOpacity: (opacity: number) => void
 }
 
 export interface BoxInfo {

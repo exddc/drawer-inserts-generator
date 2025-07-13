@@ -19,10 +19,8 @@ export function generateCustomBox(
         (i) => i > 0
     )
 
-    // Add a counter for unique IDs
     let nextBoxId = 1
 
-    // Calculate cumulative dimensions once
     const widths = grid[0].map(c => c.width)
     const depths = grid.map(row => row[0].depth)
     const cumW: number[] = [0]
@@ -31,9 +29,8 @@ export function generateCustomBox(
     depths.forEach(d => cumD.push(cumD[cumD.length - 1] + d))
 
     ids.forEach((id) => {
-        // 1) collect every cell in the grid that has this group-id
         const cellsForThisId: { x: number; z: number }[] = []
-        let isBoxVisible = false // Default to false, if any cell is visible, the box is visible
+        let isBoxVisible = false
         for (let z = 0; z < grid.length; z++) {
             for (let x = 0; x < grid[0].length; x++) {
                 if (grid[z][x].group === id) {
@@ -46,11 +43,9 @@ export function generateCustomBox(
             }
         }
 
-        // 2) if there really is something to outline…
         const rawO = getOutline(grid, id)
         if (!rawO.length) return
 
-        // 3) now build your inner/outlines as before
         const rawI = offsetPolygonCCW(rawO, wall_thickness)
         const outR = getRoundedOutline(
             rawO,
@@ -67,7 +62,6 @@ export function generateCustomBox(
             wall_thickness
         )
 
-        // Find min and max coordinates for this group
         const xCoords = cellsForThisId.map(cell => cell.x)
         const zCoords = cellsForThisId.map(cell => cell.z)
         const minX = Math.min(...xCoords)
@@ -75,11 +69,9 @@ export function generateCustomBox(
         const minZ = Math.min(...zCoords)
         const maxZ = Math.max(...zCoords)
 
-        // Calculate actual dimensions
         const width = cumW[maxX + 1] - cumW[minX]
         const depth = cumD[maxZ + 1] - cumD[minZ]
 
-        // 4) stick it on a Group and remember its cells and dimensions
         const boxGroup = new THREE.Group()
         boxGroup.userData.group = id
         boxGroup.userData.id = nextBoxId++
@@ -89,11 +81,22 @@ export function generateCustomBox(
             depth,
             height: useStore.getState().wallHeight
         }
-        boxGroup.visible = isBoxVisible // Set visibility here based on cells
-        boxGroup.userData.visible = isBoxVisible // Store in userData for persistence
+        boxGroup.visible = isBoxVisible
+        boxGroup.userData.visible = isBoxVisible
 
         boxGroup.add(buildWallMesh(outR, inR))
         if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
+
+        if (useStore.getState().showCornerLines) {
+            const cornerLines = createCornerLines(
+                outR,
+                useStore.getState().wallHeight,
+                useStore.getState().cornerLineColor,
+                useStore.getState().cornerLineOpacity
+            )
+            boxGroup.add(cornerLines)
+        }
+
         group.add(boxGroup)
     })
 
@@ -103,7 +106,6 @@ export function generateCustomBox(
             const cell = grid[z][x]
             if (cell.group !== 0) continue
 
-            // Build a 1×1 grid containing just this cell
             const singleGrid: Cell[][] = [
                 [{ group: 0, width: cell.width, depth: cell.depth }],
             ]
@@ -139,10 +141,9 @@ export function generateCustomBox(
             cellGroup.userData.group = 0
             cellGroup.userData.id = nextBoxId++
             cellGroup.userData.cells = [{ x, z }]
-            cellGroup.visible = cell.visible !== false // Set visibility for single cells too
-            cellGroup.userData.visible = cell.visible !== false // Store in userData
+            cellGroup.visible = cell.visible !== false
+            cellGroup.userData.visible = cell.visible !== false
 
-            // Add dimensions for individual cells
             cellGroup.userData.dimensions = {
                 width: cell.width,
                 depth: cell.depth,
@@ -151,9 +152,74 @@ export function generateCustomBox(
             cellGroup.add(buildWallMesh(outR, inR))
             if (generate_bottom)
                 cellGroup.add(buildBottomMesh(outR, wall_thickness))
+
+            if (useStore.getState().showCornerLines) {
+                const outerLines = createCornerLines(
+                    outR,
+                    useStore.getState().wallHeight,
+                    useStore.getState().cornerLineColor,
+                    useStore.getState().cornerLineOpacity
+                )
+                cellGroup.add(outerLines)
+
+                const innerLines = createCornerLines(
+                    inR,
+                    useStore.getState().wallHeight,
+                    useStore.getState().cornerLineColor,
+                    useStore.getState().cornerLineOpacity,
+                    true
+                )
+                cellGroup.add(innerLines)
+            }
+
             group.add(cellGroup)
         }
     }
 
     return group
+}
+
+function createCornerLines(
+    outlinePoints: THREE.Vector2[], 
+    height: number,
+    color: number,
+    opacity: number,
+    inner: boolean = false
+): THREE.LineSegments {
+    const geometry = new THREE.BufferGeometry()
+    const positions: number[] = []
+    
+    outlinePoints.forEach(point => {
+        positions.push(point.x, 0, point.y)        // bottom
+        positions.push(point.x, height, point.y)   // top
+    })
+    
+    for (let i = 0; i < outlinePoints.length; i++) {
+        const current = outlinePoints[i]
+        const next = outlinePoints[(i + 1) % outlinePoints.length]
+        
+        if (inner && useStore.getState().generateBottom) {
+            positions.push(current.x, useStore.getState().wallThickness, current.y)
+            positions.push(next.x, useStore.getState().wallThickness, next.y)
+        } else {
+            positions.push(current.x, 0, current.y)
+            positions.push(next.x, 0, next.y)
+        }
+         
+        positions.push(current.x, height, current.y)
+        positions.push(next.x, height, next.y)
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+    
+    const material = new THREE.LineBasicMaterial({ 
+        color, 
+        opacity, 
+        transparent: true,
+        linewidth: 1
+    })
+    
+    const lines = new THREE.LineSegments(geometry, material)
+    lines.userData.isCornerLine = true
+    return lines
 }
