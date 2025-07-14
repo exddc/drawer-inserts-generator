@@ -13,12 +13,15 @@ import { generateCustomBox } from '@/lib/boxHelper'
 import { cameraSettings, material } from '@/lib/defaults'
 import { resizeGrid } from '@/lib/gridHelper'
 import { useStore } from '@/lib/store'
-import { useEffect } from 'react'
+import { ResizingState } from '@/lib/types'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 export default function Home() {
     const state = useStore()
+    const resizingRef = useRef<ResizingState | null>(null)
+    const handlesGroupRef = useRef<THREE.Group | null>(null)
 
     useEffect(() => {
         const container = state.containerRef.current
@@ -252,8 +255,6 @@ export default function Home() {
         function onPointerDown(event: MouseEvent) {
             if (event.button !== 0) return // only left mouse button
 
-            const isMultiSelect = event.metaKey || event.ctrlKey
-
             const rect = renderer.domElement.getBoundingClientRect()
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
@@ -261,6 +262,19 @@ export default function Home() {
 
             const hits = raycaster.intersectObjects(scene.children, true)
             if (!hits.length) return
+
+            // First, check for resize handles
+            const handleHit = hits.find(({ object }) => {
+                return object.userData.isResizeHandle === true
+            })
+
+            if (handleHit) {
+                startResize(handleHit.object.userData, event)
+                return
+            }
+
+            // Existing selection logic
+            const isMultiSelect = event.metaKey || event.ctrlKey
 
             const hit = hits.find(({ object }) => {
                 if (!(object instanceof THREE.Mesh)) return false
@@ -285,6 +299,98 @@ export default function Home() {
                 selectedGroups.push(box)
             }
             state.setSelectedGroups([...selectedGroups])
+        }
+
+        function startResize(handleData: any, event: MouseEvent) {
+            const { side, boundaryIndex } = handleData
+
+            // Get initial pointer position in world coordinates
+            const rect = renderer.domElement.getBoundingClientRect()
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+            // Project mouse to world coordinates on the ground plane (y=0)
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+            const worldPos = new THREE.Vector3()
+            raycaster.setFromCamera(mouse, camera)
+            raycaster.ray.intersectPlane(plane, worldPos)
+
+            // Get initial sizes based on side
+            const grid = state.gridRef.current
+            let initSizes: { a: number; b: number }
+
+            if (side === 'left') {
+                // Moving left boundary affects columns boundaryIndex-1 and boundaryIndex
+                const leftSize =
+                    boundaryIndex > 0 ? grid[0][boundaryIndex - 1].width : 0
+                const rightSize =
+                    boundaryIndex < grid[0].length
+                        ? grid[0][boundaryIndex].width
+                        : 0
+                initSizes = { a: leftSize, b: rightSize }
+            } else if (side === 'right') {
+                // Moving right boundary affects columns boundaryIndex-1 and boundaryIndex
+                const leftSize =
+                    boundaryIndex > 0 ? grid[0][boundaryIndex - 1].width : 0
+                const rightSize =
+                    boundaryIndex < grid[0].length
+                        ? grid[0][boundaryIndex].width
+                        : 0
+                initSizes = { a: leftSize, b: rightSize }
+            } else if (side === 'top') {
+                // Moving top boundary affects rows boundaryIndex-1 and boundaryIndex
+                const topSize =
+                    boundaryIndex > 0 ? grid[boundaryIndex - 1][0].depth : 0
+                const bottomSize =
+                    boundaryIndex < grid.length
+                        ? grid[boundaryIndex][0].depth
+                        : 0
+                initSizes = { a: topSize, b: bottomSize }
+            } else {
+                // bottom
+                // Moving bottom boundary affects rows boundaryIndex-1 and boundaryIndex
+                const topSize =
+                    boundaryIndex > 0 ? grid[boundaryIndex - 1][0].depth : 0
+                const bottomSize =
+                    boundaryIndex < grid.length
+                        ? grid[boundaryIndex][0].depth
+                        : 0
+                initSizes = { a: topSize, b: bottomSize }
+            }
+
+            resizingRef.current = {
+                side,
+                boundaryIndex,
+                startPointer: { x: worldPos.x, z: worldPos.z },
+                initSizes,
+            }
+
+            // Add event listeners for move and up
+            renderer.domElement.addEventListener('pointermove', onPointerMove)
+            renderer.domElement.addEventListener('pointerup', onPointerUp)
+
+            // Prevent orbit controls during resize
+            controls.enabled = false
+        }
+
+        function onPointerMove(event: MouseEvent) {
+            if (!resizingRef.current) return
+
+            // TODO: Implement in next steps
+            console.log('Pointer move during resize', event)
+        }
+
+        function onPointerUp(event: MouseEvent) {
+            if (!resizingRef.current) return
+
+            // Clean up
+            renderer.domElement.removeEventListener(
+                'pointermove',
+                onPointerMove
+            )
+            renderer.domElement.removeEventListener('pointerup', onPointerUp)
+            controls.enabled = true
+            resizingRef.current = null
         }
 
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
@@ -385,6 +491,184 @@ export default function Home() {
             state.helperGridRef.current = null
         }
     }, [state.totalWidth, state.totalDepth, state.showHelperGrid])
+
+    // Handle creation effect - add this after the existing useEffects
+    useEffect(() => {
+        const scene = state.sceneRef.current
+        if (!scene) return
+
+        // Remove existing handles
+        if (handlesGroupRef.current) {
+            scene.remove(handlesGroupRef.current)
+            handlesGroupRef.current.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose()
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => mat.dispose())
+                    } else {
+                        child.material.dispose()
+                    }
+                }
+            })
+            handlesGroupRef.current = null
+        }
+
+        // Only create handles if there are selected groups
+        if (state.selectedGroups.length === 0) return
+
+        const handlesGroup = new THREE.Group()
+        handlesGroupRef.current = handlesGroup
+
+        state.selectedGroups.forEach((group) => {
+            // Compute world AABB
+            const box = new THREE.Box3().setFromObject(group)
+
+            // Get the group's cells to compute boundary indices
+            const cells: { x: number; z: number }[] = group.userData.cells || []
+            if (cells.length === 0) return
+
+            const xCoords = cells.map((cell) => cell.x)
+            const zCoords = cells.map((cell) => cell.z)
+            const minX = Math.min(...xCoords)
+            const maxX = Math.max(...xCoords)
+            const minZ = Math.min(...zCoords)
+            const maxZ = Math.max(...zCoords)
+
+            const handleThickness = 0.2
+            const handleHeight = 0.5
+            const yPos = state.wallHeight + handleHeight / 2
+
+            // Create handle material
+            const handleMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.7,
+            })
+
+            // Left handle (controls vertical grid line at minX)
+            if (minX > 0) {
+                // Only if not at left edge
+                const leftGeometry = new THREE.BoxGeometry(
+                    handleThickness,
+                    handleHeight,
+                    box.max.z - box.min.z
+                )
+                const leftHandle = new THREE.Mesh(
+                    leftGeometry,
+                    handleMaterial.clone()
+                )
+                leftHandle.position.set(
+                    box.min.x - handleThickness / 2,
+                    yPos,
+                    (box.min.z + box.max.z) / 2
+                )
+                leftHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'left',
+                    boundaryIndex: minX,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(leftHandle)
+            }
+
+            // Right handle (controls vertical grid line at maxX + 1)
+            if (maxX < state.gridRef.current[0].length - 1) {
+                // Only if not at right edge
+                const rightGeometry = new THREE.BoxGeometry(
+                    handleThickness,
+                    handleHeight,
+                    box.max.z - box.min.z
+                )
+                const rightHandle = new THREE.Mesh(
+                    rightGeometry,
+                    handleMaterial.clone()
+                )
+                rightHandle.position.set(
+                    box.max.x + handleThickness / 2,
+                    yPos,
+                    (box.min.z + box.max.z) / 2
+                )
+                rightHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'right',
+                    boundaryIndex: maxX + 1,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(rightHandle)
+            }
+
+            // Top handle (controls horizontal grid line at minZ)
+            if (minZ > 0) {
+                // Only if not at top edge
+                const topGeometry = new THREE.BoxGeometry(
+                    box.max.x - box.min.x,
+                    handleHeight,
+                    handleThickness
+                )
+                const topHandle = new THREE.Mesh(
+                    topGeometry,
+                    handleMaterial.clone()
+                )
+                topHandle.position.set(
+                    (box.min.x + box.max.x) / 2,
+                    yPos,
+                    box.min.z - handleThickness / 2
+                )
+                topHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'top',
+                    boundaryIndex: minZ,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(topHandle)
+            }
+
+            // Bottom handle (controls horizontal grid line at maxZ + 1)
+            if (maxZ < state.gridRef.current.length - 1) {
+                // Only if not at bottom edge
+                const bottomGeometry = new THREE.BoxGeometry(
+                    box.max.x - box.min.x,
+                    handleHeight,
+                    handleThickness
+                )
+                const bottomHandle = new THREE.Mesh(
+                    bottomGeometry,
+                    handleMaterial.clone()
+                )
+                bottomHandle.position.set(
+                    (box.min.x + box.max.x) / 2,
+                    yPos,
+                    box.max.z + handleThickness / 2
+                )
+                bottomHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'bottom',
+                    boundaryIndex: maxZ + 1,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(bottomHandle)
+            }
+        })
+
+        scene.add(handlesGroup)
+
+        // Cleanup function
+        return () => {
+            if (handlesGroupRef.current) {
+                scene.remove(handlesGroupRef.current)
+                handlesGroupRef.current.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.geometry.dispose()
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach((mat) => mat.dispose())
+                        } else {
+                            child.material.dispose()
+                        }
+                    }
+                })
+            }
+        }
+    }, [state.selectedGroups, state.wallHeight])
 
     return (
         <div className="bg-background flex h-full flex-col">
