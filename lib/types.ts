@@ -85,3 +85,10 @@ export interface BoxInfo {
 }
 
 export type ValidKey = 's' | 'c' | 'h' | string;
+
+export type ResizingState = {
+    side: 'left' | 'right' | 'top' | 'bottom'
+    boundaryIndex: number
+    startPointer: { x: number, z: number }
+    initSizes: { a: number, b: number }
+}
