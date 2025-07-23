@@ -252,6 +252,179 @@ export default function Home() {
             updateHiddenBoxIds()
         }
 
+        // Resize functions
+        function onResizePointerMove(event: MouseEvent) {
+            if (!resizingRef.current) return
+
+            const { side, boundaryIndex, startPointer, initSizes } =
+                resizingRef.current
+
+            console.log('📏 Resize pointer move triggered')
+
+            // Get current pointer position in world coordinates
+            const rect = renderer.domElement.getBoundingClientRect()
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+            // Project mouse to world coordinates on the ground plane (y=0)
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+            const worldPos = new THREE.Vector3()
+            raycaster.setFromCamera(mouse, camera)
+            raycaster.ray.intersectPlane(plane, worldPos)
+
+            // Calculate delta based on side
+            let delta = 0
+            if (side === 'left' || side === 'right') {
+                delta = worldPos.x - startPointer.x
+                if (side === 'left') delta = -delta
+            } else {
+                delta = worldPos.z - startPointer.z
+                if (side === 'top') delta = -delta
+            }
+
+            console.log(
+                '📐 Delta:',
+                delta.toFixed(2),
+                'World pos:',
+                worldPos.x.toFixed(2),
+                worldPos.z.toFixed(2)
+            )
+
+            // Clamp delta to prevent negative sizes
+            const minSize = 0.5
+            const maxDeltaA = initSizes.a - minSize
+            const maxDeltaB = initSizes.b - minSize
+            const clampedDelta = Math.max(
+                -maxDeltaA,
+                Math.min(maxDeltaB, delta)
+            )
+
+            if (clampedDelta !== delta) {
+                console.log(
+                    '🔒 Delta clamped from',
+                    delta.toFixed(2),
+                    'to',
+                    clampedDelta.toFixed(2)
+                )
+            }
+
+            // Update grid based on side
+            const grid = state.gridRef.current
+
+            if (side === 'left') {
+                if (boundaryIndex > 0 && boundaryIndex < grid[0].length) {
+                    const newSizeA = initSizes.a - clampedDelta
+                    const newSizeB = initSizes.b + clampedDelta
+
+                    console.log(
+                        '⬅️ Updating left - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let row = 0; row < grid.length; row++) {
+                        grid[row][boundaryIndex - 1].width = newSizeA
+                        grid[row][boundaryIndex].width = newSizeB
+                    }
+                }
+            } else if (side === 'right') {
+                if (boundaryIndex > 0 && boundaryIndex < grid[0].length) {
+                    const newSizeA = initSizes.a + clampedDelta
+                    const newSizeB = initSizes.b - clampedDelta
+
+                    console.log(
+                        '➡️ Updating right - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let row = 0; row < grid.length; row++) {
+                        grid[row][boundaryIndex - 1].width = newSizeA
+                        grid[row][boundaryIndex].width = newSizeB
+                    }
+                }
+            } else if (side === 'top') {
+                if (boundaryIndex > 0 && boundaryIndex < grid.length) {
+                    const newSizeA = initSizes.a - clampedDelta
+                    const newSizeB = initSizes.b + clampedDelta
+
+                    console.log(
+                        '⬆️ Updating top - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let col = 0; col < grid[0].length; col++) {
+                        grid[boundaryIndex - 1][col].depth = newSizeA
+                        grid[boundaryIndex][col].depth = newSizeB
+                    }
+                }
+            } else {
+                if (boundaryIndex > 0 && boundaryIndex < grid.length) {
+                    const newSizeA = initSizes.a + clampedDelta
+                    const newSizeB = initSizes.b - clampedDelta
+
+                    console.log(
+                        '⬇️ Updating bottom - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let col = 0; col < grid[0].length; col++) {
+                        grid[boundaryIndex - 1][col].depth = newSizeA
+                        grid[boundaryIndex][col].depth = newSizeB
+                    }
+                }
+            }
+
+            // Force redraw
+            state.forceRedraw()
+        }
+
+        function onResizePointerUp(event: MouseEvent) {
+            console.log('🏁 Resize ended')
+            if (!resizingRef.current) return
+
+            const { selectedGroupIds } = resizingRef.current
+
+            // Clean up event listeners
+            renderer.domElement.removeEventListener(
+                'pointermove',
+                onResizePointerMove
+            )
+            renderer.domElement.removeEventListener(
+                'pointerup',
+                onResizePointerUp
+            )
+
+            // Re-enable orbit controls
+            controls.enabled = true
+
+            // Restore selection after a small delay to allow for redraw
+            setTimeout(() => {
+                if (state.boxRef.current && selectedGroupIds) {
+                    const newSelectedGroups: THREE.Group[] = []
+                    state.boxRef.current.children.forEach((child) => {
+                        if (
+                            child instanceof THREE.Group &&
+                            selectedGroupIds.includes(child.userData.id)
+                        ) {
+                            newSelectedGroups.push(child)
+                        }
+                    })
+                    state.setSelectedGroups(newSelectedGroups)
+                    console.log(
+                        '🔄 Selection restored:',
+                        newSelectedGroups.length,
+                        'groups'
+                    )
+                }
+            }, 100) // Increased delay
+
+            // Clear resizing state
+            resizingRef.current = null
+        }
+
         function onPointerDown(event: MouseEvent) {
             if (event.button !== 0) return // only left mouse button
 
@@ -269,6 +442,7 @@ export default function Home() {
             })
 
             if (handleHit) {
+                console.log('🎯 Handle clicked:', handleHit.object.userData)
                 startResize(handleHit.object.userData, event)
                 return
             }
@@ -302,7 +476,13 @@ export default function Home() {
         }
 
         function startResize(handleData: any, event: MouseEvent) {
+            console.log('🚀 Starting resize:', handleData)
             const { side, boundaryIndex } = handleData
+
+            // Store the currently selected groups to restore them later
+            const selectedGroupIds = state.selectedGroups.map(
+                (g) => g.userData.id
+            )
 
             // Get initial pointer position in world coordinates
             const rect = renderer.domElement.getBoundingClientRect()
@@ -319,8 +499,10 @@ export default function Home() {
             const grid = state.gridRef.current
             let initSizes: { a: number; b: number }
 
+            console.log('📏 Grid dimensions:', grid.length, 'x', grid[0].length)
+            console.log('📍 Boundary index:', boundaryIndex, 'Side:', side)
+
             if (side === 'left') {
-                // Moving left boundary affects columns boundaryIndex-1 and boundaryIndex
                 const leftSize =
                     boundaryIndex > 0 ? grid[0][boundaryIndex - 1].width : 0
                 const rightSize =
@@ -328,8 +510,13 @@ export default function Home() {
                         ? grid[0][boundaryIndex].width
                         : 0
                 initSizes = { a: leftSize, b: rightSize }
+                console.log(
+                    '⬅️ Left resize - Left size:',
+                    leftSize,
+                    'Right size:',
+                    rightSize
+                )
             } else if (side === 'right') {
-                // Moving right boundary affects columns boundaryIndex-1 and boundaryIndex
                 const leftSize =
                     boundaryIndex > 0 ? grid[0][boundaryIndex - 1].width : 0
                 const rightSize =
@@ -337,8 +524,13 @@ export default function Home() {
                         ? grid[0][boundaryIndex].width
                         : 0
                 initSizes = { a: leftSize, b: rightSize }
+                console.log(
+                    '➡️ Right resize - Left size:',
+                    leftSize,
+                    'Right size:',
+                    rightSize
+                )
             } else if (side === 'top') {
-                // Moving top boundary affects rows boundaryIndex-1 and boundaryIndex
                 const topSize =
                     boundaryIndex > 0 ? grid[boundaryIndex - 1][0].depth : 0
                 const bottomSize =
@@ -346,9 +538,13 @@ export default function Home() {
                         ? grid[boundaryIndex][0].depth
                         : 0
                 initSizes = { a: topSize, b: bottomSize }
+                console.log(
+                    '⬆️ Top resize - Top size:',
+                    topSize,
+                    'Bottom size:',
+                    bottomSize
+                )
             } else {
-                // bottom
-                // Moving bottom boundary affects rows boundaryIndex-1 and boundaryIndex
                 const topSize =
                     boundaryIndex > 0 ? grid[boundaryIndex - 1][0].depth : 0
                 const bottomSize =
@@ -356,6 +552,12 @@ export default function Home() {
                         ? grid[boundaryIndex][0].depth
                         : 0
                 initSizes = { a: topSize, b: bottomSize }
+                console.log(
+                    '⬇️ Bottom resize - Top size:',
+                    topSize,
+                    'Bottom size:',
+                    bottomSize
+                )
             }
 
             resizingRef.current = {
@@ -363,45 +565,81 @@ export default function Home() {
                 boundaryIndex,
                 startPointer: { x: worldPos.x, z: worldPos.z },
                 initSizes,
+                selectedGroupIds,
             }
 
             // Add event listeners for move and up
-            renderer.domElement.addEventListener('pointermove', onPointerMove)
-            renderer.domElement.addEventListener('pointerup', onPointerUp)
+            renderer.domElement.addEventListener(
+                'pointermove',
+                onResizePointerMove
+            )
+            renderer.domElement.addEventListener('pointerup', onResizePointerUp)
 
             // Prevent orbit controls during resize
             controls.enabled = false
+
+            console.log('🔧 Resize event listeners added')
         }
 
-        function onPointerMove(event: MouseEvent) {
-            if (!resizingRef.current) return
+        // Mouse hover handling for handles
+        function onPointerHover(event: MouseEvent) {
+            if (resizingRef.current) return // Don't handle hover during resize
 
-            // TODO: Implement in next steps
-            console.log('Pointer move during resize', event)
-        }
+            const rect = renderer.domElement.getBoundingClientRect()
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+            raycaster.setFromCamera(mouse, camera)
 
-        function onPointerUp(event: MouseEvent) {
-            if (!resizingRef.current) return
-
-            // Clean up
-            renderer.domElement.removeEventListener(
-                'pointermove',
-                onPointerMove
+            const hits = raycaster.intersectObjects(scene.children, true)
+            const handleHit = hits.find(
+                ({ object }) => object.userData.isResizeHandle === true
             )
-            renderer.domElement.removeEventListener('pointerup', onPointerUp)
-            controls.enabled = true
-            resizingRef.current = null
+
+            // Reset all handle materials
+            if (handlesGroupRef.current) {
+                handlesGroupRef.current.children.forEach((handle) => {
+                    if (handle instanceof THREE.Mesh) {
+                        handle.material = createHandleMaterial(false)
+                    }
+                })
+            }
+
+            // Highlight hovered handle
+            if (handleHit && handleHit.object instanceof THREE.Mesh) {
+                handleHit.object.material = createHandleMaterial(true)
+                renderer.domElement.style.cursor = 'pointer'
+            } else {
+                renderer.domElement.style.cursor = 'default'
+            }
         }
 
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
+        renderer.domElement.addEventListener('pointermove', onPointerHover)
 
         return () => {
             cancelAnimationFrame(frameId)
             window.removeEventListener('resize', onWindowResize)
+            window.removeEventListener('keydown', onKeyDown)
             renderer.domElement.removeEventListener(
                 'pointerdown',
                 onPointerDown
             )
+            renderer.domElement.removeEventListener(
+                'pointermove',
+                onPointerHover
+            )
+
+            if (resizingRef.current) {
+                renderer.domElement.removeEventListener(
+                    'pointermove',
+                    onResizePointerMove
+                )
+                renderer.domElement.removeEventListener(
+                    'pointerup',
+                    onResizePointerUp
+                )
+            }
+
             controls.dispose()
             renderer.dispose()
         }
@@ -492,7 +730,14 @@ export default function Home() {
         }
     }, [state.totalWidth, state.totalDepth, state.showHelperGrid])
 
-    // Handle creation effect - add this after the existing useEffects
+    function createHandleMaterial(isHovered: boolean = false) {
+        return new THREE.MeshBasicMaterial({
+            color: isHovered ? 0xff4444 : 0x00ff00,
+            transparent: true,
+            opacity: isHovered ? 0.9 : 0.7,
+        })
+    }
+
     useEffect(() => {
         const scene = state.sceneRef.current
         if (!scene) return
@@ -513,17 +758,13 @@ export default function Home() {
             handlesGroupRef.current = null
         }
 
-        // Only create handles if there are selected groups
         if (state.selectedGroups.length === 0) return
 
         const handlesGroup = new THREE.Group()
         handlesGroupRef.current = handlesGroup
 
         state.selectedGroups.forEach((group) => {
-            // Compute world AABB
             const box = new THREE.Box3().setFromObject(group)
-
-            // Get the group's cells to compute boundary indices
             const cells: { x: number; z: number }[] = group.userData.cells || []
             if (cells.length === 0) return
 
@@ -534,28 +775,27 @@ export default function Home() {
             const minZ = Math.min(...zCoords)
             const maxZ = Math.max(...zCoords)
 
-            const handleThickness = 0.2
-            const handleHeight = 0.5
+            const handleThickness = 1.5
+            const handleHeight = 1.5
             const yPos = state.wallHeight + handleHeight / 2
 
-            // Create handle material
-            const handleMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ff00,
-                transparent: true,
-                opacity: 0.7,
-            })
+            console.log(
+                '🎨 Creating handles for group:',
+                group.userData.id,
+                'Cells:',
+                cells
+            )
+            console.log('📦 Box bounds:', { minX, maxX, minZ, maxZ })
 
-            // Left handle (controls vertical grid line at minX)
             if (minX > 0) {
-                // Only if not at left edge
                 const leftGeometry = new THREE.BoxGeometry(
                     handleThickness,
                     handleHeight,
-                    box.max.z - box.min.z
+                    Math.max(1, box.max.z - box.min.z)
                 )
                 const leftHandle = new THREE.Mesh(
                     leftGeometry,
-                    handleMaterial.clone()
+                    createHandleMaterial(false)
                 )
                 leftHandle.position.set(
                     box.min.x - handleThickness / 2,
@@ -569,19 +809,18 @@ export default function Home() {
                     groupId: group.userData.id,
                 }
                 handlesGroup.add(leftHandle)
+                console.log('⬅️ Left handle created at:', leftHandle.position)
             }
 
-            // Right handle (controls vertical grid line at maxX + 1)
             if (maxX < state.gridRef.current[0].length - 1) {
-                // Only if not at right edge
                 const rightGeometry = new THREE.BoxGeometry(
                     handleThickness,
                     handleHeight,
-                    box.max.z - box.min.z
+                    Math.max(1, box.max.z - box.min.z)
                 )
                 const rightHandle = new THREE.Mesh(
                     rightGeometry,
-                    handleMaterial.clone()
+                    createHandleMaterial(false)
                 )
                 rightHandle.position.set(
                     box.max.x + handleThickness / 2,
@@ -595,19 +834,18 @@ export default function Home() {
                     groupId: group.userData.id,
                 }
                 handlesGroup.add(rightHandle)
+                console.log('➡️ Right handle created at:', rightHandle.position)
             }
 
-            // Top handle (controls horizontal grid line at minZ)
             if (minZ > 0) {
-                // Only if not at top edge
                 const topGeometry = new THREE.BoxGeometry(
-                    box.max.x - box.min.x,
+                    Math.max(1, box.max.x - box.min.x),
                     handleHeight,
                     handleThickness
                 )
                 const topHandle = new THREE.Mesh(
                     topGeometry,
-                    handleMaterial.clone()
+                    createHandleMaterial(false)
                 )
                 topHandle.position.set(
                     (box.min.x + box.max.x) / 2,
@@ -621,19 +859,18 @@ export default function Home() {
                     groupId: group.userData.id,
                 }
                 handlesGroup.add(topHandle)
+                console.log('⬆️ Top handle created at:', topHandle.position)
             }
 
-            // Bottom handle (controls horizontal grid line at maxZ + 1)
             if (maxZ < state.gridRef.current.length - 1) {
-                // Only if not at bottom edge
                 const bottomGeometry = new THREE.BoxGeometry(
-                    box.max.x - box.min.x,
+                    Math.max(1, box.max.x - box.min.x),
                     handleHeight,
                     handleThickness
                 )
                 const bottomHandle = new THREE.Mesh(
                     bottomGeometry,
-                    handleMaterial.clone()
+                    createHandleMaterial(false)
                 )
                 bottomHandle.position.set(
                     (box.min.x + box.max.x) / 2,
@@ -647,12 +884,15 @@ export default function Home() {
                     groupId: group.userData.id,
                 }
                 handlesGroup.add(bottomHandle)
+                console.log(
+                    '⬇️ Bottom handle created at:',
+                    bottomHandle.position
+                )
             }
         })
 
         scene.add(handlesGroup)
 
-        // Cleanup function
         return () => {
             if (handlesGroupRef.current) {
                 scene.remove(handlesGroupRef.current)
@@ -674,14 +914,10 @@ export default function Home() {
         <div className="bg-background flex h-full flex-col">
             <div className="flex flex-grow flex-col overflow-hidden">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
-                    {/* Settings Panel */}
                     <ResizablePanel defaultSize={20} className="h-full">
                         <ConfigSidebar />
                     </ResizablePanel>
-
                     <ResizableHandle withHandle />
-
-                    {/* 3D Preview */}
                     <ResizablePanel defaultSize={80} className="h-full">
                         <div
                             ref={state.containerRef}

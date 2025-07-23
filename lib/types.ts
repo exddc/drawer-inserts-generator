@@ -91,4 +91,5 @@ export type ResizingState = {
     boundaryIndex: number
     startPointer: { x: number, z: number }
     initSizes: { a: number, b: number }
+    selectedGroupIds?: number[]
 }
