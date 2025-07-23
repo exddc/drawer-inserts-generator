@@ -13,12 +13,15 @@ import { generateCustomBox } from '@/lib/boxHelper'
 import { cameraSettings, material } from '@/lib/defaults'
 import { resizeGrid } from '@/lib/gridHelper'
 import { useStore } from '@/lib/store'
-import { useEffect } from 'react'
+import { ResizingState } from '@/lib/types'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 export default function Home() {
     const state = useStore()
+    const resizingRef = useRef<ResizingState | null>(null)
+    const handlesGroupRef = useRef<THREE.Group | null>(null)
 
     useEffect(() => {
         const container = state.containerRef.current
@@ -249,10 +252,181 @@ export default function Home() {
             updateHiddenBoxIds()
         }
 
+        // Resize functions
+        function onResizePointerMove(event: MouseEvent) {
+            if (!resizingRef.current) return
+
+            const { side, boundaryIndex, startPointer, initSizes } =
+                resizingRef.current
+
+            console.log('📏 Resize pointer move triggered')
+
+            // Get current pointer position in world coordinates
+            const rect = renderer.domElement.getBoundingClientRect()
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+            // Project mouse to world coordinates on the ground plane (y=0)
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+            const worldPos = new THREE.Vector3()
+            raycaster.setFromCamera(mouse, camera)
+            raycaster.ray.intersectPlane(plane, worldPos)
+
+            // Calculate delta based on side
+            let delta = 0
+            if (side === 'left' || side === 'right') {
+                delta = worldPos.x - startPointer.x
+                if (side === 'left') delta = -delta
+            } else {
+                delta = worldPos.z - startPointer.z
+                if (side === 'top') delta = -delta
+            }
+
+            console.log(
+                '📐 Delta:',
+                delta.toFixed(2),
+                'World pos:',
+                worldPos.x.toFixed(2),
+                worldPos.z.toFixed(2)
+            )
+
+            // Clamp delta to prevent negative sizes
+            const minSize = 0.5
+            const maxDeltaA = initSizes.a - minSize
+            const maxDeltaB = initSizes.b - minSize
+            const clampedDelta = Math.max(
+                -maxDeltaA,
+                Math.min(maxDeltaB, delta)
+            )
+
+            if (clampedDelta !== delta) {
+                console.log(
+                    '🔒 Delta clamped from',
+                    delta.toFixed(2),
+                    'to',
+                    clampedDelta.toFixed(2)
+                )
+            }
+
+            // Update grid based on side
+            const grid = state.gridRef.current
+
+            if (side === 'left') {
+                if (boundaryIndex > 0 && boundaryIndex < grid[0].length) {
+                    const newSizeA = initSizes.a - clampedDelta
+                    const newSizeB = initSizes.b + clampedDelta
+
+                    console.log(
+                        '⬅️ Updating left - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let row = 0; row < grid.length; row++) {
+                        grid[row][boundaryIndex - 1].width = newSizeA
+                        grid[row][boundaryIndex].width = newSizeB
+                    }
+                }
+            } else if (side === 'right') {
+                if (boundaryIndex > 0 && boundaryIndex < grid[0].length) {
+                    const newSizeA = initSizes.a + clampedDelta
+                    const newSizeB = initSizes.b - clampedDelta
+
+                    console.log(
+                        '➡️ Updating right - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let row = 0; row < grid.length; row++) {
+                        grid[row][boundaryIndex - 1].width = newSizeA
+                        grid[row][boundaryIndex].width = newSizeB
+                    }
+                }
+            } else if (side === 'top') {
+                if (boundaryIndex > 0 && boundaryIndex < grid.length) {
+                    const newSizeA = initSizes.a - clampedDelta
+                    const newSizeB = initSizes.b + clampedDelta
+
+                    console.log(
+                        '⬆️ Updating top - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let col = 0; col < grid[0].length; col++) {
+                        grid[boundaryIndex - 1][col].depth = newSizeA
+                        grid[boundaryIndex][col].depth = newSizeB
+                    }
+                }
+            } else {
+                if (boundaryIndex > 0 && boundaryIndex < grid.length) {
+                    const newSizeA = initSizes.a + clampedDelta
+                    const newSizeB = initSizes.b - clampedDelta
+
+                    console.log(
+                        '⬇️ Updating bottom - New sizes:',
+                        newSizeA.toFixed(2),
+                        newSizeB.toFixed(2)
+                    )
+
+                    for (let col = 0; col < grid[0].length; col++) {
+                        grid[boundaryIndex - 1][col].depth = newSizeA
+                        grid[boundaryIndex][col].depth = newSizeB
+                    }
+                }
+            }
+
+            // Force redraw
+            state.forceRedraw()
+        }
+
+        function onResizePointerUp(event: MouseEvent) {
+            console.log('🏁 Resize ended')
+            if (!resizingRef.current) return
+
+            const { selectedGroupIds } = resizingRef.current
+
+            // Clean up event listeners
+            renderer.domElement.removeEventListener(
+                'pointermove',
+                onResizePointerMove
+            )
+            renderer.domElement.removeEventListener(
+                'pointerup',
+                onResizePointerUp
+            )
+
+            // Re-enable orbit controls
+            controls.enabled = true
+
+            // Restore selection after a small delay to allow for redraw
+            setTimeout(() => {
+                if (state.boxRef.current && selectedGroupIds) {
+                    const newSelectedGroups: THREE.Group[] = []
+                    state.boxRef.current.children.forEach((child) => {
+                        if (
+                            child instanceof THREE.Group &&
+                            selectedGroupIds.includes(child.userData.id)
+                        ) {
+                            newSelectedGroups.push(child)
+                        }
+                    })
+                    state.setSelectedGroups(newSelectedGroups)
+                    console.log(
+                        '🔄 Selection restored:',
+                        newSelectedGroups.length,
+                        'groups'
+                    )
+                }
+            }, 100) // Increased delay
+
+            // Clear resizing state
+            resizingRef.current = null
+        }
+
         function onPointerDown(event: MouseEvent) {
             if (event.button !== 0) return // only left mouse button
-
-            const isMultiSelect = event.metaKey || event.ctrlKey
 
             const rect = renderer.domElement.getBoundingClientRect()
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -261,6 +435,20 @@ export default function Home() {
 
             const hits = raycaster.intersectObjects(scene.children, true)
             if (!hits.length) return
+
+            // First, check for resize handles
+            const handleHit = hits.find(({ object }) => {
+                return object.userData.isResizeHandle === true
+            })
+
+            if (handleHit) {
+                console.log('🎯 Handle clicked:', handleHit.object.userData)
+                startResize(handleHit.object.userData, event)
+                return
+            }
+
+            // Existing selection logic
+            const isMultiSelect = event.metaKey || event.ctrlKey
 
             const hit = hits.find(({ object }) => {
                 if (!(object instanceof THREE.Mesh)) return false
@@ -287,15 +475,171 @@ export default function Home() {
             state.setSelectedGroups([...selectedGroups])
         }
 
+        function startResize(handleData: any, event: MouseEvent) {
+            console.log('🚀 Starting resize:', handleData)
+            const { side, boundaryIndex } = handleData
+
+            // Store the currently selected groups to restore them later
+            const selectedGroupIds = state.selectedGroups.map(
+                (g) => g.userData.id
+            )
+
+            // Get initial pointer position in world coordinates
+            const rect = renderer.domElement.getBoundingClientRect()
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+            // Project mouse to world coordinates on the ground plane (y=0)
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+            const worldPos = new THREE.Vector3()
+            raycaster.setFromCamera(mouse, camera)
+            raycaster.ray.intersectPlane(plane, worldPos)
+
+            // Get initial sizes based on side
+            const grid = state.gridRef.current
+            let initSizes: { a: number; b: number }
+
+            console.log('📏 Grid dimensions:', grid.length, 'x', grid[0].length)
+            console.log('📍 Boundary index:', boundaryIndex, 'Side:', side)
+
+            if (side === 'left') {
+                const leftSize =
+                    boundaryIndex > 0 ? grid[0][boundaryIndex - 1].width : 0
+                const rightSize =
+                    boundaryIndex < grid[0].length
+                        ? grid[0][boundaryIndex].width
+                        : 0
+                initSizes = { a: leftSize, b: rightSize }
+                console.log(
+                    '⬅️ Left resize - Left size:',
+                    leftSize,
+                    'Right size:',
+                    rightSize
+                )
+            } else if (side === 'right') {
+                const leftSize =
+                    boundaryIndex > 0 ? grid[0][boundaryIndex - 1].width : 0
+                const rightSize =
+                    boundaryIndex < grid[0].length
+                        ? grid[0][boundaryIndex].width
+                        : 0
+                initSizes = { a: leftSize, b: rightSize }
+                console.log(
+                    '➡️ Right resize - Left size:',
+                    leftSize,
+                    'Right size:',
+                    rightSize
+                )
+            } else if (side === 'top') {
+                const topSize =
+                    boundaryIndex > 0 ? grid[boundaryIndex - 1][0].depth : 0
+                const bottomSize =
+                    boundaryIndex < grid.length
+                        ? grid[boundaryIndex][0].depth
+                        : 0
+                initSizes = { a: topSize, b: bottomSize }
+                console.log(
+                    '⬆️ Top resize - Top size:',
+                    topSize,
+                    'Bottom size:',
+                    bottomSize
+                )
+            } else {
+                const topSize =
+                    boundaryIndex > 0 ? grid[boundaryIndex - 1][0].depth : 0
+                const bottomSize =
+                    boundaryIndex < grid.length
+                        ? grid[boundaryIndex][0].depth
+                        : 0
+                initSizes = { a: topSize, b: bottomSize }
+                console.log(
+                    '⬇️ Bottom resize - Top size:',
+                    topSize,
+                    'Bottom size:',
+                    bottomSize
+                )
+            }
+
+            resizingRef.current = {
+                side,
+                boundaryIndex,
+                startPointer: { x: worldPos.x, z: worldPos.z },
+                initSizes,
+                selectedGroupIds,
+            }
+
+            // Add event listeners for move and up
+            renderer.domElement.addEventListener(
+                'pointermove',
+                onResizePointerMove
+            )
+            renderer.domElement.addEventListener('pointerup', onResizePointerUp)
+
+            // Prevent orbit controls during resize
+            controls.enabled = false
+
+            console.log('🔧 Resize event listeners added')
+        }
+
+        // Mouse hover handling for handles
+        function onPointerHover(event: MouseEvent) {
+            if (resizingRef.current) return // Don't handle hover during resize
+
+            const rect = renderer.domElement.getBoundingClientRect()
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+            raycaster.setFromCamera(mouse, camera)
+
+            const hits = raycaster.intersectObjects(scene.children, true)
+            const handleHit = hits.find(
+                ({ object }) => object.userData.isResizeHandle === true
+            )
+
+            // Reset all handle materials
+            if (handlesGroupRef.current) {
+                handlesGroupRef.current.children.forEach((handle) => {
+                    if (handle instanceof THREE.Mesh) {
+                        handle.material = createHandleMaterial(false)
+                    }
+                })
+            }
+
+            // Highlight hovered handle
+            if (handleHit && handleHit.object instanceof THREE.Mesh) {
+                handleHit.object.material = createHandleMaterial(true)
+                renderer.domElement.style.cursor = 'pointer'
+            } else {
+                renderer.domElement.style.cursor = 'default'
+            }
+        }
+
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
+        renderer.domElement.addEventListener('pointermove', onPointerHover)
 
         return () => {
             cancelAnimationFrame(frameId)
             window.removeEventListener('resize', onWindowResize)
+            window.removeEventListener('keydown', onKeyDown)
             renderer.domElement.removeEventListener(
                 'pointerdown',
                 onPointerDown
             )
+            renderer.domElement.removeEventListener(
+                'pointermove',
+                onPointerHover
+            )
+
+            if (resizingRef.current) {
+                renderer.domElement.removeEventListener(
+                    'pointermove',
+                    onResizePointerMove
+                )
+                renderer.domElement.removeEventListener(
+                    'pointerup',
+                    onResizePointerUp
+                )
+            }
+
             controls.dispose()
             renderer.dispose()
         }
@@ -386,18 +730,194 @@ export default function Home() {
         }
     }, [state.totalWidth, state.totalDepth, state.showHelperGrid])
 
+    function createHandleMaterial(isHovered: boolean = false) {
+        return new THREE.MeshBasicMaterial({
+            color: isHovered ? 0xff4444 : 0x00ff00,
+            transparent: true,
+            opacity: isHovered ? 0.9 : 0.7,
+        })
+    }
+
+    useEffect(() => {
+        const scene = state.sceneRef.current
+        if (!scene) return
+
+        // Remove existing handles
+        if (handlesGroupRef.current) {
+            scene.remove(handlesGroupRef.current)
+            handlesGroupRef.current.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose()
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => mat.dispose())
+                    } else {
+                        child.material.dispose()
+                    }
+                }
+            })
+            handlesGroupRef.current = null
+        }
+
+        if (state.selectedGroups.length === 0) return
+
+        const handlesGroup = new THREE.Group()
+        handlesGroupRef.current = handlesGroup
+
+        state.selectedGroups.forEach((group) => {
+            const box = new THREE.Box3().setFromObject(group)
+            const cells: { x: number; z: number }[] = group.userData.cells || []
+            if (cells.length === 0) return
+
+            const xCoords = cells.map((cell) => cell.x)
+            const zCoords = cells.map((cell) => cell.z)
+            const minX = Math.min(...xCoords)
+            const maxX = Math.max(...xCoords)
+            const minZ = Math.min(...zCoords)
+            const maxZ = Math.max(...zCoords)
+
+            const handleThickness = 1.5
+            const handleHeight = 1.5
+            const yPos = state.wallHeight + handleHeight / 2
+
+            console.log(
+                '🎨 Creating handles for group:',
+                group.userData.id,
+                'Cells:',
+                cells
+            )
+            console.log('📦 Box bounds:', { minX, maxX, minZ, maxZ })
+
+            if (minX > 0) {
+                const leftGeometry = new THREE.BoxGeometry(
+                    handleThickness,
+                    handleHeight,
+                    Math.max(1, box.max.z - box.min.z)
+                )
+                const leftHandle = new THREE.Mesh(
+                    leftGeometry,
+                    createHandleMaterial(false)
+                )
+                leftHandle.position.set(
+                    box.min.x - handleThickness / 2,
+                    yPos,
+                    (box.min.z + box.max.z) / 2
+                )
+                leftHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'left',
+                    boundaryIndex: minX,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(leftHandle)
+                console.log('⬅️ Left handle created at:', leftHandle.position)
+            }
+
+            if (maxX < state.gridRef.current[0].length - 1) {
+                const rightGeometry = new THREE.BoxGeometry(
+                    handleThickness,
+                    handleHeight,
+                    Math.max(1, box.max.z - box.min.z)
+                )
+                const rightHandle = new THREE.Mesh(
+                    rightGeometry,
+                    createHandleMaterial(false)
+                )
+                rightHandle.position.set(
+                    box.max.x + handleThickness / 2,
+                    yPos,
+                    (box.min.z + box.max.z) / 2
+                )
+                rightHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'right',
+                    boundaryIndex: maxX + 1,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(rightHandle)
+                console.log('➡️ Right handle created at:', rightHandle.position)
+            }
+
+            if (minZ > 0) {
+                const topGeometry = new THREE.BoxGeometry(
+                    Math.max(1, box.max.x - box.min.x),
+                    handleHeight,
+                    handleThickness
+                )
+                const topHandle = new THREE.Mesh(
+                    topGeometry,
+                    createHandleMaterial(false)
+                )
+                topHandle.position.set(
+                    (box.min.x + box.max.x) / 2,
+                    yPos,
+                    box.min.z - handleThickness / 2
+                )
+                topHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'top',
+                    boundaryIndex: minZ,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(topHandle)
+                console.log('⬆️ Top handle created at:', topHandle.position)
+            }
+
+            if (maxZ < state.gridRef.current.length - 1) {
+                const bottomGeometry = new THREE.BoxGeometry(
+                    Math.max(1, box.max.x - box.min.x),
+                    handleHeight,
+                    handleThickness
+                )
+                const bottomHandle = new THREE.Mesh(
+                    bottomGeometry,
+                    createHandleMaterial(false)
+                )
+                bottomHandle.position.set(
+                    (box.min.x + box.max.x) / 2,
+                    yPos,
+                    box.max.z + handleThickness / 2
+                )
+                bottomHandle.userData = {
+                    isResizeHandle: true,
+                    side: 'bottom',
+                    boundaryIndex: maxZ + 1,
+                    groupId: group.userData.id,
+                }
+                handlesGroup.add(bottomHandle)
+                console.log(
+                    '⬇️ Bottom handle created at:',
+                    bottomHandle.position
+                )
+            }
+        })
+
+        scene.add(handlesGroup)
+
+        return () => {
+            if (handlesGroupRef.current) {
+                scene.remove(handlesGroupRef.current)
+                handlesGroupRef.current.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.geometry.dispose()
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach((mat) => mat.dispose())
+                        } else {
+                            child.material.dispose()
+                        }
+                    }
+                })
+            }
+        }
+    }, [state.selectedGroups, state.wallHeight])
+
     return (
         <div className="bg-background flex h-full flex-col">
             <div className="flex flex-grow flex-col overflow-hidden">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
-                    {/* Settings Panel */}
                     <ResizablePanel defaultSize={20} className="h-full">
                         <ConfigSidebar />
                     </ResizablePanel>
-
                     <ResizableHandle withHandle />
-
-                    {/* 3D Preview */}
                     <ResizablePanel defaultSize={80} className="h-full">
                         <div
                             ref={state.containerRef}
