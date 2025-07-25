@@ -2,13 +2,8 @@
 
 import ActionsBar from '@/components/ActionsBar'
 import BoxContextMenu from '@/components/BoxContextMenu'
-import ConfigSidebar from '@/components/ConfigSidebar'
 import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
-import {
-    ResizableHandle,
-    ResizablePanel,
-    ResizablePanelGroup,
-} from '@/components/ui/resizable'
+import { ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { generateCustomBox } from '@/lib/boxHelper'
 import { cameraSettings, material } from '@/lib/defaults'
 import { resizeGrid } from '@/lib/gridHelper'
@@ -390,13 +385,6 @@ export default function Home() {
         <div className="bg-background flex h-full flex-col">
             <div className="flex flex-grow flex-col overflow-hidden">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
-                    {/* Settings Panel */}
-                    <ResizablePanel defaultSize={20} className="h-full">
-                        <ConfigSidebar />
-                    </ResizablePanel>
-
-                    <ResizableHandle withHandle />
-
                     {/* 3D Preview */}
                     <ResizablePanel defaultSize={80} className="h-full">
                         <div
