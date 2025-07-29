@@ -53,6 +53,7 @@ const PPMontreal = localFont({
             style: 'italic',
         },
     ],
+    display: 'swap',
 })
 
 const PPMontrealMono = localFont({
@@ -104,6 +105,7 @@ const PPMontrealMono = localFont({
             style: 'italic',
         },
     ],
+    display: 'swap',
 })
 
 export const metadata: Metadata = {
