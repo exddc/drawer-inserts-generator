@@ -9,8 +9,9 @@ export default function Sidebar() {
     return (
         <div
             id="sidebar-container"
-            className="bg-white flex h-full flex-col p-6 gap-6 min-w-[400px] overflow-y-hidden"
+            className="bg-white flex h-1/2 lg:h-full flex-col lg:min-w-[400px] p-3 lg:p-6 gap-3 lg:gap-6"
         >
+            {/* Fixed header */}
             <div id="sidebar-header" className="flex flex-col gap-0">
                 <h1 className="text-3xl font-medium -mb-1">
                     Box Grid Generator
@@ -19,17 +20,33 @@ export default function Sidebar() {
                     Version {version}
                 </p>
             </div>
-            <Tabs defaultValue="modelSettings" className="">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="modelSettings">Model</TabsTrigger>
-                    <TabsTrigger value="generalSettings">General</TabsTrigger>
-                </TabsList>
 
-                <ModelSettings />
-                <GeneralSettings />
+            {/* Tabs with fixed tab list and scrollable content */}
+            <Tabs
+                defaultValue="modelSettings"
+                className="flex flex-col flex-1 min-h-0"
+            >
+                {/* Fixed tab list */}
+                <div className="">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="modelSettings">Model</TabsTrigger>
+                        <TabsTrigger value="generalSettings">
+                            General
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+
+                {/* Scrollable content area */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                    <ModelSettings />
+                    <GeneralSettings />
+                </div>
             </Tabs>
 
-            <ExportButton />
+            {/* Fixed export button */}
+            <div className="">
+                <ExportButton />
+            </div>
         </div>
     )
 }

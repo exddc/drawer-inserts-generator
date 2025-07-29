@@ -116,3 +116,49 @@
     --sidebar-ring: oklch(0.439 0 0);
 }
 
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #000000 #ffffff;
+    overflow: auto !important;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-color: #ffffff !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #ffffff !important;
+    border-radius: 0px !important;
+    -webkit-border-radius: 0px !important;
+    -webkit-box-shadow: none !important;
+    box-shadow: none !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #000000 !important;
+    border-radius: 0px !important;
+    -webkit-border-radius: 0px !important;
+    border: none !important;
+    -webkit-box-shadow: none !important;
+    box-shadow: none !important;
+    min-height: 30px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #333333 !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background-color: #111111 !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+    background-color: #ffffff !important;
+}
+
