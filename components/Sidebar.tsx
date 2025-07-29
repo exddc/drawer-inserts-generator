@@ -2,7 +2,7 @@
 import GeneralSettings from '@/components/ConfigSidebar/GeneralSettings'
 import ModelSettings from '@/components/ConfigSidebar/ModelSettings'
 import ExportButton from '@/components/ExportButton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { version } from '../package.json'
 
 export default function Sidebar() {
@@ -11,7 +11,6 @@ export default function Sidebar() {
             id="sidebar-container"
             className="bg-white flex h-1/2 lg:h-full flex-col lg:min-w-[400px] p-3 lg:p-6 gap-3 lg:gap-6"
         >
-            {/* Fixed header */}
             <div id="sidebar-header" className="flex flex-col gap-0">
                 <h1 className="text-3xl font-medium -mb-1">
                     Box Grid Generator
@@ -21,32 +20,30 @@ export default function Sidebar() {
                 </p>
             </div>
 
-            {/* Tabs with fixed tab list and scrollable content */}
             <Tabs
                 defaultValue="modelSettings"
                 className="flex flex-col flex-1 min-h-0"
             >
-                {/* Fixed tab list */}
-                <div className="">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="modelSettings">Model</TabsTrigger>
-                        <TabsTrigger value="generalSettings">
-                            General
-                        </TabsTrigger>
-                    </TabsList>
-                </div>
+                <TabsList className="grid w-full grid-cols-2 mb-2">
+                    <TabsTrigger value="modelSettings">Model</TabsTrigger>
+                    <TabsTrigger value="generalSettings">General</TabsTrigger>
+                </TabsList>
 
-                {/* Scrollable content area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                <TabsContent
+                    value="modelSettings"
+                    className="space-y-12 flex-1 overflow-y-auto custom-scrollbar pr-2"
+                >
                     <ModelSettings />
+                </TabsContent>
+                <TabsContent
+                    value="generalSettings"
+                    className="space-y-12 flex-1 overflow-y-auto custom-scrollbar pr-2"
+                >
                     <GeneralSettings />
-                </div>
+                </TabsContent>
             </Tabs>
 
-            {/* Fixed export button */}
-            <div className="">
-                <ExportButton />
-            </div>
+            <ExportButton />
         </div>
     )
 }
