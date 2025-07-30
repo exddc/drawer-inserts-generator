@@ -31,13 +31,13 @@ export default function Sidebar() {
 
                 <TabsContent
                     value="modelSettings"
-                    className="space-y-12 flex-1 overflow-y-auto custom-scrollbar pr-2"
+                    className="space-y-12 flex-1 overflow-y-auto custom-scrollbar pr-4"
                 >
                     <ModelSettings />
                 </TabsContent>
                 <TabsContent
                     value="generalSettings"
-                    className="space-y-12 flex-1 overflow-y-auto custom-scrollbar pr-2"
+                    className="space-y-12 flex-1 overflow-y-auto custom-scrollbar pr-4"
                 >
                     <GeneralSettings />
                 </TabsContent>

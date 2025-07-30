@@ -1,7 +1,6 @@
 'use client'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { useStore } from '@/lib/store'
+import CheckboxInput from './CheckboxInput'
 
 export default function GeneralSettings() {
     const store = useStore()
@@ -10,35 +9,20 @@ export default function GeneralSettings() {
         <>
             <h3 className="mb-3 font-medium">Display Options</h3>
 
-            <div className="mb-2 flex items-center space-x-2">
-                <Checkbox
+            <div className="space-y-2">
+                <CheckboxInput
                     id="showHelperGrid"
+                    label="Show Grid"
                     checked={store.showHelperGrid}
-                    onCheckedChange={(checked) =>
-                        store.setShowHelperGrid(!!checked)
-                    }
+                    setChecked={store.setShowHelperGrid}
                 />
-                <Label
-                    htmlFor="showHelperGrid"
-                    className="flex items-center gap-2"
-                >
-                    Show Grid
-                </Label>
-            </div>
-            <div className="mb-2 flex items-center space-x-2">
-                <Checkbox
+
+                <CheckboxInput
                     id="showCornerLines"
+                    label="Show Corner Lines"
                     checked={store.showCornerLines}
-                    onCheckedChange={(checked) =>
-                        store.setShowCornerLines(!!checked)
-                    }
+                    setChecked={store.setShowCornerLines}
                 />
-                <Label
-                    htmlFor="showCornerLines"
-                    className="flex items-center gap-2"
-                >
-                    Show Corner Lines
-                </Label>
             </div>
         </>
     )

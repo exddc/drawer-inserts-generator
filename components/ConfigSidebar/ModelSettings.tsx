@@ -93,7 +93,6 @@ export default function ModelSettings() {
                 </CollapsibleContent>
             </Collapsible>
 
-            {/* Grid Layout Settings */}
             <Collapsible defaultOpen={true} onOpenChange={setGridCollapsable}>
                 <div className="mb-4 flex items-center justify-between">
                     <h3 className="font-medium">Grid Layout</h3>
