@@ -1,19 +1,111 @@
 import '@/app/globals.css'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
-import { Toaster } from '@/components/ui/sonner'
+import Sidebar from '@/components/Sidebar'
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import Script from 'next/script'
 
-const geistSans = Geist({
-    variable: '--font-geist-sans',
-    subsets: ['latin'],
+const PPMontreal = localFont({
+    variable: '--font-ppmontreal',
+    src: [
+        {
+            path: './fonts/PPNeueMontreal-Thin.otf',
+            weight: '100',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontreal-ThinItalic.otf',
+            weight: '100',
+            style: 'italic',
+        },
+        {
+            path: './fonts/PPNeueMontreal-Light.otf',
+            weight: '300',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontreal-Regular.otf',
+            weight: '400',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontreal-Italic.otf',
+            weight: '400',
+            style: 'italic',
+        },
+        {
+            path: './fonts/PPNeueMontreal-Book.otf',
+            weight: '450',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontreal-Medium.otf',
+            weight: '500',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontreal-Bold.otf',
+            weight: '700',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontreal-BoldItalic.otf',
+            weight: '700',
+            style: 'italic',
+        },
+    ],
+    display: 'swap',
 })
 
-const geistMono = Geist_Mono({
-    variable: '--font-geist-mono',
-    subsets: ['latin'],
+const PPMontrealMono = localFont({
+    variable: '--font-ppmontreal-mono',
+    src: [
+        {
+            path: './fonts/PPNeueMontrealMono-Thin.otf',
+            weight: '100',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-ThinItalic.otf',
+            weight: '100',
+            style: 'italic',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-Light.otf',
+            weight: '300',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-Regular.otf',
+            weight: '400',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-RegularItalic.otf',
+            weight: '400',
+            style: 'italic',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-Book.otf',
+            weight: '450',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-Medium.otf',
+            weight: '500',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-Bold.otf',
+            weight: '700',
+            style: 'normal',
+        },
+        {
+            path: './fonts/PPNeueMontrealMono-BoldItalic.otf',
+            weight: '700',
+            style: 'italic',
+        },
+    ],
+    display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -51,12 +143,10 @@ export default function RootLayout({
     return (
         <html lang="en" className="h-full">
             <body
-                className={`${geistSans.variable} ${geistMono.variable} flex h-full flex-col overflow-hidden antialiased`}
+                className={`${PPMontreal.variable} ${PPMontrealMono.variable} flex flex-col lg:flex-row h-full overflow-hidden antialiased bg-[#EDEDED] p-3 lg:p-6 gap-3 lg:gap-6 lg:pr-0 tracking-tighter font-sans`}
             >
-                <Header />
+                <Sidebar />
                 <main className="flex-grow overflow-hidden">{children}</main>
-                <Footer />
-                <Toaster />
             </body>
             <Script
                 defer

@@ -80,11 +80,9 @@ export default function ActionsBar() {
     }, [store.selectedGroups])
 
     return (
-        <div
-            className={`fixed ${position === 'top' ? 'top-20' : 'bottom-14'} left-1/2 z-10 -translate-x-1/2 transform relative w-fit`}
-        >
+        <div className="lg:bottom-18 lg:ml-auto lg:-right-6 z-10 transform relative lg:w-fit">
             <TooltipProvider>
-                <div className="flex rounded-lg border border-neutral-300 bg-white p-1 shadow-md">
+                <div className="flex border-t-[12px] lg:border-[24px] border-[#ededed] bg-white p-1 lg:p-2 items-center justify-center">
                     {/* Camera Views Menu */}
                     <Menubar className="border-0 bg-transparent p-0">
                         <MenubarMenu>
