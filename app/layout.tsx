@@ -143,7 +143,7 @@ export default function RootLayout({
     return (
         <html lang="en" className="h-full">
             <body
-                className={`${PPMontreal.variable} ${PPMontrealMono.variable} flex flex-col lg:flex-row h-full overflow-hidden antialiased bg-[#EDEDED] p-3 lg:p-6 gap-3 lg:gap-6 lg:pr-0 tracking-tighter font-sans`}
+                className={`${PPMontreal.variable} ${PPMontrealMono.variable} flex flex-col lg:flex-row h-full overflow-hidden antialiased bg-[#EDEDED] w-full p-3 lg:p-6 gap-3 lg:gap-6 tracking-tighter font-sans`}
             >
                 <Sidebar />
                 <main className="flex-grow overflow-hidden">{children}</main>

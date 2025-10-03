@@ -15,9 +15,12 @@ export default function Sidebar() {
                 <h1 className="text-3xl font-medium -mb-1">
                     Box Grid Generator
                 </h1>
-                <p className="text-sm text-[#686868] ml-0.5">
-                    Version {version}
-                </p>
+                <div className="flex ml-0.5 text-sm text-[#686868] gap-3">
+                    <p>Version {version}</p>-
+                    <a href="https://timoweiss.me" className="hover:underline">
+                        timoweiss.me
+                    </a>
+                </div>
             </div>
 
             <Tabs
