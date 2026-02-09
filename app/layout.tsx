@@ -150,8 +150,8 @@ export default function RootLayout({
             </body>
             <Script
                 defer
-                data-domain="box-grid.timoweiss.me"
-                src="https://plausible.io/js/script.js"
+                src="https://analytics.timoweiss.me/script.js"
+                data-website-id="dec9aec7-3dd6-408c-8bbf-cd4ee95859fc"
             ></Script>
         </html>
     )
