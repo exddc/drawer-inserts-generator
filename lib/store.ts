@@ -62,8 +62,9 @@ export const useStore = create<StoreState>((set) => ({
     showCornerLines: cornerLine.show,
     cornerLineColor: cornerLine.color,
     cornerLineOpacity: cornerLine.opacity,
-    
+
     setShowCornerLines: (show: boolean) => set({ showCornerLines: show }),
     setCornerLineColor: (color: number) => set({ cornerLineColor: color }),
-    setCornerLineOpacity: (opacity: number) => set({ cornerLineOpacity: opacity }),
+    setCornerLineOpacity: (opacity: number) =>
+        set({ cornerLineOpacity: opacity }),
 }))

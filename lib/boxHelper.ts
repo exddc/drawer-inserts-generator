@@ -3,10 +3,10 @@ import {
     getRoundedOutline,
     offsetPolygonCCW,
 } from '@/lib/lineHelper'
+import { useStore } from '@/lib/store'
 import { Cell, Grid } from '@/lib/types'
 import * as THREE from 'three'
 import { buildBottomMesh, buildWallMesh } from './meshHelper'
-import { useStore } from '@/lib/store'
 
 export function generateCustomBox(
     grid: Grid,
@@ -21,12 +21,12 @@ export function generateCustomBox(
 
     let nextBoxId = 1
 
-    const widths = grid[0].map(c => c.width)
-    const depths = grid.map(row => row[0].depth)
+    const widths = grid[0].map((c) => c.width)
+    const depths = grid.map((row) => row[0].depth)
     const cumW: number[] = [0]
-    widths.forEach(w => cumW.push(cumW[cumW.length - 1] + w))
+    widths.forEach((w) => cumW.push(cumW[cumW.length - 1] + w))
     const cumD: number[] = [0]
-    depths.forEach(d => cumD.push(cumD[cumD.length - 1] + d))
+    depths.forEach((d) => cumD.push(cumD[cumD.length - 1] + d))
 
     ids.forEach((id) => {
         const cellsForThisId: { x: number; z: number }[] = []
@@ -62,8 +62,8 @@ export function generateCustomBox(
             wall_thickness
         )
 
-        const xCoords = cellsForThisId.map(cell => cell.x)
-        const zCoords = cellsForThisId.map(cell => cell.z)
+        const xCoords = cellsForThisId.map((cell) => cell.x)
+        const zCoords = cellsForThisId.map((cell) => cell.z)
         const minX = Math.min(...xCoords)
         const maxX = Math.max(...xCoords)
         const minZ = Math.min(...zCoords)
@@ -79,7 +79,7 @@ export function generateCustomBox(
         boxGroup.userData.dimensions = {
             width,
             depth,
-            height: useStore.getState().wallHeight
+            height: useStore.getState().wallHeight,
         }
         boxGroup.visible = isBoxVisible
         boxGroup.userData.visible = isBoxVisible
@@ -147,7 +147,7 @@ export function generateCustomBox(
             cellGroup.userData.dimensions = {
                 width: cell.width,
                 depth: cell.depth,
-                height: useStore.getState().wallHeight
+                height: useStore.getState().wallHeight,
             }
             cellGroup.add(buildWallMesh(outR, inR))
             if (generate_bottom)
@@ -180,7 +180,7 @@ export function generateCustomBox(
 }
 
 function createCornerLines(
-    outlinePoints: THREE.Vector2[], 
+    outlinePoints: THREE.Vector2[],
     height: number,
     color: number,
     opacity: number,
@@ -188,37 +188,44 @@ function createCornerLines(
 ): THREE.LineSegments {
     const geometry = new THREE.BufferGeometry()
     const positions: number[] = []
-    
-    outlinePoints.forEach(point => {
-        positions.push(point.x, 0, point.y)        // bottom
-        positions.push(point.x, height, point.y)   // top
+
+    outlinePoints.forEach((point) => {
+        positions.push(point.x, 0, point.y) // bottom
+        positions.push(point.x, height, point.y) // top
     })
-    
+
     for (let i = 0; i < outlinePoints.length; i++) {
         const current = outlinePoints[i]
         const next = outlinePoints[(i + 1) % outlinePoints.length]
-        
+
         if (inner && useStore.getState().generateBottom) {
-            positions.push(current.x, useStore.getState().wallThickness, current.y)
+            positions.push(
+                current.x,
+                useStore.getState().wallThickness,
+                current.y
+            )
             positions.push(next.x, useStore.getState().wallThickness, next.y)
         } else {
             positions.push(current.x, 0, current.y)
             positions.push(next.x, 0, next.y)
         }
-         
+
         positions.push(current.x, height, current.y)
         positions.push(next.x, height, next.y)
     }
-    
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-    
-    const material = new THREE.LineBasicMaterial({ 
-        color, 
-        opacity, 
+
+    geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(positions, 3)
+    )
+
+    const material = new THREE.LineBasicMaterial({
+        color,
+        opacity,
         transparent: true,
-        linewidth: 1
+        linewidth: 1,
     })
-    
+
     const lines = new THREE.LineSegments(geometry, material)
     lines.userData.isCornerLine = true
     return lines

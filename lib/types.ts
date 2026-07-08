@@ -59,14 +59,14 @@ export interface StoreState {
     setStandardColor: (color: number) => void
     setSelectedColor: (color: number) => void
 
-    redrawTrigger: number;
-    forceRedraw: () => void;
+    redrawTrigger: number
+    forceRedraw: () => void
 
     // Corner Lines
     showCornerLines: boolean
     cornerLineColor: number
     cornerLineOpacity: number
-    
+
     setShowCornerLines: (show: boolean) => void
     setCornerLineColor: (color: number) => void
     setCornerLineOpacity: (opacity: number) => void
@@ -84,4 +84,4 @@ export interface BoxInfo {
     visible?: boolean
 }
 
-export type ValidKey = 's' | 'c' | 'h' | string;
+export type ValidKey = 's' | 'c' | 'h' | string
