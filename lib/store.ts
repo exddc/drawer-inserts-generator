@@ -38,9 +38,6 @@ export const useStore = create<StoreState>((set) => ({
     // Helpers
     selectedGroups: [] as THREE.Group[],
     setSelectedGroups: (groups) => set({ selectedGroups: groups }),
-    hiddenBoxIds: new Set<number>(),
-    setHiddenBoxIds: (ids: Set<number>) => set({ hiddenBoxIds: ids }),
-
     // General
     showHelperGrid: true,
     setShowHelperGrid: (show: boolean) => set({ showHelperGrid: show }),

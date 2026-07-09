@@ -6,6 +6,7 @@ import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { generateCustomBox } from '@/lib/boxHelper'
 import { cameraSettings, material } from '@/lib/defaults'
 import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
+import { isGridBoxVisible, setGridBoxVisible } from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
 import { useEffect } from 'react'
 import * as THREE from 'three'
@@ -118,23 +119,6 @@ export default function Home() {
             }
         }
 
-        const updateHiddenBoxIds = () => {
-            const currentBoxRef = state.boxRef.current
-            if (!currentBoxRef) return
-
-            const newHiddenIds = new Set<number>()
-            currentBoxRef.children.forEach((child) => {
-                if (
-                    child instanceof THREE.Group &&
-                    !child.visible &&
-                    child.userData.id
-                ) {
-                    newHiddenIds.add(child.userData.id)
-                }
-            })
-            state.setHiddenBoxIds(newHiddenIds)
-        }
-
         function onCombineClick() {
             if (selectedGroups.length < 2) return
 
@@ -172,7 +156,6 @@ export default function Home() {
 
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds()
         }
 
         function onSplitClick() {
@@ -204,7 +187,6 @@ export default function Home() {
 
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds()
         }
 
         function onHideClick() {
@@ -213,13 +195,10 @@ export default function Home() {
             const grid = state.gridRef.current!
 
             selectedGroups.forEach((grp) => {
-                const newVisibility = !grp.visible
-                grp.visible = newVisibility
-
-                const cells: { x: number; z: number }[] = grp.userData.cells
-                cells.forEach(({ x, z }) => {
-                    grid[z][x].visible = newVisibility
-                })
+                const box = grp.userData as {
+                    cells: Array<{ x: number; z: number }>
+                }
+                setGridBoxVisible(grid, box, !isGridBoxVisible(grid, box))
             })
 
             const scene = state.sceneRef.current!
@@ -240,7 +219,6 @@ export default function Home() {
 
             selectedGroups = []
             state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds()
         }
 
         function onPointerDown(event: MouseEvent) {
