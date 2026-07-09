@@ -127,7 +127,7 @@ export default function Home() {
             const currentBox = currentState.boxRef.current
             if (!scene || !currentBox) return
 
-            scene.remove(currentBox)
+            removeAndDisposeObject(scene, currentBox)
             const newBox = generateCustomBox(
                 currentState.gridRef.current,
                 currentState.wallThickness,
@@ -254,12 +254,23 @@ export default function Home() {
         return () => {
             cancelAnimationFrame(frameId)
             window.removeEventListener('resize', onWindowResize)
+            window.removeEventListener('keydown', onKeyDown)
             renderer.domElement.removeEventListener(
                 'pointerdown',
                 onPointerDown
             )
+            disposeObject(scene)
+            scene.clear()
             controls.dispose()
             renderer.dispose()
+            renderer.forceContextLoss()
+            renderer.domElement.remove()
+            state.sceneRef.current = null
+            state.cameraRef.current = null
+            state.rendererRef.current = null
+            state.controlsRef.current = null
+            state.boxRef.current = null
+            state.helperGridRef.current = null
         }
     }, [])
 
@@ -289,7 +300,10 @@ export default function Home() {
         const scene = state.sceneRef.current
         if (!scene) return
 
-        if (state.boxRef.current) scene.remove(state.boxRef.current)
+        if (state.boxRef.current) {
+            removeAndDisposeObject(scene, state.boxRef.current)
+            state.boxRef.current = null
+        }
 
         const old = state.gridRef.current
         if (
@@ -341,7 +355,7 @@ export default function Home() {
         const divisions = Math.ceil(size / 10)
 
         if (state.helperGridRef.current) {
-            scene.remove(state.helperGridRef.current)
+            removeAndDisposeObject(scene, state.helperGridRef.current)
         }
 
         if (state.showHelperGrid) {
@@ -371,4 +385,35 @@ export default function Home() {
             </div>
         </div>
     )
+}
+
+function removeAndDisposeObject(
+    scene: THREE.Scene,
+    object: THREE.Object3D
+): void {
+    scene.remove(object)
+    disposeObject(object)
+}
+
+function disposeObject(object: THREE.Object3D): void {
+    object.traverse((child) => {
+        const disposable = child as THREE.Object3D & {
+            geometry?: THREE.BufferGeometry
+            material?: THREE.Material | THREE.Material[]
+        }
+
+        disposable.geometry?.dispose()
+        if (disposable.material) {
+            disposeMaterial(disposable.material)
+        }
+    })
+}
+
+function disposeMaterial(material: THREE.Material | THREE.Material[]): void {
+    if (Array.isArray(material)) {
+        material.forEach((entry) => entry.dispose())
+        return
+    }
+
+    material.dispose()
 }
