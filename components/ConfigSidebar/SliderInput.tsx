@@ -1,7 +1,6 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { parameters } from '@/lib/defaults'
 import { useEffect, useState } from 'react'
 
 export default function SliderInput({
@@ -16,27 +15,27 @@ export default function SliderInput({
     id: string
     label: string
     value: number
-    setValue: (value: number) => void
+    setValue: (value: number) => number
     min: number
     max: number
     step: number
 }) {
-    const [localValue, setLocalValue] = useState<number>(value)
+    const [localValue, setLocalValue] = useState<number | ''>(value)
 
     const handleInputUpdate = (
-        value: number,
-        setLocal: (value: number) => void,
-        setStore: (value: number) => void
+        value: number | '',
+        setLocal: (value: number | '') => void,
+        setStore: (value: number) => number
     ) => {
-        setLocal(value)
-        setStore(value)
+        const nextValue = setStore(value === '' ? Number.NaN : value)
+        setLocal(nextValue)
     }
 
     const handleKeyPress = (
         e: React.KeyboardEvent<HTMLInputElement>,
-        value: number,
-        setLocal: (value: number) => void,
-        setStore: (value: number) => void
+        value: number | '',
+        setLocal: (value: number | '') => void,
+        setStore: (value: number) => number
     ) => {
         if (e.key === 'Enter') {
             handleInputUpdate(value, setLocal, setStore)
@@ -56,19 +55,28 @@ export default function SliderInput({
                     type="number"
                     name={id}
                     value={localValue}
-                    onChange={(e) => setLocalValue(Number(e.target.value))}
+                    onChange={(e) =>
+                        setLocalValue(
+                            e.target.value === ''
+                                ? ''
+                                : e.currentTarget.valueAsNumber
+                        )
+                    }
                     onKeyDown={(e) =>
                         handleKeyPress(e, localValue, setLocalValue, setValue)
                     }
                     onBlur={(e) => {
                         handleInputUpdate(
-                            Number(e.target.value),
+                            e.target.value === ''
+                                ? ''
+                                : e.currentTarget.valueAsNumber,
                             setLocalValue,
                             setValue
                         )
                     }}
-                    min={parameters.totalWidth.min}
-                    max={parameters.totalWidth.max}
+                    min={min}
+                    max={max}
+                    step={step}
                 />
             </div>
             <Slider

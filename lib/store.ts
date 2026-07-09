@@ -1,10 +1,12 @@
 import { cornerLine, material, parameters } from '@/lib/defaults'
+import type { ModelParameters } from '@/lib/parameterValidation'
+import { sanitizeModelParameters } from '@/lib/parameterValidation'
 import { Grid, StoreState } from '@/lib/types'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { create } from 'zustand'
 
-export const useStore = create<StoreState>((set) => ({
+export const useStore = create<StoreState>((set, get) => ({
     totalWidth: parameters.totalWidth.default,
     totalDepth: parameters.totalDepth.default,
     wallThickness: parameters.wallThickness.default,
@@ -14,14 +16,21 @@ export const useStore = create<StoreState>((set) => ({
     maxBoxWidth: parameters.maxBoxWidth.default,
     maxBoxDepth: parameters.maxBoxDepth.default,
 
-    setTotalWidth: (width: number) => set({ totalWidth: width }),
-    setTotalDepth: (depth: number) => set({ totalDepth: depth }),
-    setWallThickness: (thickness: number) => set({ wallThickness: thickness }),
-    setCornerRadius: (radius: number) => set({ cornerRadius: radius }),
-    setWallHeight: (height: number) => set({ wallHeight: height }),
+    setTotalWidth: (width: number) =>
+        setModelParameter(set, get, 'totalWidth', width),
+    setTotalDepth: (depth: number) =>
+        setModelParameter(set, get, 'totalDepth', depth),
+    setWallThickness: (thickness: number) =>
+        setModelParameter(set, get, 'wallThickness', thickness),
+    setCornerRadius: (radius: number) =>
+        setModelParameter(set, get, 'cornerRadius', radius),
+    setWallHeight: (height: number) =>
+        setModelParameter(set, get, 'wallHeight', height),
     setGenerateBottom: (generate: boolean) => set({ generateBottom: generate }),
-    setMaxBoxWidth: (width: number) => set({ maxBoxWidth: width }),
-    setMaxBoxDepth: (depth: number) => set({ maxBoxDepth: depth }),
+    setMaxBoxWidth: (width: number) =>
+        setModelParameter(set, get, 'maxBoxWidth', width),
+    setMaxBoxDepth: (depth: number) =>
+        setModelParameter(set, get, 'maxBoxDepth', depth),
 
     // Refs
     containerRef: { current: null as HTMLDivElement | null },
@@ -68,3 +77,17 @@ export const useStore = create<StoreState>((set) => ({
     setCornerLineOpacity: (opacity: number) =>
         set({ cornerLineOpacity: opacity }),
 }))
+
+function setModelParameter<K extends keyof ModelParameters>(
+    set: (
+        partial:
+            Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)
+    ) => void,
+    get: () => StoreState,
+    key: K,
+    value: number
+): number {
+    const next = sanitizeModelParameters({ ...get(), [key]: value }, get())
+    set(next)
+    return next[key]
+}
