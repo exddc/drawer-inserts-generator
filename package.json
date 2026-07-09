@@ -12,6 +12,7 @@
         "build": "prettier --write . && next build",
         "start": "next start",
         "lint": "eslint .",
+        "test": "vitest run",
         "format": "prettier --write ."
     },
     "dependencies": {
@@ -59,7 +60,8 @@
         "prettier": "^3.9.4",
         "prettier-plugin-tailwindcss": "^0.8.0",
         "tailwindcss": "^4.3.2",
-        "typescript": "^6.0.3"
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.10"
     },
     "overrides": {
         "postcss": "^8.5.16"

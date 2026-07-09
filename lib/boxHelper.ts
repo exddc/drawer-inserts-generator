@@ -14,6 +14,10 @@ export function generateCustomBox(
     corner_radius: number,
     generate_bottom: boolean
 ): THREE.Group {
+    if (grid.length === 0 || grid[0].length === 0) {
+        throw new Error('Cannot generate box geometry for an empty grid.')
+    }
+
     const group = new THREE.Group()
     const ids = Array.from(new Set(grid.flat().map((c) => c.group))).filter(
         (i) => i > 0

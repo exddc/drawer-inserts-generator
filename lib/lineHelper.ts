@@ -2,6 +2,10 @@ import { Grid } from '@/lib/types'
 import * as THREE from 'three'
 
 export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
+    if (grid.length === 0 || grid[0].length === 0) {
+        throw new Error('Cannot build an outline for an empty grid.')
+    }
+
     const rows = grid.length
     const cols = grid[0].length
 
@@ -44,6 +48,10 @@ export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
         }
     }
 
+    if (segs.length === 0) {
+        throw new Error(`Cannot build an outline for missing group ${groupId}.`)
+    }
+
     const loop: THREE.Vector2[] = []
     let cur = segs.shift()!
     loop.push(cur.a, cur.b)
@@ -57,6 +65,12 @@ export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
     if (loop.length > 1 && loop[0].equals(loop[loop.length - 1])) {
         loop.pop()
     }
+    if (segs.length > 0) {
+        throw new Error(
+            `Cannot build a single outline for group ${groupId} with disconnected cells or holes.`
+        )
+    }
+
     return loop.map((p) => new THREE.Vector2(cumW[p.x], cumD[p.y]))
 }
 

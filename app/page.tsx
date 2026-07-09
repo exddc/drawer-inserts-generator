@@ -5,6 +5,7 @@ import BoxContextMenu from '@/components/BoxContextMenu'
 import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { generateCustomBox } from '@/lib/boxHelper'
 import { cameraSettings, material } from '@/lib/defaults'
+import { combineGridBoxes, getNextAvailableGroupId } from '@/lib/gridCombine'
 import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
 import { isGridBoxVisible, setGridBoxVisible } from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
@@ -150,21 +151,9 @@ export default function Home() {
             const currentBox = currentState.boxRef.current
             if (!currentBox) return
 
-            const existing = new Set<number>(
-                (currentBox.children as THREE.Group[]).map(
-                    (g) => g.userData.group as number
-                )
-            )
-            let newId = 1
-            while (existing.has(newId)) newId++
-
             const grid = currentState.gridRef.current
-            groupsToCombine.forEach((grp) => {
-                const cells: { x: number; z: number }[] = grp.userData.cells
-                cells.forEach(({ x, z }) => {
-                    grid[z][x].group = newId
-                })
-            })
+            const newId = getNextAvailableGroupId(grid)
+            if (!combineGridBoxes(grid, groupsToCombine, newId)) return
 
             rebuildBoxFromCurrentState()
 
