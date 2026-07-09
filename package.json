@@ -4,7 +4,7 @@
     "private": true,
     "packageManager": "npm@11.18.0",
     "engines": {
-        "node": ">=26.5.0",
+        "node": "24.x",
         "npm": ">=11.18.0"
     },
     "scripts": {
@@ -51,7 +51,7 @@
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.5",
         "@tailwindcss/postcss": "^4.3.2",
-        "@types/node": "^26.1.1",
+        "@types/node": "^24.1.0",
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
         "eslint": "^9.39.4",
