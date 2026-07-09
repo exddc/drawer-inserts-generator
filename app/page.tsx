@@ -6,6 +6,7 @@ import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { generateCustomBox } from '@/lib/boxHelper'
 import { cameraSettings, material } from '@/lib/defaults'
 import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
+import { isGridBoxVisible, setGridBoxVisible } from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
 import { useEffect } from 'react'
 import * as THREE from 'three'
@@ -103,9 +104,11 @@ export default function Home() {
         window.addEventListener('keydown', onKeyDown)
 
         function onKeyDown(event: KeyboardEvent) {
+            const currentState = useStore.getState()
+
             if (event.key === 'Escape') {
                 selectedGroups = []
-                state.setSelectedGroups(selectedGroups)
+                currentState.setSelectedGroups(selectedGroups)
             }
             if (event.key === 'c') {
                 onCombineClick()
@@ -118,129 +121,94 @@ export default function Home() {
             }
         }
 
-        const updateHiddenBoxIds = () => {
-            const currentBoxRef = state.boxRef.current
-            if (!currentBoxRef) return
+        function rebuildBoxFromCurrentState() {
+            const currentState = useStore.getState()
+            const scene = currentState.sceneRef.current
+            const currentBox = currentState.boxRef.current
+            if (!scene || !currentBox) return
 
-            const newHiddenIds = new Set<number>()
-            currentBoxRef.children.forEach((child) => {
-                if (
-                    child instanceof THREE.Group &&
-                    !child.visible &&
-                    child.userData.id
-                ) {
-                    newHiddenIds.add(child.userData.id)
-                }
-            })
-            state.setHiddenBoxIds(newHiddenIds)
+            scene.remove(currentBox)
+            const newBox = generateCustomBox(
+                currentState.gridRef.current,
+                currentState.wallThickness,
+                currentState.cornerRadius,
+                currentState.generateBottom
+            )
+            currentState.boxRef.current = newBox
+            newBox.position.set(
+                -currentState.totalWidth / 2,
+                0,
+                -currentState.totalDepth / 2
+            )
+            scene.add(newBox)
         }
 
         function onCombineClick() {
-            if (selectedGroups.length < 2) return
+            const currentState = useStore.getState()
+            const groupsToCombine = currentState.selectedGroups
+            if (groupsToCombine.length < 2) return
+            const currentBox = currentState.boxRef.current
+            if (!currentBox) return
 
             const existing = new Set<number>(
-                (state.boxRef.current!.children as THREE.Group[]).map(
+                (currentBox.children as THREE.Group[]).map(
                     (g) => g.userData.group as number
                 )
             )
             let newId = 1
             while (existing.has(newId)) newId++
 
-            const grid = state.gridRef.current!
-            selectedGroups.forEach((grp) => {
+            const grid = currentState.gridRef.current
+            groupsToCombine.forEach((grp) => {
                 const cells: { x: number; z: number }[] = grp.userData.cells
                 cells.forEach(({ x, z }) => {
                     grid[z][x].group = newId
                 })
             })
 
-            const scene = state.sceneRef.current!
-            scene.remove(state.boxRef.current!)
-            const newBox = generateCustomBox(
-                grid,
-                state.wallThickness,
-                state.cornerRadius,
-                state.generateBottom
-            )
-            state.boxRef.current = newBox
-            newBox.position.set(
-                -useStore.getState().totalWidth / 2,
-                0,
-                -useStore.getState().totalDepth / 2
-            )
-            scene.add(newBox)
+            rebuildBoxFromCurrentState()
 
             selectedGroups = []
-            state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds()
+            currentState.setSelectedGroups(selectedGroups)
         }
 
         function onSplitClick() {
-            if (selectedGroups.length === 0) return
+            const currentState = useStore.getState()
+            const groupsToSplit = currentState.selectedGroups
+            if (groupsToSplit.length === 0) return
 
-            const grid = state.gridRef.current!
-            selectedGroups.forEach((grp) => {
+            const grid = currentState.gridRef.current
+            groupsToSplit.forEach((grp) => {
                 const cells: { x: number; z: number }[] = grp.userData.cells
                 cells.forEach(({ x, z }) => {
                     grid[z][x].group = 0
                 })
             })
 
-            const scene = state.sceneRef.current!
-            scene.remove(state.boxRef.current!)
-            const newBox = generateCustomBox(
-                grid,
-                state.wallThickness,
-                state.cornerRadius,
-                state.generateBottom
-            )
-            state.boxRef.current = newBox
-            newBox.position.set(
-                -useStore.getState().totalWidth / 2,
-                0,
-                -useStore.getState().totalDepth / 2
-            )
-            scene.add(newBox)
+            rebuildBoxFromCurrentState()
 
             selectedGroups = []
-            state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds()
+            currentState.setSelectedGroups(selectedGroups)
         }
 
         function onHideClick() {
-            if (selectedGroups.length === 0) return
+            const currentState = useStore.getState()
+            const groupsToHide = currentState.selectedGroups
+            if (groupsToHide.length === 0) return
 
-            const grid = state.gridRef.current!
+            const grid = currentState.gridRef.current
 
-            selectedGroups.forEach((grp) => {
-                const newVisibility = !grp.visible
-                grp.visible = newVisibility
-
-                const cells: { x: number; z: number }[] = grp.userData.cells
-                cells.forEach(({ x, z }) => {
-                    grid[z][x].visible = newVisibility
-                })
+            groupsToHide.forEach((grp) => {
+                const box = grp.userData as {
+                    cells: Array<{ x: number; z: number }>
+                }
+                setGridBoxVisible(grid, box, !isGridBoxVisible(grid, box))
             })
 
-            const scene = state.sceneRef.current!
-            scene.remove(state.boxRef.current!)
-            const newBox = generateCustomBox(
-                grid,
-                state.wallThickness,
-                state.cornerRadius,
-                state.generateBottom
-            )
-            state.boxRef.current = newBox
-            newBox.position.set(
-                -useStore.getState().totalWidth / 2,
-                0,
-                -useStore.getState().totalDepth / 2
-            )
-            scene.add(newBox)
+            rebuildBoxFromCurrentState()
 
             selectedGroups = []
-            state.setSelectedGroups(selectedGroups)
-            updateHiddenBoxIds()
+            currentState.setSelectedGroups(selectedGroups)
         }
 
         function onPointerDown(event: MouseEvent) {
@@ -261,7 +229,7 @@ export default function Home() {
                 //@ts-ignore
                 const idx = object.parent.children.indexOf(object)
                 const isWall = idx === 0
-                const isBottom = state.generateBottom && idx === 1
+                const isBottom = useStore.getState().generateBottom && idx === 1
                 return isWall || isBottom
             })
             if (!hit) return
@@ -278,7 +246,7 @@ export default function Home() {
             } else {
                 selectedGroups.push(box)
             }
-            state.setSelectedGroups([...selectedGroups])
+            useStore.getState().setSelectedGroups([...selectedGroups])
         }
 
         renderer.domElement.addEventListener('pointerdown', onPointerDown)

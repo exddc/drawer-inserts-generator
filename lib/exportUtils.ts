@@ -1,3 +1,5 @@
+import { generateCustomBox } from '@/lib/boxHelper'
+import { getGridBoxes } from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
 import * as THREE from 'three'
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
@@ -7,15 +9,21 @@ import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
  */
 export function handleStlExport(): void {
     const state = useStore.getState()
-    const origScene = state.sceneRef.current
-    if (!origScene) return
+    const grid = state.gridRef.current
+    if (grid.length === 0) return
 
     // Wrap & rotate so Three's Y-up becomes STL Z-up
     const tmpScene = new THREE.Scene()
-    const sceneClone = origScene.clone(true)
-    sceneClone.position.set(0, 0, 0)
-    sceneClone.rotation.set(Math.PI / 2, 0, 0)
-    tmpScene.add(sceneClone)
+    const box = generateCustomBox(
+        grid,
+        state.wallThickness,
+        state.cornerRadius,
+        state.generateBottom
+    )
+    removeHiddenObjects(box)
+    box.position.set(0, 0, 0)
+    box.rotation.set(Math.PI / 2, 0, 0)
+    tmpScene.add(box)
     tmpScene.updateMatrixWorld()
 
     const exporter = new STLExporter()
@@ -48,6 +56,7 @@ export async function handleExportMultipleSTLs(): Promise<void> {
 
     const boxWidths = grid[0].map((cell) => cell.width)
     const boxDepths = grid.map((row) => row[0].depth)
+    const gridBoxes = getGridBoxes(grid)
 
     // group boxes by dimensions (ignoring width↔depth swap)
     type GroupInfo = {
@@ -61,7 +70,7 @@ export async function handleExportMultipleSTLs(): Promise<void> {
     const groups = new Map<string, GroupInfo>()
 
     boxGroup.children.forEach((box, idx) => {
-        if (!box.visible) return
+        if (gridBoxes[idx]?.visible === false) return
 
         const ud = (box.userData.dimensions || {}) as {
             width?: number
@@ -152,4 +161,15 @@ Happy printing!
     link.click()
     document.body.removeChild(link)
     setTimeout(() => URL.revokeObjectURL(link.href), 100)
+}
+
+function removeHiddenObjects(object: THREE.Object3D): void {
+    for (const child of [...object.children]) {
+        if (!child.visible) {
+            object.remove(child)
+            continue
+        }
+
+        removeHiddenObjects(child)
+    }
 }

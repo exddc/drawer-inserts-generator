@@ -44,8 +44,6 @@ export interface StoreState {
     // Helpers
     selectedGroups: THREE.Group[]
     setSelectedGroups: (groups: THREE.Group[]) => void
-    hiddenBoxIds: Set<number>
-    setHiddenBoxIds: (ids: Set<number>) => void
 
     // General
     actionsBarPosition: 'top' | 'bottom'
