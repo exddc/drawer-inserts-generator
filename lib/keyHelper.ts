@@ -1,9 +1,8 @@
 import { ValidKey } from './types'
 
-
 export const keyPress = (key: ValidKey) => {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') return
+
     window.dispatchEvent(
         new KeyboardEvent('keydown', {
             key: key,
@@ -11,5 +10,5 @@ export const keyPress = (key: ValidKey) => {
             bubbles: true,
             cancelable: true,
         })
-    );
-};
+    )
+}

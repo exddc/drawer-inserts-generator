@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-@plugin "tailwindcss-animate";
+@plugin 'tailwindcss-animate';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -168,8 +168,8 @@
 
 .no-spinner::-webkit-outer-spin-button,
 .no-spinner::-webkit-inner-spin-button {
-margin: 0;
--webkit-appearance: none;
+    margin: 0;
+    -webkit-appearance: none;
 }
 
 /* Override Radix UI scroll lock to maintain layout padding */
