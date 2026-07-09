@@ -5,7 +5,7 @@ import BoxContextMenu from '@/components/BoxContextMenu'
 import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { generateCustomBox } from '@/lib/boxHelper'
 import { cameraSettings, material } from '@/lib/defaults'
-import { resizeGrid } from '@/lib/gridHelper'
+import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
 import { useStore } from '@/lib/store'
 import { useEffect } from 'react'
 import * as THREE from 'three'
@@ -325,8 +325,13 @@ export default function Home() {
 
         const old = state.gridRef.current
         if (
-            old.length !== state.totalDepth ||
-            old[0].length !== state.totalWidth
+            !gridMatchesLayout(
+                old,
+                state.totalWidth,
+                state.totalDepth,
+                state.maxBoxWidth,
+                state.maxBoxDepth
+            )
         ) {
             state.gridRef.current = resizeGrid(
                 old,
