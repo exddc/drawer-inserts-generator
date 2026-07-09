@@ -47,6 +47,9 @@ export function gridMatchesLayout(
 }
 
 function segmentSizes(total: number, maxSize: number): number[] {
+    if (!Number.isFinite(total) || !Number.isFinite(maxSize)) return [1]
+    if (total <= 0 || maxSize <= 0) return [1]
+
     const fullCount = Math.floor(total / maxSize)
     const remainder = total - fullCount * maxSize
     const segments = Array(fullCount).fill(maxSize)
