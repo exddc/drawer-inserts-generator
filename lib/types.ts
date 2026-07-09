@@ -22,14 +22,14 @@ export interface StoreState {
     maxBoxWidth: number
     maxBoxDepth: number
 
-    setTotalWidth: (width: number) => void
-    setTotalDepth: (depth: number) => void
-    setWallThickness: (thickness: number) => void
-    setCornerRadius: (radius: number) => void
-    setWallHeight: (height: number) => void
+    setTotalWidth: (width: number) => number
+    setTotalDepth: (depth: number) => number
+    setWallThickness: (thickness: number) => number
+    setCornerRadius: (radius: number) => number
+    setWallHeight: (height: number) => number
     setGenerateBottom: (generate: boolean) => void
-    setMaxBoxWidth: (width: number) => void
-    setMaxBoxDepth: (depth: number) => void
+    setMaxBoxWidth: (width: number) => number
+    setMaxBoxDepth: (depth: number) => number
 
     // Refs
     containerRef: { current: HTMLDivElement | null }
