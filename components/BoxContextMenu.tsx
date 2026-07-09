@@ -1,5 +1,6 @@
 'use client'
 
+import { canCombineGridBoxes } from '@/lib/gridCombine'
 import { keyPress } from '@/lib/keyHelper'
 import { useStore } from '@/lib/store'
 import { BoxInfo } from '@/lib/types'
@@ -29,6 +30,7 @@ export default function BoxContextMenu() {
     const storeContainerRef = useStore((state) => state.containerRef)
     const cameraRef = useStore((state) => state.cameraRef)
     const boxRef = useStore((state) => state.boxRef)
+    const gridRef = useStore((state) => state.gridRef)
     const setSelectedGroups = useStore((state) => state.setSelectedGroups)
     const selectedGroups = useStore((state) => state.selectedGroups)
 
@@ -187,7 +189,9 @@ export default function BoxContextMenu() {
         boxInfos &&
         selectedGroups.some((group) => group.userData.id === boxInfos.id)
 
-    const canCombine = selectedGroups.length >= 2
+    const canCombine =
+        selectedGroups.length >= 2 &&
+        canCombineGridBoxes(gridRef.current, selectedGroups)
 
     if (selectedGroups.length === 0) {
         // if no boxes are selected, don't show the menu

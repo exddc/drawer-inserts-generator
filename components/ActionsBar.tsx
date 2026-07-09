@@ -16,6 +16,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cameraSettings } from '@/lib/defaults'
+import { canCombineGridBoxes } from '@/lib/gridCombine'
 import { keyPress } from '@/lib/keyHelper'
 import { useStore } from '@/lib/store'
 import {
@@ -44,6 +45,11 @@ export default function ActionsBar() {
     const [enableClearSelection, setEnableClearSelection] = useState(false)
     const [canSplit, setCanSplit] = useState(false)
 
+    const canCombine =
+        store.selectedGroups.length >= 2 &&
+        canCombineGridBoxes(store.gridRef.current, store.selectedGroups)
+    const canUseBoxAction = canSplit || canCombine
+
     const resetCamera = () => {
         if (!camera.current || !controls.current) return
 
@@ -70,12 +76,15 @@ export default function ActionsBar() {
             if (store.selectedGroups.length == 1) {
                 if (store.selectedGroups[0].userData.group != 0) {
                     setCanSplit(true)
+                } else {
+                    setCanSplit(false)
                 }
             } else {
                 setCanSplit(false)
             }
         } else {
             setEnableClearSelection(false)
+            setCanSplit(false)
         }
     }, [store.selectedGroups])
 
@@ -145,15 +154,15 @@ export default function ActionsBar() {
                         <TooltipTrigger
                             className={
                                 'flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100' +
-                                (enableClearSelection
+                                (canUseBoxAction
                                     ? ' cursor-pointer'
                                     : ' cursor-not-allowed text-neutral-400')
                             }
-                            disabled={!enableClearSelection}
+                            disabled={!canUseBoxAction}
                             onClick={() => {
                                 if (canSplit) {
                                     keyPress('s')
-                                } else {
+                                } else if (canCombine) {
                                     keyPress('c')
                                 }
                             }}
