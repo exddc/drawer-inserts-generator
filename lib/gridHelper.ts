@@ -17,7 +17,7 @@ export function resizeGrid(
             const oldCell = hasOld ? oldGrid[rowIdx][colIdx] : undefined
             return {
                 group: oldCell?.group ?? 0,
-                visible: oldCell?.visible,
+                visibility: oldCell?.visibility ?? 'visible',
                 width,
                 depth,
             }

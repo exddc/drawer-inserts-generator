@@ -1,12 +1,7 @@
 import { getOutline } from '@/lib/lineHelper'
-import { Grid } from '@/lib/types'
+import type { GeneratedBoxMetadata, Grid } from '@/lib/types'
 
-export type GridBoxSelection = {
-    cells?: Array<{ x: number; z: number }>
-    userData?: {
-        cells?: Array<{ x: number; z: number }>
-    }
-}
+export type GridBoxSelection = Pick<GeneratedBoxMetadata, 'cells'>
 
 export function canCombineGridBoxes(
     grid: Grid,
@@ -68,5 +63,5 @@ function selectedCellKeys(boxes: GridBoxSelection[]): Set<string> {
 function getSelectionCells(
     box: GridBoxSelection
 ): Array<{ x: number; z: number }> {
-    return box.cells ?? box.userData?.cells ?? []
+    return box.cells
 }

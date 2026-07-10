@@ -17,7 +17,9 @@ import {
 } from '@/components/ui/tooltip'
 import { cameraSettings } from '@/lib/defaults'
 import { canCombineGridBoxes } from '@/lib/gridCombine'
+import { getGridBoxes } from '@/lib/gridVisibility'
 import { keyPress } from '@/lib/keyHelper'
+import { renderRuntime } from '@/lib/renderRuntime'
 import { useStore } from '@/lib/store'
 import {
     Box,
@@ -28,13 +30,12 @@ import {
     SquareSplitHorizontal,
     X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
 
 export default function ActionsBar() {
     const store = useStore()
     const position = store.actionsBarPosition || 'bottom'
-    const camera = store.cameraRef
-    const controls = store.controlsRef
+    const camera = renderRuntime.cameraRef
+    const controls = renderRuntime.controlsRef
     const initialPosition = React.useRef(
         new THREE.Vector3(
             cameraSettings.position.x,
@@ -42,12 +43,14 @@ export default function ActionsBar() {
             cameraSettings.position.z
         )
     )
-    const [enableClearSelection, setEnableClearSelection] = useState(false)
-    const [canSplit, setCanSplit] = useState(false)
-
+    const selectedBoxes = getGridBoxes(store.grid, store.wallHeight).filter(
+        (box) => store.selectedBoxIds.includes(box.id)
+    )
+    const enableClearSelection = selectedBoxes.length > 0
+    const canSplit = selectedBoxes.length === 1 && selectedBoxes[0].group !== 0
     const canCombine =
-        store.selectedGroups.length >= 2 &&
-        canCombineGridBoxes(store.gridRef.current, store.selectedGroups)
+        selectedBoxes.length >= 2 &&
+        canCombineGridBoxes(store.grid, selectedBoxes)
     const canUseBoxAction = canSplit || canCombine
 
     const resetCamera = () => {
@@ -69,24 +72,6 @@ export default function ActionsBar() {
         controls.current.target.set(0, 0, 0)
         controls.current.update()
     }
-
-    useEffect(() => {
-        if (store.selectedGroups.length > 0) {
-            setEnableClearSelection(true)
-            if (store.selectedGroups.length == 1) {
-                if (store.selectedGroups[0].userData.group != 0) {
-                    setCanSplit(true)
-                } else {
-                    setCanSplit(false)
-                }
-            } else {
-                setCanSplit(false)
-            }
-        } else {
-            setEnableClearSelection(false)
-            setCanSplit(false)
-        }
-    }, [store.selectedGroups])
 
     return (
         <div className="lg:bottom-18 lg:ml-auto lg:-right-6 z-10 transform relative lg:w-fit">
@@ -140,7 +125,7 @@ export default function ActionsBar() {
                                     ? ' cursor-pointer'
                                     : ' cursor-not-allowed text-neutral-400')
                             }
-                            onClick={() => store.setSelectedGroups([])}
+                            onClick={() => store.setSelectedBoxIds([])}
                             disabled={!enableClearSelection}
                         >
                             <X className="h-4 w-4" />

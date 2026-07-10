@@ -1,9 +1,7 @@
 import { cornerLine, material, parameters } from '@/lib/defaults'
 import type { ModelParameters } from '@/lib/parameterValidation'
 import { sanitizeModelParameters } from '@/lib/parameterValidation'
-import { Grid, StoreState } from '@/lib/types'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { StoreState } from '@/lib/types'
 import { create } from 'zustand'
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -32,21 +30,11 @@ export const useStore = create<StoreState>((set, get) => ({
     setMaxBoxDepth: (depth: number) =>
         setModelParameter(set, get, 'maxBoxDepth', depth),
 
-    // Refs
-    containerRef: { current: null as HTMLDivElement | null },
-    sceneRef: { current: null as THREE.Scene | null },
-    cameraRef: { current: null as THREE.PerspectiveCamera | null },
-    rendererRef: { current: null as THREE.WebGLRenderer | null },
-    controlsRef: { current: null as OrbitControls | null },
-    boxRef: { current: null as THREE.Group | null },
-    gridRef: {
-        current: [] as Grid,
-    },
-    helperGridRef: { current: null as THREE.GridHelper | null },
+    grid: [],
+    setGrid: (grid) => set({ grid }),
 
-    // Helpers
-    selectedGroups: [] as THREE.Group[],
-    setSelectedGroups: (groups) => set({ selectedGroups: groups }),
+    selectedBoxIds: [],
+    setSelectedBoxIds: (selectedBoxIds) => set({ selectedBoxIds }),
     // General
     showHelperGrid: true,
     setShowHelperGrid: (show: boolean) => set({ showHelperGrid: show }),

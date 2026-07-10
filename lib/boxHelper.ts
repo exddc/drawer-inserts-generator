@@ -23,8 +23,6 @@ export function generateCustomBox(
         (i) => i > 0
     )
 
-    let nextBoxId = 1
-
     const widths = grid[0].map((c) => c.width)
     const depths = grid.map((row) => row[0].depth)
     const cumW: number[] = [0]
@@ -39,7 +37,7 @@ export function generateCustomBox(
             for (let x = 0; x < grid[0].length; x++) {
                 if (grid[z][x].group === id) {
                     cellsForThisId.push({ x, z })
-                    if (grid[z][x].visible !== false) {
+                    if (grid[z][x].visibility !== 'hidden') {
                         // If cell is not explicitly hidden, it's visible
                         isBoxVisible = true
                     }
@@ -77,16 +75,8 @@ export function generateCustomBox(
         const depth = cumD[maxZ + 1] - cumD[minZ]
 
         const boxGroup = new THREE.Group()
-        boxGroup.userData.group = id
-        boxGroup.userData.id = nextBoxId++
-        boxGroup.userData.cells = cellsForThisId
-        boxGroup.userData.dimensions = {
-            width,
-            depth,
-            height: useStore.getState().wallHeight,
-        }
+        boxGroup.name = `group:${id}`
         boxGroup.visible = isBoxVisible
-        boxGroup.userData.visible = isBoxVisible
 
         boxGroup.add(buildWallMesh(outR, inR))
         if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
@@ -111,7 +101,14 @@ export function generateCustomBox(
             if (cell.group !== 0) continue
 
             const singleGrid: Cell[][] = [
-                [{ group: 0, width: cell.width, depth: cell.depth }],
+                [
+                    {
+                        group: 0,
+                        width: cell.width,
+                        depth: cell.depth,
+                        visibility: 'visible',
+                    },
+                ],
             ]
             const rawO = getOutline(singleGrid, 0)
             const rawI = offsetPolygonCCW(rawO, wall_thickness)
@@ -141,18 +138,8 @@ export function generateCustomBox(
             })
 
             const cellGroup = new THREE.Group()
-            cellGroup.userData.selectable = true
-            cellGroup.userData.group = 0
-            cellGroup.userData.id = nextBoxId++
-            cellGroup.userData.cells = [{ x, z }]
-            cellGroup.visible = cell.visible !== false
-            cellGroup.userData.visible = cell.visible !== false
-
-            cellGroup.userData.dimensions = {
-                width: cell.width,
-                depth: cell.depth,
-                height: useStore.getState().wallHeight,
-            }
+            cellGroup.name = `cell:${x}:${z}`
+            cellGroup.visible = cell.visibility !== 'hidden'
             cellGroup.add(buildWallMesh(outR, inR))
             if (generate_bottom)
                 cellGroup.add(buildBottomMesh(outR, wall_thickness))
@@ -231,6 +218,6 @@ function createCornerLines(
     })
 
     const lines = new THREE.LineSegments(geometry, material)
-    lines.userData.isCornerLine = true
+    lines.name = 'corner-lines'
     return lines
 }

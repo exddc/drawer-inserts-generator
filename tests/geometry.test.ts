@@ -234,7 +234,7 @@ describe('box generation', () => {
         expect(box.children).toHaveLength(1)
         expect(meshes(cell)).toHaveLength(2)
         expect(cell.visible).toBe(true)
-        expect(cell.userData.dimensions).toMatchObject({
+        expect(getGridBoxes(grid, 30)[0].dimensions).toMatchObject({
             width: 30,
             depth: 20,
         })
@@ -261,8 +261,8 @@ describe('box generation', () => {
         const combined = generateCustomBox(grid, 2, 4, false)
 
         expect(combined.children).toHaveLength(1)
-        expect(combined.children[0].userData.group).toBe(4)
-        expect(combined.children[0].userData.dimensions).toMatchObject({
+        expect(combined.children[0].name).toBe('group:4')
+        expect(getGridBoxes(grid, 30)[0].dimensions).toMatchObject({
             width: 60,
             depth: 40,
         })
@@ -272,11 +272,12 @@ describe('box generation', () => {
         const split = generateCustomBox(grid, 2, 4, false)
 
         expect(split.children).toHaveLength(2)
-        expect(split.children.map((child) => child.userData.group)).toEqual([
-            0, 0,
+        expect(split.children.map((child) => child.name)).toEqual([
+            'cell:0:0',
+            'cell:1:0',
         ])
         expect(
-            split.children.map((child) => child.userData.dimensions.width)
+            getGridBoxes(grid, 30).map((box) => box.dimensions.width)
         ).toEqual([25, 35])
         split.children.forEach(expectFiniteGeometry)
     })
@@ -293,18 +294,19 @@ describe('box generation', () => {
             ],
         ]
         const box = generateCustomBox(grid, 2, 0, true)
-        const combined = box.children.find(
-            (child) => child.userData.group === 7
+        const combined = box.children.find((child) => child.name === 'group:7')
+        const metadata = getGridBoxes(grid, 30).find(
+            (entry) => entry.id === 'group:7'
         )
 
         expect(combined).toBeDefined()
         expect(meshes(combined!)).toHaveLength(2)
-        expect(combined?.userData.cells).toEqual([
+        expect(metadata?.cells).toEqual([
             { x: 0, z: 0 },
             { x: 1, z: 0 },
             { x: 0, z: 1 },
         ])
-        expect(combined?.userData.dimensions).toMatchObject({
+        expect(metadata?.dimensions).toMatchObject({
             width: 30,
             depth: 70,
         })
@@ -432,14 +434,17 @@ describe('grid visibility', () => {
         expect(isGridBoxVisible(grid, box)).toBe(true)
 
         setGridBoxVisible(grid, box, false)
-        expect(grid[0].map((cell) => cell.visible)).toEqual([false, false])
-        expect(getGridBoxes(grid)[0].visible).toBe(false)
+        expect(grid[0].map((cell) => cell.visibility)).toEqual([
+            'hidden',
+            'hidden',
+        ])
+        expect(getGridBoxes(grid)[0].visibility).toBe('hidden')
         expect(generateCustomBox(grid, 2, 4, true).children[0].visible).toBe(
             false
         )
 
         setGridBoxVisible(grid, box, true)
-        expect(getGridBoxes(grid)[0].visible).toBe(true)
+        expect(getGridBoxes(grid)[0].visibility).toBe('visible')
     })
 
     it('handles empty grids as an edge case', () => {
@@ -460,7 +465,7 @@ describe('grid resizing', () => {
     it('preserves group and visibility while resizing physical dimensions', () => {
         const oldGrid: Grid = [
             [
-                { group: 1, visible: false, width: 50, depth: 50 },
+                { group: 1, visibility: 'hidden', width: 50, depth: 50 },
                 { group: 0, width: 50, depth: 50 },
             ],
             [
@@ -475,7 +480,7 @@ describe('grid resizing', () => {
         expect(resized[0]).toHaveLength(2)
         expect(resized[0][0]).toMatchObject({
             group: 1,
-            visible: false,
+            visibility: 'hidden',
             width: 100,
             depth: 100,
         })

@@ -1,9 +1,12 @@
 'use client'
 
+import { pickCurrentBox } from '@/lib/boxPicking'
 import { canCombineGridBoxes } from '@/lib/gridCombine'
+import { getBoxById, getGridBoxes } from '@/lib/gridVisibility'
 import { keyPress } from '@/lib/keyHelper'
+import { renderRuntime } from '@/lib/renderRuntime'
 import { useStore } from '@/lib/store'
-import { BoxInfo } from '@/lib/types'
+import type { GeneratedBoxMetadata } from '@/lib/types'
 import {
     Boxes,
     Combine,
@@ -24,26 +27,19 @@ declare global {
 export default function BoxContextMenu() {
     const [open, setOpen] = useState(false)
     const [pos, setPos] = useState({ x: 0, y: 0 })
-    const [boxInfos, setBoxInfos] = useState<BoxInfo | null>(null)
+    const [boxInfos, setBoxInfos] = useState<GeneratedBoxMetadata | null>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
-    const storeContainerRef = useStore((state) => state.containerRef)
-    const cameraRef = useStore((state) => state.cameraRef)
-    const boxRef = useStore((state) => state.boxRef)
-    const gridRef = useStore((state) => state.gridRef)
-    const setSelectedGroups = useStore((state) => state.setSelectedGroups)
-    const selectedGroups = useStore((state) => state.selectedGroups)
+    const grid = useStore((state) => state.grid)
+    const wallHeight = useStore((state) => state.wallHeight)
+    const setSelectedBoxIds = useStore((state) => state.setSelectedBoxIds)
+    const selectedBoxIds = useStore((state) => state.selectedBoxIds)
 
     const [canSplit, setCanSplit] = useState(false)
 
     useEffect(() => {
-        const container = storeContainerRef.current
-        const cam = cameraRef.current
-        const grp = boxRef.current
-
-        if (!container || !cam || !grp) {
-            return
-        }
+        const container = renderRuntime.containerRef.current
+        if (!container) return
 
         const raycaster = new THREE.Raycaster()
         const mouse = new THREE.Vector2()
@@ -55,20 +51,20 @@ export default function BoxContextMenu() {
                 return
             }
 
-            if (!container) return
             const rect = container.getBoundingClientRect()
             mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
             mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
 
-            raycaster.setFromCamera(mouse, cam)
-            const hits = raycaster.intersectObjects(grp.children, true)
-            const hit = hits.find((h) => {
-                const p = h.object.parent as THREE.Group
-                return typeof p.userData.group === 'number'
-            })
+            const boxId = pickCurrentBox(raycaster, mouse)
 
-            if (hit?.object.parent) {
-                setBoxInfos(hit.object.parent.userData as BoxInfo)
+            if (boxId) {
+                setBoxInfos(
+                    getBoxById(
+                        useStore.getState().grid,
+                        boxId,
+                        useStore.getState().wallHeight
+                    ) ?? null
+                )
             } else {
                 setBoxInfos(null)
             }
@@ -83,7 +79,7 @@ export default function BoxContextMenu() {
                 container.removeEventListener('contextmenu', onContextMenu)
             }
         }
-    }, [storeContainerRef, cameraRef, boxRef])
+    }, [])
 
     useEffect(() => {
         if (!open) {
@@ -118,8 +114,11 @@ export default function BoxContextMenu() {
     }, [open])
 
     useEffect(() => {
-        if (selectedGroups.length === 1) {
-            if (selectedGroups[0].userData.group !== 0) {
+        const selectedBoxes = getGridBoxes(grid, wallHeight).filter((box) =>
+            selectedBoxIds.includes(box.id)
+        )
+        if (selectedBoxes.length === 1) {
+            if (selectedBoxes[0].group !== 0) {
                 setCanSplit(true)
             } else {
                 setCanSplit(false)
@@ -127,7 +126,7 @@ export default function BoxContextMenu() {
         } else {
             setCanSplit(false)
         }
-    }, [selectedGroups])
+    }, [selectedBoxIds, grid, wallHeight])
 
     const handleMenuItemClick = (
         action?:
@@ -144,24 +143,13 @@ export default function BoxContextMenu() {
         }
 
         if (action === 'Select Box') {
-            // Find the box group that matches the boxInfos using the unique ID
-            const boxGroup = boxRef.current?.children.find(
-                (child) => child.userData.id === boxInfos?.id
-            ) as THREE.Group | undefined
-
-            if (boxGroup) {
-                setSelectedGroups([boxGroup])
+            if (boxInfos) {
+                setSelectedBoxIds([boxInfos.id])
             }
         } else if (action === 'Add to Selection') {
-            // Find the box group that matches the boxInfos using the unique ID
-            const boxGroup = boxRef.current?.children.find(
-                (child) => child.userData.id === boxInfos?.id
-            ) as THREE.Group | undefined
-
-            if (boxGroup) {
-                // Add to existing selection if not already selected
-                if (!selectedGroups.includes(boxGroup)) {
-                    setSelectedGroups([...selectedGroups, boxGroup])
+            if (boxInfos) {
+                if (!selectedBoxIds.includes(boxInfos.id)) {
+                    setSelectedBoxIds([...selectedBoxIds, boxInfos.id])
                 }
             }
         } else if (action === 'Split Box') {
@@ -169,13 +157,13 @@ export default function BoxContextMenu() {
                 keyPress('s')
             }
         } else if (action === 'Combine Selected Boxes') {
-            if (selectedGroups.length >= 2) {
+            if (selectedBoxIds.length >= 2) {
                 keyPress('c')
             }
         } else if (action === 'Toggle Visibility') {
             keyPress('h')
         } else if (action === 'Clear Selection') {
-            setSelectedGroups([])
+            setSelectedBoxIds([])
         }
 
         setOpen(false)
@@ -185,15 +173,18 @@ export default function BoxContextMenu() {
 
     const isBoxSpecificMenu = boxInfos != null
 
-    const isBoxSelected =
-        boxInfos &&
-        selectedGroups.some((group) => group.userData.id === boxInfos.id)
+    const isBoxSelected = boxInfos && selectedBoxIds.includes(boxInfos.id)
 
     const canCombine =
-        selectedGroups.length >= 2 &&
-        canCombineGridBoxes(gridRef.current, selectedGroups)
+        selectedBoxIds.length >= 2 &&
+        canCombineGridBoxes(
+            grid,
+            getGridBoxes(grid, wallHeight).filter((box) =>
+                selectedBoxIds.includes(box.id)
+            )
+        )
 
-    if (selectedGroups.length === 0) {
+    if (selectedBoxIds.length === 0) {
         // if no boxes are selected, don't show the menu
         return null
     }
@@ -224,7 +215,7 @@ export default function BoxContextMenu() {
                         </div>
                     )}
                     <div className="px-2 py-1.5 text-sm font-semibold">
-                        Box {boxInfos.id}
+                        Box {boxInfos.index}
                         {boxInfos.group != 0
                             ? `(| Group ${boxInfos.group})`
                             : ''}
