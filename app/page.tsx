@@ -4,11 +4,22 @@ import ActionsBar from '@/components/ActionsBar'
 import BoxContextMenu from '@/components/BoxContextMenu'
 import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { generateCustomBox } from '@/lib/boxHelper'
-import { cameraSettings, material } from '@/lib/defaults'
+import { cameraSettings } from '@/lib/defaults'
 import { combineGridBoxes, getNextAvailableGroupId } from '@/lib/gridCombine'
 import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
-import { isGridBoxVisible, setGridBoxVisible } from '@/lib/gridVisibility'
+import {
+    getBoxById,
+    getGridBoxes,
+    isGridBoxVisible,
+    setGridBoxVisible,
+} from '@/lib/gridVisibility'
+import {
+    applyRenderedBoxSelection,
+    renderRuntime,
+    setRenderedBoxGroup,
+} from '@/lib/renderRuntime'
 import { useStore } from '@/lib/store'
+import type { Grid, SelectionId } from '@/lib/types'
 import { useEffect } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -17,7 +28,7 @@ export default function Home() {
     const state = useStore()
 
     useEffect(() => {
-        const container = state.containerRef.current
+        const container = renderRuntime.containerRef.current
         if (!container) return
 
         function initBasics(container: HTMLDivElement) {
@@ -48,13 +59,13 @@ export default function Home() {
         }
 
         const { scene, camera, renderer } = initBasics(container)
-        state.sceneRef.current = scene
-        state.cameraRef.current = camera
-        state.rendererRef.current = renderer
+        renderRuntime.sceneRef.current = scene
+        renderRuntime.cameraRef.current = camera
+        renderRuntime.rendererRef.current = renderer
 
         const controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
-        state.controlsRef.current = controls
+        renderRuntime.controlsRef.current = controls
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
             MIDDLE: THREE.MOUSE.PAN,
@@ -78,11 +89,15 @@ export default function Home() {
 
         // resize handler
         const onWindowResize = () => {
-            if (!state.cameraRef.current || !state.rendererRef.current) return
-            state.cameraRef.current.aspect =
+            if (
+                !renderRuntime.cameraRef.current ||
+                !renderRuntime.rendererRef.current
+            )
+                return
+            renderRuntime.cameraRef.current.aspect =
                 window.innerWidth / window.innerHeight
-            state.cameraRef.current.updateProjectionMatrix()
-            state.rendererRef.current.setSize(
+            renderRuntime.cameraRef.current.updateProjectionMatrix()
+            renderRuntime.rendererRef.current.setSize(
                 window.innerWidth,
                 window.innerHeight
             )
@@ -100,16 +115,13 @@ export default function Home() {
 
         const raycaster = new THREE.Raycaster()
         const mouse = new THREE.Vector2()
-        let selectedGroups: THREE.Group[] = []
-
         window.addEventListener('keydown', onKeyDown)
 
         function onKeyDown(event: KeyboardEvent) {
             const currentState = useStore.getState()
 
             if (event.key === 'Escape') {
-                selectedGroups = []
-                currentState.setSelectedGroups(selectedGroups)
+                currentState.setSelectedBoxIds([])
             }
             if (event.key === 'c') {
                 onCombineClick()
@@ -124,18 +136,23 @@ export default function Home() {
 
         function rebuildBoxFromCurrentState() {
             const currentState = useStore.getState()
-            const scene = currentState.sceneRef.current
-            const currentBox = currentState.boxRef.current
+            const scene = renderRuntime.sceneRef.current
+            const currentBox = renderRuntime.boxRef.current
             if (!scene || !currentBox) return
 
             removeAndDisposeObject(scene, currentBox)
             const newBox = generateCustomBox(
-                currentState.gridRef.current,
+                currentState.grid,
                 currentState.wallThickness,
                 currentState.cornerRadius,
                 currentState.generateBottom
             )
-            currentState.boxRef.current = newBox
+            setRenderedBoxGroup(
+                newBox,
+                currentState.selectedBoxIds,
+                currentState.standardColor,
+                currentState.selectedColor
+            )
             newBox.position.set(
                 -currentState.totalWidth / 2,
                 0,
@@ -146,58 +163,58 @@ export default function Home() {
 
         function onCombineClick() {
             const currentState = useStore.getState()
-            const groupsToCombine = currentState.selectedGroups
-            if (groupsToCombine.length < 2) return
-            const currentBox = currentState.boxRef.current
+            const boxesToCombine = getGridBoxes(
+                currentState.grid,
+                currentState.wallHeight
+            ).filter((box) => currentState.selectedBoxIds.includes(box.id))
+            if (boxesToCombine.length < 2) return
+            const currentBox = renderRuntime.boxRef.current
             if (!currentBox) return
 
-            const grid = currentState.gridRef.current
+            const grid = cloneGrid(currentState.grid)
             const newId = getNextAvailableGroupId(grid)
-            if (!combineGridBoxes(grid, groupsToCombine, newId)) return
+            if (!combineGridBoxes(grid, boxesToCombine, newId)) return
 
+            currentState.setGrid(grid)
             rebuildBoxFromCurrentState()
-
-            selectedGroups = []
-            currentState.setSelectedGroups(selectedGroups)
+            currentState.setSelectedBoxIds([])
         }
 
         function onSplitClick() {
             const currentState = useStore.getState()
-            const groupsToSplit = currentState.selectedGroups
-            if (groupsToSplit.length === 0) return
+            const boxesToSplit = currentState.selectedBoxIds
+                .map((id) => getBoxById(currentState.grid, id))
+                .filter((box) => box !== undefined)
+            if (boxesToSplit.length === 0) return
 
-            const grid = currentState.gridRef.current
-            groupsToSplit.forEach((grp) => {
-                const cells: { x: number; z: number }[] = grp.userData.cells
-                cells.forEach(({ x, z }) => {
+            const grid = cloneGrid(currentState.grid)
+            boxesToSplit.forEach((box) => {
+                box.cells.forEach(({ x, z }) => {
                     grid[z][x].group = 0
                 })
             })
 
+            currentState.setGrid(grid)
             rebuildBoxFromCurrentState()
-
-            selectedGroups = []
-            currentState.setSelectedGroups(selectedGroups)
+            currentState.setSelectedBoxIds([])
         }
 
         function onHideClick() {
             const currentState = useStore.getState()
-            const groupsToHide = currentState.selectedGroups
-            if (groupsToHide.length === 0) return
+            const boxesToHide = currentState.selectedBoxIds
+                .map((id) => getBoxById(currentState.grid, id))
+                .filter((box) => box !== undefined)
+            if (boxesToHide.length === 0) return
 
-            const grid = currentState.gridRef.current
+            const grid = cloneGrid(currentState.grid)
 
-            groupsToHide.forEach((grp) => {
-                const box = grp.userData as {
-                    cells: Array<{ x: number; z: number }>
-                }
+            boxesToHide.forEach((box) => {
                 setGridBoxVisible(grid, box, !isGridBoxVisible(grid, box))
             })
 
+            currentState.setGrid(grid)
             rebuildBoxFromCurrentState()
-
-            selectedGroups = []
-            currentState.setSelectedGroups(selectedGroups)
+            currentState.setSelectedBoxIds([])
         }
 
         function onPointerDown(event: MouseEvent) {
@@ -223,19 +240,20 @@ export default function Home() {
             })
             if (!hit) return
 
-            const box = (hit.object as THREE.Mesh).parent as THREE.Group
+            const boxId = (hit.object as THREE.Mesh).parent?.name as SelectionId
+            if (!renderRuntime.boxMeshes.has(boxId)) return
 
-            if (!isMultiSelect) {
-                selectedGroups = []
-            }
+            const selectedBoxIds = isMultiSelect
+                ? [...useStore.getState().selectedBoxIds]
+                : []
 
-            const i = selectedGroups.indexOf(box)
+            const i = selectedBoxIds.indexOf(boxId)
             if (i !== -1) {
-                selectedGroups.splice(i, 1)
+                selectedBoxIds.splice(i, 1)
             } else {
-                selectedGroups.push(box)
+                selectedBoxIds.push(boxId)
             }
-            useStore.getState().setSelectedGroups([...selectedGroups])
+            useStore.getState().setSelectedBoxIds(selectedBoxIds)
         }
 
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
@@ -254,105 +272,116 @@ export default function Home() {
             renderer.dispose()
             renderer.forceContextLoss()
             renderer.domElement.remove()
-            state.sceneRef.current = null
-            state.cameraRef.current = null
-            state.rendererRef.current = null
-            state.controlsRef.current = null
-            state.boxRef.current = null
-            state.helperGridRef.current = null
+            renderRuntime.sceneRef.current = null
+            renderRuntime.cameraRef.current = null
+            renderRuntime.rendererRef.current = null
+            renderRuntime.controlsRef.current = null
+            renderRuntime.boxRef.current = null
+            renderRuntime.helperGridRef.current = null
+            renderRuntime.boxMeshes.clear()
         }
     }, [])
 
     useEffect(() => {
-        const boxGroup = state.boxRef.current
-        if (!boxGroup) return
-
-        // clear
-        boxGroup.children.forEach((child) => {
-            if (!(child instanceof THREE.Group)) return
-            child.traverse((c) => {
-                if (c instanceof THREE.Mesh)
-                    c.material.color.setHex(material.standard.color)
-            })
-        })
-
-        // highlight selected
-        state.selectedGroups.forEach((grp) =>
-            grp.traverse((c) => {
-                if (c instanceof THREE.Mesh)
-                    c.material.color.setHex(material.selected.color)
-            })
+        applyRenderedBoxSelection(
+            state.selectedBoxIds,
+            state.standardColor,
+            state.selectedColor
         )
-    }, [state.selectedGroups])
+    }, [state.selectedBoxIds, state.standardColor, state.selectedColor])
+
+    const {
+        grid: modelGrid,
+        totalWidth,
+        totalDepth,
+        maxBoxWidth,
+        maxBoxDepth,
+        wallThickness,
+        cornerRadius,
+        generateBottom,
+        wallHeight,
+        redrawTrigger,
+        showCornerLines,
+        setGrid,
+    } = state
 
     useEffect(() => {
-        const scene = state.sceneRef.current
+        const scene = renderRuntime.sceneRef.current
         if (!scene) return
 
-        if (state.boxRef.current) {
-            removeAndDisposeObject(scene, state.boxRef.current)
-            state.boxRef.current = null
+        if (renderRuntime.boxRef.current) {
+            removeAndDisposeObject(scene, renderRuntime.boxRef.current)
+            renderRuntime.boxRef.current = null
         }
 
-        const old = state.gridRef.current
+        const old = modelGrid
+        let grid = old
         if (
             !gridMatchesLayout(
                 old,
-                state.totalWidth,
-                state.totalDepth,
-                state.maxBoxWidth,
-                state.maxBoxDepth
+                totalWidth,
+                totalDepth,
+                maxBoxWidth,
+                maxBoxDepth
             )
         ) {
-            state.gridRef.current = resizeGrid(
+            grid = resizeGrid(
                 old,
-                state.totalWidth,
-                state.totalDepth,
-                state.maxBoxWidth,
-                state.maxBoxDepth
+                totalWidth,
+                totalDepth,
+                maxBoxWidth,
+                maxBoxDepth
             )
+            setGrid(grid)
         }
 
-        const grid = state.gridRef.current
         const box = generateCustomBox(
             grid,
-            state.wallThickness,
-            state.cornerRadius,
-            state.generateBottom
+            wallThickness,
+            cornerRadius,
+            generateBottom
         )
-        state.boxRef.current = box
-        box.position.set(-state.totalWidth / 2, 0, -state.totalDepth / 2)
+        const currentState = useStore.getState()
+        setRenderedBoxGroup(
+            box,
+            currentState.selectedBoxIds,
+            currentState.standardColor,
+            currentState.selectedColor
+        )
+        box.position.set(-totalWidth / 2, 0, -totalDepth / 2)
         scene.add(box)
     }, [
-        state.wallThickness,
-        state.cornerRadius,
-        state.wallHeight,
-        state.generateBottom,
-        state.totalWidth,
-        state.totalDepth,
-        state.maxBoxWidth,
-        state.maxBoxDepth,
-        state.redrawTrigger,
-        state.showCornerLines,
+        wallThickness,
+        cornerRadius,
+        wallHeight,
+        generateBottom,
+        totalWidth,
+        totalDepth,
+        maxBoxWidth,
+        maxBoxDepth,
+        modelGrid,
+        redrawTrigger,
+        showCornerLines,
+        setGrid,
     ])
 
     useEffect(() => {
-        const scene = state.sceneRef.current
+        const scene = renderRuntime.sceneRef.current
         if (!scene) return
 
         const size = Math.max(state.totalWidth, state.totalDepth) + 50
         const divisions = Math.ceil(size / 10)
 
-        if (state.helperGridRef.current) {
-            removeAndDisposeObject(scene, state.helperGridRef.current)
+        if (renderRuntime.helperGridRef.current) {
+            removeAndDisposeObject(scene, renderRuntime.helperGridRef.current)
         }
 
         if (state.showHelperGrid) {
             const grid = new THREE.GridHelper(size, divisions)
-            state.helperGridRef.current = grid
+            renderRuntime.helperGridRef.current = grid
             scene.add(grid)
         } else {
-            state.helperGridRef.current = null
+            renderRuntime.helperGridRef.current = null
         }
     }, [state.totalWidth, state.totalDepth, state.showHelperGrid])
 
@@ -362,10 +391,10 @@ export default function Home() {
                 <div className="h-full">
                     <div className="h-full flex flex-col lg:block">
                         <div
-                            ref={state.containerRef}
+                            ref={renderRuntime.containerRef}
                             className="relative h-full w-full"
                         >
-                            {state.containerRef.current && <BoxContextMenu />}
+                            <BoxContextMenu />
                             <HiddenBoxesDisplay />
                         </div>
                         <ActionsBar />
@@ -374,6 +403,10 @@ export default function Home() {
             </div>
         </div>
     )
+}
+
+function cloneGrid(grid: Grid): Grid {
+    return grid.map((row) => row.map((cell) => ({ ...cell })))
 }
 
 function removeAndDisposeObject(

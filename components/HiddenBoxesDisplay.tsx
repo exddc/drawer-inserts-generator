@@ -12,21 +12,23 @@ import { useCallback, useState } from 'react'
 export default function HiddenBoxesDisplay() {
     const store = useStore()
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const hiddenBoxes = getGridBoxes(store.gridRef.current).filter(
-        (box) => !box.visible
+    const hiddenBoxes = getGridBoxes(store.grid, store.wallHeight).filter(
+        (box) => box.visibility === 'hidden'
     )
 
     const handleUnhideBox = (boxToUnhide: GridBoxInfo) => {
-        setGridBoxVisible(store.gridRef.current, boxToUnhide, true)
-        store.forceRedraw()
+        const grid = store.grid.map((row) => row.map((cell) => ({ ...cell })))
+        setGridBoxVisible(grid, boxToUnhide, true)
+        store.setGrid(grid)
     }
 
     const handleUnhideAll = useCallback(() => {
-        getGridBoxes(store.gridRef.current).forEach((box) => {
-            setGridBoxVisible(store.gridRef.current, box, true)
+        const grid = store.grid.map((row) => row.map((cell) => ({ ...cell })))
+        getGridBoxes(grid).forEach((box) => {
+            setGridBoxVisible(grid, box, true)
         })
-        store.setSelectedGroups([])
-        store.forceRedraw()
+        store.setGrid(grid)
+        store.setSelectedBoxIds([])
     }, [store])
 
     if (hiddenBoxes.length === 0) {
@@ -61,7 +63,7 @@ export default function HiddenBoxesDisplay() {
                             title="Unhide Box"
                         >
                             <span>
-                                Box {box.id}
+                                Box {box.index}
                                 {box.group !== 0 ? ` (Group ${box.group})` : ''}
                             </span>
                             <button
