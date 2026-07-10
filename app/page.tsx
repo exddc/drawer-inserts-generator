@@ -4,6 +4,7 @@ import ActionsBar from '@/components/ActionsBar'
 import BoxContextMenu from '@/components/BoxContextMenu'
 import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { generateCustomBox } from '@/lib/boxHelper'
+import { pickCurrentBox } from '@/lib/boxPicking'
 import { cameraSettings } from '@/lib/defaults'
 import { combineGridBoxes, getNextAvailableGroupId } from '@/lib/gridCombine'
 import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
@@ -19,7 +20,7 @@ import {
     setRenderedBoxGroup,
 } from '@/lib/renderRuntime'
 import { useStore } from '@/lib/store'
-import type { Grid, SelectionId } from '@/lib/types'
+import type { Grid } from '@/lib/types'
 import { useEffect } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -225,23 +226,8 @@ export default function Home() {
             const rect = renderer.domElement.getBoundingClientRect()
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
-            raycaster.setFromCamera(mouse, camera)
-
-            const hits = raycaster.intersectObjects(scene.children, true)
-            if (!hits.length) return
-
-            const hit = hits.find(({ object }) => {
-                if (!(object instanceof THREE.Mesh)) return false
-                //@ts-ignore
-                const idx = object.parent.children.indexOf(object)
-                const isWall = idx === 0
-                const isBottom = useStore.getState().generateBottom && idx === 1
-                return isWall || isBottom
-            })
-            if (!hit) return
-
-            const boxId = (hit.object as THREE.Mesh).parent?.name as SelectionId
-            if (!renderRuntime.boxMeshes.has(boxId)) return
+            const boxId = pickCurrentBox(raycaster, mouse)
+            if (!boxId) return
 
             const selectedBoxIds = isMultiSelect
                 ? [...useStore.getState().selectedBoxIds]

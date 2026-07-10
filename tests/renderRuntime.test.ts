@@ -20,10 +20,15 @@ describe('renderer projections', () => {
     })
 
     it('reapplies selected IDs when geometry settings replace the mesh tree', () => {
-        const grid: Grid = [[{ group: 1, width: 30, depth: 20 }]]
+        const grid: Grid = [
+            [
+                { group: 1, width: 30, depth: 20 },
+                { group: 0, width: 20, depth: 20 },
+            ],
+        ]
         useStore.setState({
             grid,
-            selectedBoxIds: ['group:1'],
+            selectedBoxIds: ['group:1', 'cell:1:0'],
             wallHeight: 30,
             showCornerLines: false,
         })
@@ -46,12 +51,19 @@ describe('renderer projections', () => {
 
         expect(renderRuntime.boxRef.current).toBe(rebuilt)
         expect(meshColors(rebuilt.children[0])).toEqual([selectedColor])
-        expect(useStore.getState().selectedBoxIds).toEqual(['group:1'])
+        expect(meshColors(rebuilt.children[1])).toEqual([selectedColor])
+        expect(useStore.getState().selectedBoxIds).toEqual([
+            'group:1',
+            'cell:1:0',
+        ])
         expect(
             getGridBoxes(grid, 30).filter((box) =>
                 useStore.getState().selectedBoxIds.includes(box.id)
             )
-        ).toMatchObject([{ id: 'group:1', group: 1 }])
+        ).toMatchObject([
+            { id: 'group:1', group: 1 },
+            { id: 'cell:1:0', group: 0 },
+        ])
     })
 
     it('raycasts the current camera and box tree after a replacement', () => {
@@ -90,6 +102,25 @@ describe('renderer projections', () => {
             oldGroup.children,
             true
         )
+    })
+
+    it('ignores non-mesh render objects when resolving a selection ID', () => {
+        const group = selectableGroup('cell:0:0')
+        const decoration = new THREE.LineSegments(
+            new THREE.BufferGeometry(),
+            new THREE.LineBasicMaterial()
+        )
+        group.children[0].add(decoration)
+        renderRuntime.cameraRef.current = new THREE.PerspectiveCamera()
+        setRenderedBoxGroup(group, [], standardColor, selectedColor)
+
+        const raycaster = new THREE.Raycaster()
+        vi.spyOn(raycaster, 'setFromCamera').mockImplementation(() => undefined)
+        vi.spyOn(raycaster, 'intersectObjects').mockReturnValue([
+            { object: decoration } as unknown as THREE.Intersection,
+        ])
+
+        expect(pickCurrentBox(raycaster, new THREE.Vector2())).toBeNull()
     })
 })
 
