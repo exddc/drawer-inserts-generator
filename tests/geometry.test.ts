@@ -1,4 +1,4 @@
-import { generateCustomBox } from '@/lib/boxHelper'
+import { BoxGenerationOptions, generateCustomBox } from '@/lib/boxHelper'
 import {
     canCombineGridBoxes,
     combineGridBoxes,
@@ -36,6 +36,19 @@ function meshes(object: THREE.Object3D): THREE.Mesh[] {
     return result
 }
 
+function generationOptions(
+    overrides: Partial<BoxGenerationOptions> = {}
+): BoxGenerationOptions {
+    return {
+        wallThickness: 2,
+        cornerRadius: 4,
+        wallHeight: 30,
+        generateBottom: true,
+        cornerLines: { show: false, color: 0x000000, opacity: 0.25 },
+        ...overrides,
+    }
+}
+
 function expectFiniteGeometry(object: THREE.Object3D): void {
     const objectMeshes = meshes(object)
     expect(objectMeshes.length).toBeGreaterThan(0)
@@ -59,6 +72,37 @@ function boundingSize(object: THREE.Object3D): THREE.Vector3 {
     const size = new THREE.Vector3()
     box.getSize(size)
     return size
+}
+
+function generationSignature(object: THREE.Object3D): unknown[] {
+    const signature: unknown[] = []
+
+    object.traverse((child) => {
+        if (!(
+            child instanceof THREE.Mesh || child instanceof THREE.LineSegments
+        ))
+            return
+
+        const position = child.geometry.getAttribute('position')
+        const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material]
+
+        signature.push({
+            type: child.type,
+            name: child.name,
+            position: Array.from(position.array),
+            materials: materials.map((material) => ({
+                color:
+                    'color' in material && material.color instanceof THREE.Color
+                        ? material.color.getHex()
+                        : null,
+                opacity: material.opacity,
+            })),
+        })
+    })
+
+    return signature
 }
 
 function footprintPoints(object: THREE.Object3D): Set<string> {
@@ -227,7 +271,7 @@ describe('box generation', () => {
 
     it('generates valid wall and bottom meshes for rectangular boxes', () => {
         const grid: Grid = [[{ group: 0, width: 30, depth: 20 }]]
-        const box = generateCustomBox(grid, 2, 4, true)
+        const box = generateCustomBox(grid, generationOptions())
         const cell = box.children[0]
         const size = boundingSize(cell)
 
@@ -247,8 +291,17 @@ describe('box generation', () => {
     it('omits bottom geometry when bottom generation is disabled', () => {
         const grid: Grid = [[{ group: 0, width: 30, depth: 20 }]]
 
-        expect(meshes(generateCustomBox(grid, 2, 4, false))).toHaveLength(1)
-        expect(meshes(generateCustomBox(grid, 2, 4, true))).toHaveLength(2)
+        expect(
+            meshes(
+                generateCustomBox(
+                    grid,
+                    generationOptions({ generateBottom: false })
+                )
+            )
+        ).toHaveLength(1)
+        expect(
+            meshes(generateCustomBox(grid, generationOptions()))
+        ).toHaveLength(2)
     })
 
     it('generates one box for combined cells and split boxes after ungrouping', () => {
@@ -258,7 +311,10 @@ describe('box generation', () => {
                 { group: 4, width: 35, depth: 40 },
             ],
         ]
-        const combined = generateCustomBox(grid, 2, 4, false)
+        const combined = generateCustomBox(
+            grid,
+            generationOptions({ generateBottom: false })
+        )
 
         expect(combined.children).toHaveLength(1)
         expect(combined.children[0].name).toBe('group:4')
@@ -269,7 +325,10 @@ describe('box generation', () => {
 
         grid[0][0].group = 0
         grid[0][1].group = 0
-        const split = generateCustomBox(grid, 2, 4, false)
+        const split = generateCustomBox(
+            grid,
+            generationOptions({ generateBottom: false })
+        )
 
         expect(split.children).toHaveLength(2)
         expect(split.children.map((child) => child.name)).toEqual([
@@ -293,7 +352,10 @@ describe('box generation', () => {
                 { group: 0, width: 20, depth: 40 },
             ],
         ]
-        const box = generateCustomBox(grid, 2, 0, true)
+        const box = generateCustomBox(
+            grid,
+            generationOptions({ cornerRadius: 0 })
+        )
         const combined = box.children.find((child) => child.name === 'group:7')
         const metadata = getGridBoxes(grid, 30).find(
             (entry) => entry.id === 'group:7'
@@ -348,9 +410,83 @@ describe('box generation', () => {
             ],
         ]
 
-        expect(() => generateCustomBox(grid, 2, 0, true)).toThrow(
+        expect(() =>
+            generateCustomBox(grid, generationOptions({ cornerRadius: 0 }))
+        ).toThrow(
             'Cannot build a single outline for group 6 with disconnected cells or holes.'
         )
+    })
+
+    it('makes every generation option observable in the output', () => {
+        const grid: Grid = [[{ group: 0, width: 30, depth: 20 }]]
+        const options = generationOptions({
+            wallThickness: 2,
+            cornerRadius: 6,
+            wallHeight: 18,
+            generateBottom: true,
+            cornerLines: { show: true, color: 0x123456, opacity: 0.4 },
+        })
+        const box = generateCustomBox(grid, options)
+        const size = boundingSize(box)
+        const boxMeshes = meshes(box)
+        const lines = box.getObjectsByProperty('name', 'corner-lines')
+        const sharpBox = generateCustomBox(grid, {
+            ...options,
+            cornerRadius: 0,
+        })
+        const roundedPositionCount =
+            boxMeshes[0].geometry.getAttribute('position').count
+        const sharpPositionCount =
+            meshes(sharpBox)[0].geometry.getAttribute('position').count
+        const lineMaterial = (lines[0] as THREE.LineSegments)
+            .material as THREE.LineBasicMaterial
+
+        expect(size.y).toBeCloseTo(18)
+        expect(boxMeshes).toHaveLength(2)
+        expect(boundingSize(boxMeshes[1]).y).toBeCloseTo(2)
+        expect(roundedPositionCount).toBeGreaterThan(sharpPositionCount)
+        expect(lines).toHaveLength(2)
+        expect(lineMaterial.color.getHex()).toBe(0x123456)
+        expect(lineMaterial.opacity).toBe(0.4)
+    })
+
+    const explicitOptions = generationOptions({
+        wallThickness: 2,
+        cornerRadius: 6,
+        wallHeight: 18,
+        generateBottom: true,
+        cornerLines: { show: true, color: 0x123456, opacity: 0.4 },
+    })
+    const matchingStoreState = {
+        wallThickness: explicitOptions.wallThickness,
+        cornerRadius: explicitOptions.cornerRadius,
+        wallHeight: explicitOptions.wallHeight,
+        generateBottom: explicitOptions.generateBottom,
+        showCornerLines: explicitOptions.cornerLines.show,
+        cornerLineColor: explicitOptions.cornerLines.color,
+        cornerLineOpacity: explicitOptions.cornerLines.opacity,
+    }
+
+    it.each([
+        ['wall thickness', { wallThickness: 8 }],
+        ['corner radius', { cornerRadius: 0 }],
+        ['wall height', { wallHeight: 99 }],
+        ['bottom generation', { generateBottom: false }],
+        ['corner-line visibility', { showCornerLines: false }],
+        ['corner-line color', { cornerLineColor: 0xffffff }],
+        ['corner-line opacity', { cornerLineOpacity: 1 }],
+    ])('ignores Zustand %s', (_, conflictingState) => {
+        const grid: Grid = [[{ group: 0, width: 30, depth: 20 }]]
+        useStore.setState(matchingStoreState)
+        const expected = generationSignature(
+            generateCustomBox(grid, explicitOptions)
+        )
+
+        useStore.setState(conflictingState)
+
+        expect(
+            generationSignature(generateCustomBox(grid, explicitOptions))
+        ).toEqual(expected)
     })
 })
 
@@ -439,9 +575,9 @@ describe('grid visibility', () => {
             'hidden',
         ])
         expect(getGridBoxes(grid)[0].visibility).toBe('hidden')
-        expect(generateCustomBox(grid, 2, 4, true).children[0].visible).toBe(
-            false
-        )
+        expect(
+            generateCustomBox(grid, generationOptions()).children[0].visible
+        ).toBe(false)
 
         setGridBoxVisible(grid, box, true)
         expect(getGridBoxes(grid)[0].visibility).toBe('visible')
@@ -455,7 +591,7 @@ describe('grid visibility', () => {
         expect(() => getOutline([], 0)).toThrow(
             'Cannot build an outline for an empty grid.'
         )
-        expect(() => generateCustomBox([], 2, 4, true)).toThrow(
+        expect(() => generateCustomBox([], generationOptions())).toThrow(
             'Cannot generate box geometry for an empty grid.'
         )
     })

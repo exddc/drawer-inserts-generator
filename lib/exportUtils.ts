@@ -15,12 +15,17 @@ export function handleStlExport(): void {
 
     // Wrap & rotate so Three's Y-up becomes STL Z-up
     const tmpScene = new THREE.Scene()
-    const box = generateCustomBox(
-        grid,
-        state.wallThickness,
-        state.cornerRadius,
-        state.generateBottom
-    )
+    const box = generateCustomBox(grid, {
+        wallThickness: state.wallThickness,
+        cornerRadius: state.cornerRadius,
+        wallHeight: state.wallHeight,
+        generateBottom: state.generateBottom,
+        cornerLines: {
+            show: false,
+            color: state.cornerLineColor,
+            opacity: state.cornerLineOpacity,
+        },
+    })
     removeHiddenObjects(box)
     box.position.set(0, 0, 0)
     box.rotation.set(Math.PI / 2, 0, 0)

@@ -1,4 +1,4 @@
-import { generateCustomBox } from '@/lib/boxHelper'
+import { BoxGenerationOptions, generateCustomBox } from '@/lib/boxHelper'
 import { pickCurrentBox } from '@/lib/boxPicking'
 import { getGridBoxes } from '@/lib/gridVisibility'
 import { renderRuntime, setRenderedBoxGroup } from '@/lib/renderRuntime'
@@ -9,6 +9,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const standardColor = 0xcccccc
 const selectedColor = 0xff5500
+const generationOptions: BoxGenerationOptions = {
+    wallThickness: 2,
+    cornerRadius: 4,
+    wallHeight: 30,
+    generateBottom: true,
+    cornerLines: { show: false, color: 0x000000, opacity: 0.25 },
+}
 
 describe('renderer projections', () => {
     afterEach(() => {
@@ -33,7 +40,7 @@ describe('renderer projections', () => {
             showCornerLines: false,
         })
 
-        const initial = generateCustomBox(grid, 2, 4, true)
+        const initial = generateCustomBox(grid, generationOptions)
         setRenderedBoxGroup(
             initial,
             useStore.getState().selectedBoxIds,
@@ -41,7 +48,12 @@ describe('renderer projections', () => {
             selectedColor
         )
 
-        const rebuilt = generateCustomBox(grid, 3, 6, false)
+        const rebuilt = generateCustomBox(grid, {
+            ...generationOptions,
+            wallThickness: 3,
+            cornerRadius: 6,
+            generateBottom: false,
+        })
         setRenderedBoxGroup(
             rebuilt,
             useStore.getState().selectedBoxIds,
