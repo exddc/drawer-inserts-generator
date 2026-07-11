@@ -142,12 +142,17 @@ export default function Home() {
             if (!scene || !currentBox) return
 
             removeAndDisposeObject(scene, currentBox)
-            const newBox = generateCustomBox(
-                currentState.grid,
-                currentState.wallThickness,
-                currentState.cornerRadius,
-                currentState.generateBottom
-            )
+            const newBox = generateCustomBox(currentState.grid, {
+                wallThickness: currentState.wallThickness,
+                cornerRadius: currentState.cornerRadius,
+                wallHeight: currentState.wallHeight,
+                generateBottom: currentState.generateBottom,
+                cornerLines: {
+                    show: currentState.showCornerLines,
+                    color: currentState.cornerLineColor,
+                    opacity: currentState.cornerLineOpacity,
+                },
+            })
             setRenderedBoxGroup(
                 newBox,
                 currentState.selectedBoxIds,
@@ -288,6 +293,8 @@ export default function Home() {
         wallHeight,
         redrawTrigger,
         showCornerLines,
+        cornerLineColor,
+        cornerLineOpacity,
         setGrid,
     } = state
 
@@ -321,12 +328,17 @@ export default function Home() {
             setGrid(grid)
         }
 
-        const box = generateCustomBox(
-            grid,
+        const box = generateCustomBox(grid, {
             wallThickness,
             cornerRadius,
-            generateBottom
-        )
+            wallHeight,
+            generateBottom,
+            cornerLines: {
+                show: showCornerLines,
+                color: cornerLineColor,
+                opacity: cornerLineOpacity,
+            },
+        })
         const currentState = useStore.getState()
         setRenderedBoxGroup(
             box,
@@ -348,6 +360,8 @@ export default function Home() {
         modelGrid,
         redrawTrigger,
         showCornerLines,
+        cornerLineColor,
+        cornerLineOpacity,
         setGrid,
     ])
 

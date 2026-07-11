@@ -1,18 +1,28 @@
 import {
+    createCornerLines,
     getOutline,
     getRoundedOutline,
     offsetPolygonCCW,
 } from '@/lib/lineHelper'
-import { useStore } from '@/lib/store'
 import { Cell, Grid } from '@/lib/types'
 import * as THREE from 'three'
 import { buildBottomMesh, buildWallMesh } from './meshHelper'
 
+export type BoxGenerationOptions = {
+    wallThickness: number
+    cornerRadius: number
+    wallHeight: number
+    generateBottom: boolean
+    cornerLines: {
+        show: boolean
+        color: number
+        opacity: number
+    }
+}
+
 export function generateCustomBox(
     grid: Grid,
-    wall_thickness: number,
-    corner_radius: number,
-    generate_bottom: boolean
+    options: BoxGenerationOptions
 ): THREE.Group {
     if (grid.length === 0 || grid[0].length === 0) {
         throw new Error('Cannot generate box geometry for an empty grid.')
@@ -48,20 +58,20 @@ export function generateCustomBox(
         const rawO = getOutline(grid, id)
         if (!rawO.length) return
 
-        const rawI = offsetPolygonCCW(rawO, wall_thickness)
+        const rawI = offsetPolygonCCW(rawO, options.wallThickness)
         const outR = getRoundedOutline(
             rawO,
-            corner_radius,
+            options.cornerRadius,
             5,
-            corner_radius,
-            wall_thickness
+            options.cornerRadius,
+            options.wallThickness
         )
         const inR = getRoundedOutline(
             rawI,
-            corner_radius - wall_thickness,
+            options.cornerRadius - options.wallThickness,
             5,
-            corner_radius,
-            wall_thickness
+            options.cornerRadius,
+            options.wallThickness
         )
 
         const xCoords = cellsForThisId.map((cell) => cell.x)
@@ -78,15 +88,17 @@ export function generateCustomBox(
         boxGroup.name = `group:${id}`
         boxGroup.visible = isBoxVisible
 
-        boxGroup.add(buildWallMesh(outR, inR))
-        if (generate_bottom) boxGroup.add(buildBottomMesh(outR, wall_thickness))
+        boxGroup.add(buildWallMesh(outR, inR, options.wallHeight))
+        if (options.generateBottom)
+            boxGroup.add(buildBottomMesh(outR, options.wallThickness))
 
-        if (useStore.getState().showCornerLines) {
+        if (options.cornerLines.show) {
             const cornerLines = createCornerLines(
                 outR,
-                useStore.getState().wallHeight,
-                useStore.getState().cornerLineColor,
-                useStore.getState().cornerLineOpacity
+                options.wallHeight,
+                options.cornerLines.color,
+                options.cornerLines.opacity,
+                0
             )
             boxGroup.add(cornerLines)
         }
@@ -111,20 +123,20 @@ export function generateCustomBox(
                 ],
             ]
             const rawO = getOutline(singleGrid, 0)
-            const rawI = offsetPolygonCCW(rawO, wall_thickness)
+            const rawI = offsetPolygonCCW(rawO, options.wallThickness)
             const outR = getRoundedOutline(
                 rawO,
-                corner_radius,
+                options.cornerRadius,
                 5,
-                corner_radius,
-                wall_thickness
+                options.cornerRadius,
+                options.wallThickness
             )
             const inR = getRoundedOutline(
                 rawI,
-                corner_radius - wall_thickness,
+                options.cornerRadius - options.wallThickness,
                 5,
-                corner_radius,
-                wall_thickness
+                options.cornerRadius,
+                options.wallThickness
             )
             const x0 = cumW[x],
                 z0 = cumD[z]
@@ -140,24 +152,26 @@ export function generateCustomBox(
             const cellGroup = new THREE.Group()
             cellGroup.name = `cell:${x}:${z}`
             cellGroup.visible = cell.visibility !== 'hidden'
-            cellGroup.add(buildWallMesh(outR, inR))
-            if (generate_bottom)
-                cellGroup.add(buildBottomMesh(outR, wall_thickness))
+            cellGroup.add(buildWallMesh(outR, inR, options.wallHeight))
+            if (options.generateBottom)
+                cellGroup.add(buildBottomMesh(outR, options.wallThickness))
 
-            if (useStore.getState().showCornerLines) {
+            if (options.cornerLines.show) {
                 const outerLines = createCornerLines(
                     outR,
-                    useStore.getState().wallHeight,
-                    useStore.getState().cornerLineColor,
-                    useStore.getState().cornerLineOpacity
+                    options.wallHeight,
+                    options.cornerLines.color,
+                    options.cornerLines.opacity,
+                    0
                 )
                 cellGroup.add(outerLines)
 
                 const innerLines = createCornerLines(
                     inR,
-                    useStore.getState().wallHeight,
-                    useStore.getState().cornerLineColor,
-                    useStore.getState().cornerLineOpacity,
+                    options.wallHeight,
+                    options.cornerLines.color,
+                    options.cornerLines.opacity,
+                    options.generateBottom ? options.wallThickness : 0,
                     true
                 )
                 cellGroup.add(innerLines)
@@ -168,56 +182,4 @@ export function generateCustomBox(
     }
 
     return group
-}
-
-function createCornerLines(
-    outlinePoints: THREE.Vector2[],
-    height: number,
-    color: number,
-    opacity: number,
-    inner: boolean = false
-): THREE.LineSegments {
-    const geometry = new THREE.BufferGeometry()
-    const positions: number[] = []
-
-    outlinePoints.forEach((point) => {
-        positions.push(point.x, 0, point.y) // bottom
-        positions.push(point.x, height, point.y) // top
-    })
-
-    for (let i = 0; i < outlinePoints.length; i++) {
-        const current = outlinePoints[i]
-        const next = outlinePoints[(i + 1) % outlinePoints.length]
-
-        if (inner && useStore.getState().generateBottom) {
-            positions.push(
-                current.x,
-                useStore.getState().wallThickness,
-                current.y
-            )
-            positions.push(next.x, useStore.getState().wallThickness, next.y)
-        } else {
-            positions.push(current.x, 0, current.y)
-            positions.push(next.x, 0, next.y)
-        }
-
-        positions.push(current.x, height, current.y)
-        positions.push(next.x, height, next.y)
-    }
-
-    geometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(positions, 3)
-    )
-
-    const material = new THREE.LineBasicMaterial({
-        color,
-        opacity,
-        transparent: true,
-        linewidth: 1,
-    })
-
-    const lines = new THREE.LineSegments(geometry, material)
-    lines.name = 'corner-lines'
-    return lines
 }

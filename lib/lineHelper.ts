@@ -147,3 +147,47 @@ export function getRoundedOutline(
     const ptsOut = path.getPoints(N * segmentsPerCorner)
     return ptsOut.map((p) => new THREE.Vector2(p.x, p.y))
 }
+
+export function createCornerLines(
+    outlinePoints: THREE.Vector2[],
+    height: number,
+    color: number,
+    opacity: number,
+    bottomThickness: number,
+    inner = false
+): THREE.LineSegments {
+    const geometry = new THREE.BufferGeometry()
+    const positions: number[] = []
+
+    outlinePoints.forEach((point) => {
+        positions.push(point.x, 0, point.y)
+        positions.push(point.x, height, point.y)
+    })
+
+    for (let i = 0; i < outlinePoints.length; i++) {
+        const current = outlinePoints[i]
+        const next = outlinePoints[(i + 1) % outlinePoints.length]
+        const lowerHeight = inner ? bottomThickness : 0
+
+        positions.push(current.x, lowerHeight, current.y)
+        positions.push(next.x, lowerHeight, next.y)
+        positions.push(current.x, height, current.y)
+        positions.push(next.x, height, next.y)
+    }
+
+    geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(positions, 3)
+    )
+
+    const material = new THREE.LineBasicMaterial({
+        color,
+        opacity,
+        transparent: true,
+        linewidth: 1,
+    })
+
+    const lines = new THREE.LineSegments(geometry, material)
+    lines.name = 'corner-lines'
+    return lines
+}
