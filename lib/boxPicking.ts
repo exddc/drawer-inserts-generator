@@ -16,6 +16,7 @@ export function pickCurrentBox(
         .find(({ object }) => {
             const parent = object.parent
             return (
+                object instanceof THREE.Mesh &&
                 parent instanceof THREE.Group &&
                 renderRuntime.boxMeshes.has(parent.name as SelectionId)
             )
