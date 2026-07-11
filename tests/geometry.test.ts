@@ -235,7 +235,7 @@ describe('geometry outlines', () => {
         ]
 
         expect(() => getOutline(grid, 9)).toThrow(
-            'Cannot build a single outline for group 9 with disconnected cells or holes.'
+            'Cannot build outline for group 9: region is disconnected.'
         )
     })
 
@@ -259,8 +259,77 @@ describe('geometry outlines', () => {
         ]
 
         expect(() => getOutline(grid, 8)).toThrow(
-            'Cannot build a single outline for group 8 with disconnected cells or holes.'
+            'Cannot build outline for group 8: region contains a hole.'
         )
+    })
+
+    it('rejects boundaries that touch and self-intersect at a vertex', () => {
+        const grid: Grid = [
+            [
+                { group: 5, width: 10, depth: 10 },
+                { group: 5, width: 10, depth: 10 },
+                { group: 5, width: 10, depth: 10 },
+            ],
+            [
+                { group: 5, width: 10, depth: 10 },
+                { group: 0, width: 10, depth: 10 },
+                { group: 5, width: 10, depth: 10 },
+            ],
+            [
+                { group: 0, width: 10, depth: 10 },
+                { group: 5, width: 10, depth: 10 },
+                { group: 5, width: 10, depth: 10 },
+            ],
+        ]
+
+        expect(() => getOutline(grid, 5)).toThrow(
+            'Cannot build outline for group 5: boundary self-intersects.'
+        )
+    })
+
+    it('rejects malformed grids explicitly', () => {
+        const grid = [
+            [
+                { group: 1, width: 10, depth: 10 },
+                { group: 1, width: 10, depth: 10 },
+            ],
+            [{ group: 1, width: 10, depth: 10 }],
+        ]
+
+        expect(() => getOutline(grid, 1)).toThrow(
+            'Cannot build an outline for a non-rectangular grid.'
+        )
+    })
+
+    it.each([
+        ['zero width', { width: 0, depth: 10 }],
+        ['negative depth', { width: 10, depth: -1 }],
+        ['non-finite width', { width: Number.NaN, depth: 10 }],
+        ['non-finite depth', { width: 10, depth: Number.POSITIVE_INFINITY }],
+    ])('rejects %s before mapping the outline', (_, dimensions) => {
+        const grid: Grid = [[{ group: 1, ...dimensions }]]
+
+        expect(() => getOutline(grid, 1)).toThrow(
+            'Cannot build an outline with non-positive or non-finite cell dimensions.'
+        )
+    })
+
+    it('builds a high-perimeter 100x100 outline within the interactive budget', () => {
+        const size = 100
+        const grid: Grid = Array.from({ length: size }, (_, z) =>
+            Array.from({ length: size }, (_, x) => ({
+                group: z === 0 || x % 2 === 0 ? 12 : 0,
+                width: 1,
+                depth: 1,
+            }))
+        )
+
+        const startedAt = performance.now()
+        const outline = getOutline(grid, 12)
+        const elapsed = performance.now() - startedAt
+
+        expect(outline.length).toBeGreaterThan(10_000)
+        expect(elapsed).toBeLessThan(100)
     })
 })
 
@@ -412,9 +481,7 @@ describe('box generation', () => {
 
         expect(() =>
             generateCustomBox(grid, generationOptions({ cornerRadius: 0 }))
-        ).toThrow(
-            'Cannot build a single outline for group 6 with disconnected cells or holes.'
-        )
+        ).toThrow('Cannot build outline for group 6: region is disconnected.')
     })
 
     it('makes every generation option observable in the output', () => {
