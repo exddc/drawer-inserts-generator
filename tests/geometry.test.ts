@@ -74,6 +74,37 @@ function boundingSize(object: THREE.Object3D): THREE.Vector3 {
     return size
 }
 
+function generationSignature(object: THREE.Object3D): unknown[] {
+    const signature: unknown[] = []
+
+    object.traverse((child) => {
+        if (!(
+            child instanceof THREE.Mesh || child instanceof THREE.LineSegments
+        ))
+            return
+
+        const position = child.geometry.getAttribute('position')
+        const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material]
+
+        signature.push({
+            type: child.type,
+            name: child.name,
+            position: Array.from(position.array),
+            materials: materials.map((material) => ({
+                color:
+                    'color' in material && material.color instanceof THREE.Color
+                        ? material.color.getHex()
+                        : null,
+                opacity: material.opacity,
+            })),
+        })
+    })
+
+    return signature
+}
+
 function footprintPoints(object: THREE.Object3D): Set<string> {
     object.updateMatrixWorld(true)
 
@@ -386,33 +417,76 @@ describe('box generation', () => {
         )
     })
 
-    it('uses explicit options instead of Zustand geometry state', () => {
+    it('makes every generation option observable in the output', () => {
         const grid: Grid = [[{ group: 0, width: 30, depth: 20 }]]
         const options = generationOptions({
+            wallThickness: 2,
+            cornerRadius: 6,
             wallHeight: 18,
             generateBottom: true,
             cornerLines: { show: true, color: 0x123456, opacity: 0.4 },
         })
-
-        useStore.setState({
-            wallHeight: 99,
-            generateBottom: false,
-            wallThickness: 8,
-            showCornerLines: false,
-            cornerLineColor: 0xffffff,
-            cornerLineOpacity: 1,
-        })
-
         const box = generateCustomBox(grid, options)
         const size = boundingSize(box)
+        const boxMeshes = meshes(box)
         const lines = box.getObjectsByProperty('name', 'corner-lines')
+        const sharpBox = generateCustomBox(grid, {
+            ...options,
+            cornerRadius: 0,
+        })
+        const roundedPositionCount =
+            boxMeshes[0].geometry.getAttribute('position').count
+        const sharpPositionCount =
+            meshes(sharpBox)[0].geometry.getAttribute('position').count
+        const lineMaterial = (lines[0] as THREE.LineSegments)
+            .material as THREE.LineBasicMaterial
 
         expect(size.y).toBeCloseTo(18)
-        expect(meshes(box)).toHaveLength(2)
+        expect(boxMeshes).toHaveLength(2)
+        expect(boundingSize(boxMeshes[1]).y).toBeCloseTo(2)
+        expect(roundedPositionCount).toBeGreaterThan(sharpPositionCount)
         expect(lines).toHaveLength(2)
-        expect((lines[0] as THREE.LineSegments).material).toMatchObject({
-            opacity: 0.4,
-        })
+        expect(lineMaterial.color.getHex()).toBe(0x123456)
+        expect(lineMaterial.opacity).toBe(0.4)
+    })
+
+    const explicitOptions = generationOptions({
+        wallThickness: 2,
+        cornerRadius: 6,
+        wallHeight: 18,
+        generateBottom: true,
+        cornerLines: { show: true, color: 0x123456, opacity: 0.4 },
+    })
+    const matchingStoreState = {
+        wallThickness: explicitOptions.wallThickness,
+        cornerRadius: explicitOptions.cornerRadius,
+        wallHeight: explicitOptions.wallHeight,
+        generateBottom: explicitOptions.generateBottom,
+        showCornerLines: explicitOptions.cornerLines.show,
+        cornerLineColor: explicitOptions.cornerLines.color,
+        cornerLineOpacity: explicitOptions.cornerLines.opacity,
+    }
+
+    it.each([
+        ['wall thickness', { wallThickness: 8 }],
+        ['corner radius', { cornerRadius: 0 }],
+        ['wall height', { wallHeight: 99 }],
+        ['bottom generation', { generateBottom: false }],
+        ['corner-line visibility', { showCornerLines: false }],
+        ['corner-line color', { cornerLineColor: 0xffffff }],
+        ['corner-line opacity', { cornerLineOpacity: 1 }],
+    ])('ignores Zustand %s', (_, conflictingState) => {
+        const grid: Grid = [[{ group: 0, width: 30, depth: 20 }]]
+        useStore.setState(matchingStoreState)
+        const expected = generationSignature(
+            generateCustomBox(grid, explicitOptions)
+        )
+
+        useStore.setState(conflictingState)
+
+        expect(
+            generationSignature(generateCustomBox(grid, explicitOptions))
+        ).toEqual(expected)
     })
 })
 
