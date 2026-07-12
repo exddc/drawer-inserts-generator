@@ -73,6 +73,6 @@ function setModelParameter<K extends keyof ModelParameters>(
     value: number
 ): number {
     const next = sanitizeModelParameters({ ...get(), [key]: value }, get())
-    set(next)
+    set({ [key]: next[key] } as Partial<StoreState>)
     return next[key]
 }
