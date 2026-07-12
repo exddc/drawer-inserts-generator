@@ -1,6 +1,4 @@
 'use client'
-import * as React from 'react'
-import * as THREE from 'three'
 
 import {
     Menubar,
@@ -15,11 +13,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { cameraSettings } from '@/lib/defaults'
+import type { GridCommands } from '@/hooks/useGridCommands'
 import { canCombineGridBoxes } from '@/lib/gridCombine'
 import { getGridBoxes } from '@/lib/gridVisibility'
-import { keyPress } from '@/lib/keyHelper'
-import { renderRuntime } from '@/lib/renderRuntime'
 import { useStore } from '@/lib/store'
 import {
     Box,
@@ -31,18 +27,19 @@ import {
     X,
 } from 'lucide-react'
 
-export default function ActionsBar() {
+interface ActionsBarProps {
+    onResetCamera: () => void
+    onSetTopView: () => void
+    commands: GridCommands
+}
+
+export default function ActionsBar({
+    onResetCamera,
+    onSetTopView,
+    commands,
+}: ActionsBarProps) {
     const store = useStore()
     const position = store.actionsBarPosition || 'bottom'
-    const camera = renderRuntime.cameraRef
-    const controls = renderRuntime.controlsRef
-    const initialPosition = React.useRef(
-        new THREE.Vector3(
-            cameraSettings.position.x,
-            cameraSettings.position.y,
-            cameraSettings.position.z
-        )
-    )
     const selectedBoxes = getGridBoxes(store.grid, store.wallHeight).filter(
         (box) => store.selectedBoxIds.includes(box.id)
     )
@@ -52,26 +49,6 @@ export default function ActionsBar() {
         selectedBoxes.length >= 2 &&
         canCombineGridBoxes(store.grid, selectedBoxes)
     const canUseBoxAction = canSplit || canCombine
-
-    const resetCamera = () => {
-        if (!camera.current || !controls.current) return
-
-        camera.current.position.copy(initialPosition.current)
-        camera.current.up.set(0, 1, 0)
-        controls.current.target.set(0, 0, 0)
-        controls.current.update()
-    }
-
-    const setTopView = () => {
-        if (!camera.current || !controls.current) return
-
-        const distance = camera.current.position.length()
-
-        camera.current.position.set(0, distance, 0)
-        camera.current.up.set(0, 1, 0)
-        controls.current.target.set(0, 0, 0)
-        controls.current.update()
-    }
 
     return (
         <div className="lg:bottom-18 lg:ml-auto lg:-right-6 z-10 transform relative lg:w-fit">
@@ -87,11 +64,11 @@ export default function ActionsBar() {
                                 <Camera className="h-5 w-5" />
                             </MenubarTrigger>
                             <MenubarContent>
-                                <MenubarItem onClick={resetCamera}>
+                                <MenubarItem onClick={onResetCamera}>
                                     <Box className="h-4 w-4" />
                                     <p>Inital View</p>
                                 </MenubarItem>
-                                <MenubarItem onClick={setTopView}>
+                                <MenubarItem onClick={onSetTopView}>
                                     <Grid2X2 className="h-4 w-4" />
                                     <p>Top View</p>
                                 </MenubarItem>
@@ -108,7 +85,7 @@ export default function ActionsBar() {
                                     ? ' cursor-pointer'
                                     : ' cursor-default text-neutral-400')
                             }
-                            onClick={() => keyPress('h')}
+                            onClick={commands.toggleSelectionVisibility}
                             disabled={!enableClearSelection}
                         >
                             <EyeOff className="h-4 w-4" />
@@ -125,7 +102,7 @@ export default function ActionsBar() {
                                     ? ' cursor-pointer'
                                     : ' cursor-not-allowed text-neutral-400')
                             }
-                            onClick={() => store.setSelectedBoxIds([])}
+                            onClick={commands.clearSelection}
                             disabled={!enableClearSelection}
                         >
                             <X className="h-4 w-4" />
@@ -146,9 +123,9 @@ export default function ActionsBar() {
                             disabled={!canUseBoxAction}
                             onClick={() => {
                                 if (canSplit) {
-                                    keyPress('s')
+                                    commands.splitSelection()
                                 } else if (canCombine) {
-                                    keyPress('c')
+                                    commands.combineSelection()
                                 }
                             }}
                         >

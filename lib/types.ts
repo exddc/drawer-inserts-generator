@@ -95,5 +95,3 @@ export interface StoreState extends ModelConfig {
     setCornerLineColor: (color: number) => void
     setCornerLineOpacity: (opacity: number) => void
 }
-
-export type ValidKey = 's' | 'c' | 'h' | string
