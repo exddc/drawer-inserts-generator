@@ -1,12 +1,11 @@
 import { material } from '@/lib/defaults'
-import { useStore } from '@/lib/store'
 import * as THREE from 'three'
 
 export function buildWallMesh(
     outerPts: THREE.Vector2[],
-    innerPts: THREE.Vector2[]
+    innerPts: THREE.Vector2[],
+    wallHeight: number
 ): THREE.Mesh {
-    const wallHeight = useStore.getState().wallHeight
     const shape = new THREE.Shape()
     if (outerPts.length) {
         shape.moveTo(outerPts[0].x, outerPts[0].y)
