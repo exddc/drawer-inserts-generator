@@ -1,7 +1,7 @@
 import { generateCustomBox } from '@/lib/boxHelper'
 import { getGridBoxes } from '@/lib/gridVisibility'
-import { renderRuntime } from '@/lib/renderRuntime'
 import { useStore } from '@/lib/store'
+import { disposeObject } from '@/lib/threeDisposal'
 import * as THREE from 'three'
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 
@@ -56,9 +56,20 @@ export function handleStlExport(): void {
  */
 export async function handleExportMultipleSTLs(): Promise<void> {
     const state = useStore.getState()
-    const boxGroup = renderRuntime.boxRef.current
     const grid = state.grid
-    if (!boxGroup || grid.length === 0) return
+    if (grid.length === 0) return
+
+    const boxGroup = generateCustomBox(grid, {
+        wallThickness: state.wallThickness,
+        cornerRadius: state.cornerRadius,
+        wallHeight: state.wallHeight,
+        generateBottom: state.generateBottom,
+        cornerLines: {
+            show: false,
+            color: state.cornerLineColor,
+            opacity: state.cornerLineOpacity,
+        },
+    })
 
     const boxWidths = grid[0].map((cell) => cell.width)
     const boxDepths = grid.map((row) => row[0].depth)
@@ -162,6 +173,7 @@ Happy printing!
     link.click()
     document.body.removeChild(link)
     setTimeout(() => URL.revokeObjectURL(link.href), 100)
+    disposeObject(boxGroup)
 }
 
 function removeHiddenObjects(object: THREE.Object3D): void {

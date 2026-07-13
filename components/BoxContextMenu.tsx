@@ -1,12 +1,10 @@
 'use client'
 
-import { pickCurrentBox } from '@/lib/boxPicking'
+import type { GridCommands } from '@/hooks/useGridCommands'
 import { canCombineGridBoxes } from '@/lib/gridCombine'
 import { getBoxById, getGridBoxes } from '@/lib/gridVisibility'
-import { keyPress } from '@/lib/keyHelper'
-import { renderRuntime } from '@/lib/renderRuntime'
 import { useStore } from '@/lib/store'
-import type { GeneratedBoxMetadata } from '@/lib/types'
+import type { GeneratedBoxMetadata, SelectionId } from '@/lib/types'
 import {
     Boxes,
     Combine,
@@ -15,8 +13,7 @@ import {
     SquareDashed,
     SquareSplitHorizontal,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import * as THREE from 'three'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 
 declare global {
     interface Window {
@@ -24,7 +21,20 @@ declare global {
     }
 }
 
-export default function BoxContextMenu() {
+interface BoxContextMenuProps {
+    containerRef: RefObject<HTMLDivElement | null>
+    pickBoxAtClientPoint: (
+        clientX: number,
+        clientY: number
+    ) => SelectionId | null
+    commands: GridCommands
+}
+
+export default function BoxContextMenu({
+    containerRef,
+    pickBoxAtClientPoint,
+    commands,
+}: BoxContextMenuProps) {
     const [open, setOpen] = useState(false)
     const [pos, setPos] = useState({ x: 0, y: 0 })
     const [boxInfos, setBoxInfos] = useState<GeneratedBoxMetadata | null>(null)
@@ -38,11 +48,8 @@ export default function BoxContextMenu() {
     const [canSplit, setCanSplit] = useState(false)
 
     useEffect(() => {
-        const container = renderRuntime.containerRef.current
+        const container = containerRef.current
         if (!container) return
-
-        const raycaster = new THREE.Raycaster()
-        const mouse = new THREE.Vector2()
 
         const onContextMenu = (e: MouseEvent) => {
             e.preventDefault()
@@ -51,11 +58,7 @@ export default function BoxContextMenu() {
                 return
             }
 
-            const rect = container.getBoundingClientRect()
-            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
-
-            const boxId = pickCurrentBox(raycaster, mouse)
+            const boxId = pickBoxAtClientPoint(e.clientX, e.clientY)
 
             if (boxId) {
                 setBoxInfos(
@@ -79,7 +82,7 @@ export default function BoxContextMenu() {
                 container.removeEventListener('contextmenu', onContextMenu)
             }
         }
-    }, [])
+    }, [containerRef, pickBoxAtClientPoint])
 
     useEffect(() => {
         if (!open) {
@@ -154,16 +157,16 @@ export default function BoxContextMenu() {
             }
         } else if (action === 'Split Box') {
             if (canSplit) {
-                keyPress('s')
+                commands.splitSelection()
             }
         } else if (action === 'Combine Selected Boxes') {
             if (selectedBoxIds.length >= 2) {
-                keyPress('c')
+                commands.combineSelection()
             }
         } else if (action === 'Toggle Visibility') {
-            keyPress('h')
+            commands.toggleSelectionVisibility()
         } else if (action === 'Clear Selection') {
-            setSelectedBoxIds([])
+            commands.clearSelection()
         }
 
         setOpen(false)
