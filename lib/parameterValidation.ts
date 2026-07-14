@@ -122,13 +122,17 @@ function extendMaxBoxSize(
     maxBoxSize: number,
     minBoxSize: number
 ): number {
-    const segments = segmentSizes(total, maxBoxSize)
-    if (segments.length === 1) return maxBoxSize
+    const segments = segmentSizes(total, maxBoxSize, minBoxSize)
+    const hasUndersizedSegment = segments.some(
+        (size) => size + dimensionTolerance < minBoxSize
+    )
+    if (!hasUndersizedSegment) return maxBoxSize
 
-    const lastSegmentSize = segments[segments.length - 1]
-    if (lastSegmentSize + dimensionTolerance >= minBoxSize) return maxBoxSize
-
-    return roundDimension(total / (segments.length - 1))
+    const maxValidSegmentCount = Math.max(
+        1,
+        Math.floor(total / minBoxSize + dimensionTolerance)
+    )
+    return roundDimension(total / maxValidSegmentCount)
 }
 
 function roundDimension(value: number): number {

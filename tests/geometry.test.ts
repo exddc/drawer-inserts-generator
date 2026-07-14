@@ -778,14 +778,14 @@ describe('grid resizing', () => {
 
 describe('parameter validation', () => {
     it.each([
-        [201, 100, 100.5],
-        [150, 149, 150],
-        [100, 1, 100 / 7],
-        [113, 100, 100],
-        [26.000000001, 13, 13],
+        [201, 100, 100, 3],
+        [150, 149, 149, 2],
+        [100, 1, 100 / 7, 7],
+        [113, 100, 100, 2],
+        [26.000000001, 13, 13, 2],
     ])(
         'keeps every segment valid for a %d mm total and %d mm requested max',
-        (total, requestedMax, expectedMax) => {
+        (total, requestedMax, expectedMax, expectedSegmentCount) => {
             const sanitized = sanitizeModelParameters({
                 totalWidth: total,
                 totalDepth: total,
@@ -803,12 +803,15 @@ describe('parameter validation', () => {
                 sanitized.totalWidth,
                 sanitized.totalDepth,
                 sanitized.maxBoxWidth,
-                sanitized.maxBoxDepth
+                sanitized.maxBoxDepth,
+                minBoxSize
             )
 
             expect(minBoxSize).toBe(13)
             expect(sanitized.maxBoxWidth).toBeCloseTo(expectedMax)
             expect(sanitized.maxBoxDepth).toBeCloseTo(expectedMax)
+            expect(grid).toHaveLength(expectedSegmentCount)
+            expect(grid[0]).toHaveLength(expectedSegmentCount)
             expect(
                 grid.every((row) =>
                     row.every(

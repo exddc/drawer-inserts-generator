@@ -14,7 +14,7 @@ describe('model parameter store', () => {
         ['total width', 'totalWidth', 'maxBoxWidth', 'setTotalWidth'],
         ['total depth', 'totalDepth', 'maxBoxDepth', 'setTotalDepth'],
     ] as const)(
-        'extends the max box size when changing %s would create a tiny remainder',
+        'preserves the max box size when changing %s can be balanced safely',
         (_label, parameter, maxBoxParameter, setter) => {
             const initial = useStore.getState()
 
@@ -22,7 +22,7 @@ describe('model parameter store', () => {
 
             const updated = useStore.getState()
             expect(updated[parameter]).toBe(201)
-            expect(updated[maxBoxParameter]).toBe(100.5)
+            expect(updated[maxBoxParameter]).toBe(100)
             expect(updated.wallThickness).toBe(initial.wallThickness)
             expect(updated.cornerRadius).toBe(initial.cornerRadius)
         }
@@ -32,14 +32,23 @@ describe('model parameter store', () => {
         ['max box width', 'maxBoxWidth', 'setMaxBoxWidth'],
         ['max box depth', 'maxBoxDepth', 'setMaxBoxDepth'],
     ] as const)(
-        'extends %s when the requested value would create a tiny remainder',
+        'preserves %s when the requested layout can be balanced safely',
         (_label, parameter, setter) => {
             const state = useStore.getState()
 
-            expect(state[setter](149)).toBe(150)
-            expect(useStore.getState()[parameter]).toBe(150)
+            expect(state[setter](149)).toBe(149)
+            expect(useStore.getState()[parameter]).toBe(149)
         }
     )
+
+    it('extends max box width only when balancing cannot satisfy the minimum', () => {
+        const state = useStore.getState()
+
+        state.setTotalWidth(100)
+
+        expect(state.setMaxBoxWidth(13)).toBeCloseTo(100 / 7)
+        expect(useStore.getState().maxBoxWidth).toBeCloseTo(100 / 7)
+    })
 
     it('gates total and max box dimensions at the smallest valid box size', () => {
         const state = useStore.getState()
@@ -64,8 +73,8 @@ describe('model parameter store', () => {
         expect(useStore.getState()).toMatchObject({
             totalWidth: 150,
             totalDepth: 150,
-            maxBoxWidth: 150,
-            maxBoxDepth: 150,
+            maxBoxWidth: 100,
+            maxBoxDepth: 100,
             wallThickness: 2,
             cornerRadius: 30,
         })

@@ -10,6 +10,7 @@ interface GridLayoutOptions {
     totalDepth: number
     maxBoxWidth: number
     maxBoxDepth: number
+    minBoxSize: number
     setGrid: (grid: Grid) => void
 }
 
@@ -19,6 +20,7 @@ export function useGridLayout({
     totalDepth,
     maxBoxWidth,
     maxBoxDepth,
+    minBoxSize,
     setGrid,
 }: GridLayoutOptions): Grid {
     const resolvedGrid = useMemo(() => {
@@ -28,7 +30,8 @@ export function useGridLayout({
                 totalWidth,
                 totalDepth,
                 maxBoxWidth,
-                maxBoxDepth
+                maxBoxDepth,
+                minBoxSize
             )
         ) {
             return grid
@@ -38,9 +41,10 @@ export function useGridLayout({
             totalWidth,
             totalDepth,
             maxBoxWidth,
-            maxBoxDepth
+            maxBoxDepth,
+            minBoxSize
         )
-    }, [grid, totalWidth, totalDepth, maxBoxWidth, maxBoxDepth])
+    }, [grid, totalWidth, totalDepth, maxBoxWidth, maxBoxDepth, minBoxSize])
 
     useEffect(() => {
         if (resolvedGrid !== grid) setGrid(resolvedGrid)

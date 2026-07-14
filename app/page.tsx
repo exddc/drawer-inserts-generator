@@ -6,6 +6,7 @@ import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { useGridCommands } from '@/hooks/useGridCommands'
 import { useGridLayout } from '@/hooks/useGridLayout'
 import { useSceneView } from '@/hooks/useSceneView'
+import { getMinimumBoxSize } from '@/lib/parameterValidation'
 import type { ScenePointerSelection } from '@/lib/sceneViewAdapter'
 import { useStore } from '@/lib/store'
 import { useCallback } from 'react'
@@ -13,12 +14,17 @@ import { useCallback } from 'react'
 export default function Home() {
     const state = useStore()
     const commands = useGridCommands()
+    const minBoxSize = getMinimumBoxSize(
+        state.wallThickness,
+        state.cornerRadius
+    )
     const grid = useGridLayout({
         grid: state.grid,
         totalWidth: state.totalWidth,
         totalDepth: state.totalDepth,
         maxBoxWidth: state.maxBoxWidth,
         maxBoxDepth: state.maxBoxDepth,
+        minBoxSize,
         setGrid: state.setGrid,
     })
 
