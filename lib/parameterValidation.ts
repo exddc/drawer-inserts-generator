@@ -1,5 +1,5 @@
 import { parameters } from '@/lib/defaults'
-import { dimensionTolerance, segmentSizes } from '@/lib/gridSizing'
+import { segmentSizes } from '@/lib/gridSizing'
 import type { StoreState } from '@/lib/types'
 
 export type ModelParameters = Pick<
@@ -123,18 +123,24 @@ function extendMaxBoxSize(
     minBoxSize: number
 ): number {
     const segments = segmentSizes(total, maxBoxSize, minBoxSize)
-    const hasUndersizedSegment = segments.some(
-        (size) => size + dimensionTolerance < minBoxSize
-    )
+    const hasUndersizedSegment = segments.some((size) => size < minBoxSize)
     if (!hasUndersizedSegment) return maxBoxSize
 
-    const maxValidSegmentCount = Math.max(
-        1,
-        Math.floor(total / minBoxSize + dimensionTolerance)
-    )
-    return roundDimension(total / maxValidSegmentCount)
+    let maxValidSegmentCount = Math.max(1, Math.floor(total / minBoxSize))
+    while (
+        maxValidSegmentCount > 1 &&
+        total / maxValidSegmentCount < minBoxSize
+    ) {
+        maxValidSegmentCount--
+    }
+
+    return roundDimensionUp(total / maxValidSegmentCount)
 }
 
 function roundDimension(value: number): number {
     return Math.round(value * 1e10) / 1e10
+}
+
+function roundDimensionUp(value: number): number {
+    return Math.ceil(value * 1e10) / 1e10
 }

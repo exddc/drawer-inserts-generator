@@ -6,6 +6,7 @@ import {
     validateGridBoxCombination,
 } from '@/lib/gridCombine'
 import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
+import { dimensionTolerance } from '@/lib/gridSizing'
 import {
     getGridBoxes,
     isGridBoxVisible,
@@ -777,6 +778,46 @@ describe('grid resizing', () => {
 })
 
 describe('parameter validation', () => {
+    it('rounds a corrected maximum without creating another undersized segment', () => {
+        const sanitized = sanitizeModelParameters({
+            totalWidth: 41,
+            totalDepth: 1.2,
+            maxBoxWidth: 1.2,
+            maxBoxDepth: 1.2,
+            wallThickness: 0.1,
+            cornerRadius: 0,
+        })
+        const minBoxSize = getMinimumBoxSize(
+            sanitized.wallThickness,
+            sanitized.cornerRadius
+        )
+        const grid = resizeGrid(
+            [],
+            sanitized.totalWidth,
+            sanitized.totalDepth,
+            sanitized.maxBoxWidth,
+            sanitized.maxBoxDepth,
+            minBoxSize
+        )
+        const widths = grid[0].map((cell) => cell.width)
+
+        expect(minBoxSize).toBe(1.2)
+        expect(sanitized.maxBoxWidth).toBe(1.205882353)
+        expect(widths).toHaveLength(34)
+        expect(widths.every((width) => width >= minBoxSize)).toBe(true)
+        expect(
+            widths.every(
+                (width) => width - sanitized.maxBoxWidth <= dimensionTolerance
+            )
+        ).toBe(true)
+        expect(
+            Math.abs(
+                widths.reduce((sum, width) => sum + width, 0) -
+                    sanitized.totalWidth
+            )
+        ).toBeLessThanOrEqual(dimensionTolerance)
+    })
+
     it.each([
         [201, 100, 100, 3],
         [150, 149, 149, 2],
@@ -843,5 +884,145 @@ describe('parameter validation', () => {
         expect(Number.isFinite(sanitized.cornerRadius)).toBe(true)
         expect(sanitized.wallThickness).toBe(15)
         expect(sanitized.cornerRadius).toBe(30)
+    })
+
+    it('preserves sizing invariants across generated and boundary parameters', () => {
+        const wallThicknesses = [0.1, 0.2, 2, 7.3, 15]
+        const cornerRadii = [0, 0.1, 4, 12.7, 30]
+        let checkedConfigurations = 0
+
+        const expectSizingInvariants = (
+            wallThickness: number,
+            cornerRadius: number,
+            totalWidth: number,
+            maxBoxWidth: number
+        ) => {
+            const minBoxSize = getMinimumBoxSize(wallThickness, cornerRadius)
+            const sanitized = sanitizeModelParameters({
+                totalWidth,
+                totalDepth: minBoxSize,
+                maxBoxWidth,
+                maxBoxDepth: 500,
+                wallThickness,
+                cornerRadius,
+            })
+            const sanitizedAgain = sanitizeModelParameters(sanitized)
+            const grid = resizeGrid(
+                [],
+                sanitized.totalWidth,
+                sanitized.totalDepth,
+                sanitized.maxBoxWidth,
+                sanitized.maxBoxDepth,
+                minBoxSize
+            )
+            const resizedAgain = resizeGrid(
+                grid,
+                sanitized.totalWidth,
+                sanitized.totalDepth,
+                sanitized.maxBoxWidth,
+                sanitized.maxBoxDepth,
+                minBoxSize
+            )
+            const widths = grid[0].map((cell) => cell.width)
+            const depths = grid.map((row) => row[0].depth)
+
+            const sizes = [...widths, ...depths]
+            sizes.forEach((size) => {
+                expect(size).toBeGreaterThanOrEqual(minBoxSize)
+            })
+            widths.forEach((width) => {
+                expect(width - sanitized.maxBoxWidth).toBeLessThanOrEqual(
+                    dimensionTolerance
+                )
+            })
+            depths.forEach((depth) => {
+                expect(depth - sanitized.maxBoxDepth).toBeLessThanOrEqual(
+                    dimensionTolerance
+                )
+            })
+            expect(
+                Math.abs(
+                    widths.reduce((sum, width) => sum + width, 0) -
+                        sanitized.totalWidth
+                )
+            ).toBeLessThanOrEqual(dimensionTolerance)
+            expect(
+                Math.abs(
+                    depths.reduce((sum, depth) => sum + depth, 0) -
+                        sanitized.totalDepth
+                )
+            ).toBeLessThanOrEqual(dimensionTolerance)
+            expect(sanitizedAgain).toEqual(sanitized)
+            expect(resizedAgain).toEqual(grid)
+            checkedConfigurations++
+        }
+
+        wallThicknesses.forEach((wallThickness) => {
+            cornerRadii.forEach((cornerRadius) => {
+                const minBoxSize = getMinimumBoxSize(
+                    wallThickness,
+                    cornerRadius
+                )
+                const totals = [
+                    minBoxSize,
+                    minBoxSize + dimensionTolerance / 2,
+                    minBoxSize + dimensionTolerance * 10,
+                    41,
+                    100,
+                    201,
+                    500,
+                ].filter((total) => total >= minBoxSize && total <= 500)
+                const uniqueTotals = [...new Set(totals)]
+
+                uniqueTotals.forEach((totalWidth) => {
+                    const requestedMaxima = [
+                        1,
+                        minBoxSize,
+                        minBoxSize + dimensionTolerance / 2,
+                        Math.max(
+                            minBoxSize,
+                            totalWidth / 2 - dimensionTolerance / 2
+                        ),
+                        totalWidth / 2,
+                        totalWidth / 3,
+                        100,
+                        500,
+                    ]
+                    const uniqueMaxima = [...new Set(requestedMaxima)]
+
+                    uniqueMaxima.forEach((maxBoxWidth) => {
+                        expectSizingInvariants(
+                            wallThickness,
+                            cornerRadius,
+                            totalWidth,
+                            maxBoxWidth
+                        )
+                    })
+                })
+            })
+        })
+
+        let randomState = 0x224
+        const nextRandom = () => {
+            randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0
+            return randomState / 0x1_0000_0000
+        }
+
+        for (let index = 0; index < 250; index++) {
+            const wallThickness = 0.1 + nextRandom() * 14.9
+            const cornerRadius = nextRandom() * 30
+            const minBoxSize = getMinimumBoxSize(wallThickness, cornerRadius)
+            const totalWidth = minBoxSize + nextRandom() * (500 - minBoxSize)
+            const maxBoxWidth = 1 + nextRandom() * 499
+
+            expectSizingInvariants(
+                wallThickness,
+                cornerRadius,
+                totalWidth,
+                maxBoxWidth
+            )
+        }
+
+        expect(checkedConfigurations).toBeGreaterThan(750)
     })
 })

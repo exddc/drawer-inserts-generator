@@ -1,3 +1,4 @@
+/** Floating-point tolerance in millimetres. */
 export const dimensionTolerance = 1e-9
 
 export function segmentSizes(
@@ -10,13 +11,13 @@ export function segmentSizes(
 
     const segmentCount = Math.max(
         1,
-        Math.ceil(total / maxSize - dimensionTolerance)
+        Math.ceil((total - dimensionTolerance / 2) / maxSize)
     )
     const segments = Array(Math.max(0, segmentCount - 1)).fill(maxSize)
     segments.push(total - maxSize * (segmentCount - 1))
 
     const lastSegment = segments[segments.length - 1]
-    if (lastSegment + dimensionTolerance >= minSize) return segments
+    if (lastSegment >= minSize) return segments
 
     const balancedSize = total / segmentCount
     const balancedSegments = Array(Math.max(0, segmentCount - 1)).fill(
