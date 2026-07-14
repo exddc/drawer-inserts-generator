@@ -1,5 +1,6 @@
 import '@/app/globals.css'
 import Sidebar from '@/components/Sidebar'
+import { Toaster } from '@/components/ui/sonner'
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import Script from 'next/script'
@@ -147,6 +148,7 @@ export default function RootLayout({
             >
                 <Sidebar />
                 <main className="flex-grow overflow-hidden">{children}</main>
+                <Toaster position="top-center" richColors />
             </body>
             <Script
                 defer

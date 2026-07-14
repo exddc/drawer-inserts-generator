@@ -1,9 +1,50 @@
 import { Grid } from '@/lib/types'
 import * as THREE from 'three'
 
+type Segment = { a: THREE.Vector2; b: THREE.Vector2 }
+
+export type OutlineTopologyCode =
+    | 'disconnected'
+    | 'self-intersection'
+    | 'incomplete-boundary'
+    | 'contains-hole'
+
+export class OutlineTopologyError extends Error {
+    constructor(
+        readonly groupId: number,
+        readonly code: OutlineTopologyCode,
+        message: string
+    ) {
+        super(`Cannot build outline for group ${groupId}: ${message}.`)
+        this.name = 'OutlineTopologyError'
+    }
+}
+
 export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
+    if (grid.length === 0 || grid[0].length === 0) {
+        throw new Error('Cannot build an outline for an empty grid.')
+    }
+
     const rows = grid.length
     const cols = grid[0].length
+    if (grid.some((row) => row.length !== cols)) {
+        throw new Error('Cannot build an outline for a non-rectangular grid.')
+    }
+    if (
+        grid.some((row) =>
+            row.some(
+                (cell) =>
+                    !Number.isFinite(cell.width) ||
+                    cell.width <= 0 ||
+                    !Number.isFinite(cell.depth) ||
+                    cell.depth <= 0
+            )
+        )
+    ) {
+        throw new Error(
+            'Cannot build an outline with non-positive or non-finite cell dimensions.'
+        )
+    }
 
     // gather column‐widths from the 0th row
     const widths = grid[0].map((c) => c.width)
@@ -15,49 +56,142 @@ export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
     widths.forEach((w) => cumW.push(cumW[cumW.length - 1] + w))
     const cumD = [0]
     depths.forEach((d) => cumD.push(cumD[cumD.length - 1] + d))
-    type Seg = { a: THREE.Vector2; b: THREE.Vector2 }
-    const segs: Seg[] = []
+    const cells: THREE.Vector2[] = []
+    const segments: Segment[] = []
 
     for (let z = 0; z < rows; z++) {
         for (let x = 0; x < cols; x++) {
             if (grid[z][x].group !== groupId) continue
+            cells.push(new THREE.Vector2(x, z))
             if (z === 0 || grid[z - 1][x].group !== groupId)
-                segs.push({
+                segments.push({
                     a: new THREE.Vector2(x, z),
                     b: new THREE.Vector2(x + 1, z),
                 })
             if (x === cols - 1 || grid[z][x + 1].group !== groupId)
-                segs.push({
+                segments.push({
                     a: new THREE.Vector2(x + 1, z),
                     b: new THREE.Vector2(x + 1, z + 1),
                 })
             if (z === rows - 1 || grid[z + 1][x].group !== groupId)
-                segs.push({
+                segments.push({
                     a: new THREE.Vector2(x + 1, z + 1),
                     b: new THREE.Vector2(x, z + 1),
                 })
             if (x === 0 || grid[z][x - 1].group !== groupId)
-                segs.push({
+                segments.push({
                     a: new THREE.Vector2(x, z + 1),
                     b: new THREE.Vector2(x, z),
                 })
         }
     }
 
+    if (segments.length === 0) {
+        throw new Error(`Cannot build an outline for missing group ${groupId}.`)
+    }
+
+    if (!cellsAreConnected(cells)) {
+        throw outlineError(groupId, 'disconnected')
+    }
+
+    const outgoing = new Map<string, number[]>()
+    const incoming = new Map<string, number[]>()
+    segments.forEach((segment, index) => {
+        addEdge(outgoing, pointKey(segment.a), index)
+        addEdge(incoming, pointKey(segment.b), index)
+    })
+
+    const vertices = new Set([...outgoing.keys(), ...incoming.keys()])
+    for (const vertex of vertices) {
+        const outgoingCount = outgoing.get(vertex)?.length ?? 0
+        const incomingCount = incoming.get(vertex)?.length ?? 0
+        if (outgoingCount > 1 || incomingCount > 1) {
+            throw outlineError(groupId, 'self-intersection')
+        }
+        if (outgoingCount !== 1 || incomingCount !== 1) {
+            throw outlineError(groupId, 'incomplete-boundary')
+        }
+    }
+
     const loop: THREE.Vector2[] = []
-    let cur = segs.shift()!
-    loop.push(cur.a, cur.b)
-    while (segs.length) {
-        const tail = loop[loop.length - 1]
-        const idx = segs.findIndex((s) => s.a.equals(tail))
-        if (idx === -1) break
-        loop.push(segs[idx].b)
-        segs.splice(idx, 1)
+    const used = new Set<number>()
+    const startKey = pointKey(segments[0].a)
+    let currentIndex = 0
+    let closed = false
+
+    while (!used.has(currentIndex)) {
+        const segment = segments[currentIndex]
+        used.add(currentIndex)
+        loop.push(segment.a)
+
+        const nextKey = pointKey(segment.b)
+        if (nextKey === startKey) {
+            closed = true
+            break
+        }
+
+        const next = outgoing.get(nextKey)
+        if (!next || next.length !== 1 || used.has(next[0])) {
+            throw outlineError(groupId, 'incomplete-boundary')
+        }
+        currentIndex = next[0]
     }
-    if (loop.length > 1 && loop[0].equals(loop[loop.length - 1])) {
-        loop.pop()
+
+    if (!closed) {
+        throw outlineError(groupId, 'incomplete-boundary')
     }
-    return loop.map((p) => new THREE.Vector2(cumW[p.x], cumD[p.y]))
+    if (used.size !== segments.length) {
+        throw outlineError(groupId, 'contains-hole')
+    }
+    // Positive dimensions make both coordinate maps strictly increasing, so
+    // the validated grid-space topology cannot gain intersections here.
+    return loop.map((point) => new THREE.Vector2(cumW[point.x], cumD[point.y]))
+}
+
+function pointKey(point: THREE.Vector2): string {
+    return `${point.x},${point.y}`
+}
+
+function addEdge(map: Map<string, number[]>, key: string, index: number): void {
+    const edges = map.get(key) ?? []
+    edges.push(index)
+    map.set(key, edges)
+}
+
+function outlineError(
+    groupId: number,
+    code: OutlineTopologyCode
+): OutlineTopologyError {
+    const messages: Record<OutlineTopologyCode, string> = {
+        disconnected: 'region is disconnected',
+        'self-intersection': 'boundary self-intersects',
+        'incomplete-boundary': 'boundary loop could not be completed',
+        'contains-hole': 'region contains a hole',
+    }
+    return new OutlineTopologyError(groupId, code, messages[code])
+}
+
+function cellsAreConnected(cells: THREE.Vector2[]): boolean {
+    const remaining = new Set(cells.map(pointKey))
+    const pending = [cells[0]]
+    remaining.delete(pointKey(cells[0]))
+
+    while (pending.length > 0) {
+        const cell = pending.pop()!
+        const neighbors = [
+            new THREE.Vector2(cell.x - 1, cell.y),
+            new THREE.Vector2(cell.x + 1, cell.y),
+            new THREE.Vector2(cell.x, cell.y - 1),
+            new THREE.Vector2(cell.x, cell.y + 1),
+        ]
+        neighbors.forEach((neighbor) => {
+            const key = pointKey(neighbor)
+            if (!remaining.delete(key)) return
+            pending.push(neighbor)
+        })
+    }
+
+    return remaining.size === 0
 }
 
 export function offsetPolygonCCW(pts: THREE.Vector2[], t: number) {
@@ -132,4 +266,48 @@ export function getRoundedOutline(
     path.closePath()
     const ptsOut = path.getPoints(N * segmentsPerCorner)
     return ptsOut.map((p) => new THREE.Vector2(p.x, p.y))
+}
+
+export function createCornerLines(
+    outlinePoints: THREE.Vector2[],
+    height: number,
+    color: number,
+    opacity: number,
+    bottomThickness: number,
+    inner = false
+): THREE.LineSegments {
+    const geometry = new THREE.BufferGeometry()
+    const positions: number[] = []
+
+    outlinePoints.forEach((point) => {
+        positions.push(point.x, 0, point.y)
+        positions.push(point.x, height, point.y)
+    })
+
+    for (let i = 0; i < outlinePoints.length; i++) {
+        const current = outlinePoints[i]
+        const next = outlinePoints[(i + 1) % outlinePoints.length]
+        const lowerHeight = inner ? bottomThickness : 0
+
+        positions.push(current.x, lowerHeight, current.y)
+        positions.push(next.x, lowerHeight, next.y)
+        positions.push(current.x, height, current.y)
+        positions.push(next.x, height, next.y)
+    }
+
+    geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(positions, 3)
+    )
+
+    const material = new THREE.LineBasicMaterial({
+        color,
+        opacity,
+        transparent: true,
+        linewidth: 1,
+    })
+
+    const lines = new THREE.LineSegments(geometry, material)
+    lines.name = 'corner-lines'
+    return lines
 }

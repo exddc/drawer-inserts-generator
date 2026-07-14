@@ -12,6 +12,7 @@
         "build": "prettier --write . && next build",
         "start": "next start",
         "lint": "eslint .",
+        "test": "vitest run",
         "format": "prettier --write ."
     },
     "dependencies": {

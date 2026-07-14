@@ -1,18 +1,46 @@
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+export type Visibility = 'visible' | 'hidden'
 
-export type Cell = {
+export type GridCell = {
     group: number
     width: number
     depth: number
+    visibility?: Visibility
     color?: number
-    visible?: boolean
 }
 
-export type Grid = Cell[][]
+/** @deprecated Use GridCell. */
+export type Cell = GridCell
 
-export interface StoreState {
-    // Parameters
+export type Grid = GridCell[][]
+
+export type GridCoordinate = {
+    x: number
+    z: number
+}
+
+export type SelectionId = `group:${number}` | `cell:${number}:${number}`
+
+export type BoxDimensions = {
+    width: number
+    depth: number
+    height: number
+}
+
+export type Box = {
+    id: SelectionId
+    index: number
+    group: number
+    cells: GridCoordinate[]
+    visibility: Visibility
+}
+
+/** Pure metadata produced from a grid before any Three.js objects are built. */
+export type GeneratedBoxMetadata = Box & {
+    dimensions: BoxDimensions
+    isCombined: boolean
+}
+
+export type ModelConfig = {
     totalWidth: number
     totalDepth: number
     wallThickness: number
@@ -21,33 +49,30 @@ export interface StoreState {
     generateBottom: boolean
     maxBoxWidth: number
     maxBoxDepth: number
+}
 
-    setTotalWidth: (width: number) => void
-    setTotalDepth: (depth: number) => void
-    setWallThickness: (thickness: number) => void
-    setCornerRadius: (radius: number) => void
-    setWallHeight: (height: number) => void
+export type DrawerInsert = {
+    config: ModelConfig
+    grid: Grid
+    selectedBoxIds: SelectionId[]
+}
+
+export interface StoreState extends ModelConfig {
+    grid: Grid
+    setGrid: (grid: Grid) => void
+
+    selectedBoxIds: SelectionId[]
+    setSelectedBoxIds: (ids: SelectionId[]) => void
+
+    setTotalWidth: (width: number) => number
+    setTotalDepth: (depth: number) => number
+    setWallThickness: (thickness: number) => number
+    setCornerRadius: (radius: number) => number
+    setWallHeight: (height: number) => number
     setGenerateBottom: (generate: boolean) => void
-    setMaxBoxWidth: (width: number) => void
-    setMaxBoxDepth: (depth: number) => void
+    setMaxBoxWidth: (width: number) => number
+    setMaxBoxDepth: (depth: number) => number
 
-    // Refs
-    containerRef: { current: HTMLDivElement | null }
-    sceneRef: { current: THREE.Scene | null }
-    cameraRef: { current: THREE.PerspectiveCamera | null }
-    rendererRef: { current: THREE.WebGLRenderer | null }
-    controlsRef: { current: OrbitControls | null }
-    boxRef: { current: THREE.Group | null }
-    gridRef: { current: Grid }
-    helperGridRef: { current: THREE.GridHelper | null }
-
-    // Helpers
-    selectedGroups: THREE.Group[]
-    setSelectedGroups: (groups: THREE.Group[]) => void
-    hiddenBoxIds: Set<number>
-    setHiddenBoxIds: (ids: Set<number>) => void
-
-    // General
     actionsBarPosition: 'top' | 'bottom'
     setActionsBarPosition: (position: 'top' | 'bottom') => void
 
@@ -62,7 +87,6 @@ export interface StoreState {
     redrawTrigger: number
     forceRedraw: () => void
 
-    // Corner Lines
     showCornerLines: boolean
     cornerLineColor: number
     cornerLineOpacity: number
@@ -71,17 +95,3 @@ export interface StoreState {
     setCornerLineColor: (color: number) => void
     setCornerLineOpacity: (opacity: number) => void
 }
-
-export interface BoxInfo {
-    id: number
-    group: number
-    dimensions?: {
-        width: number
-        depth: number
-        height: number
-    }
-    cells: Array<{ x: number; z: number }>
-    visible?: boolean
-}
-
-export type ValidKey = 's' | 'c' | 'h' | string

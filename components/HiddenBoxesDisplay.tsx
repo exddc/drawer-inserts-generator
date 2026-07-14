@@ -1,56 +1,39 @@
 'use client'
 
+import {
+    getGridBoxes,
+    setGridBoxVisible,
+    type GridBoxInfo,
+} from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
 import { ChevronDown, ChevronUp, Eye } from 'lucide-react'
 import { useCallback, useState } from 'react'
-import * as THREE from 'three'
 
 export default function HiddenBoxesDisplay() {
-    const hiddenBoxIds = useStore((state) => state.hiddenBoxIds)
-    const setHiddenBoxIds = useStore((state) => state.setHiddenBoxIds)
     const store = useStore()
     const [isCollapsed, setIsCollapsed] = useState(false)
+    const hiddenBoxes = getGridBoxes(store.grid, store.wallHeight).filter(
+        (box) => box.visibility === 'hidden'
+    )
 
-    const handleUnhideBox = (boxToUnhide: THREE.Group) => {
-        boxToUnhide.visible = true
-
-        const newHiddenBoxIds = new Set(hiddenBoxIds)
-        newHiddenBoxIds.delete(boxToUnhide.userData.id)
-
-        setHiddenBoxIds(newHiddenBoxIds)
-        store.forceRedraw()
+    const handleUnhideBox = (boxToUnhide: GridBoxInfo) => {
+        const grid = store.grid.map((row) => row.map((cell) => ({ ...cell })))
+        setGridBoxVisible(grid, boxToUnhide, true)
+        store.setGrid(grid)
     }
 
     const handleUnhideAll = useCallback(() => {
-        const currentBoxRef = store.boxRef.current
-        if (!currentBoxRef) return
+        const grid = store.grid.map((row) => row.map((cell) => ({ ...cell })))
+        getGridBoxes(grid).forEach((box) => {
+            setGridBoxVisible(grid, box, true)
+        })
+        store.setGrid(grid)
+        store.setSelectedBoxIds([])
+    }, [store])
 
-        for (const id of hiddenBoxIds) {
-            const box = currentBoxRef.children.find(
-                (child) => child.userData.id === id
-            ) as THREE.Group
-            if (box) {
-                box.visible = true
-            }
-        }
-
-        setHiddenBoxIds(new Set())
-        store.setSelectedGroups([])
-        store.forceRedraw()
-    }, [hiddenBoxIds, store])
-
-    if (hiddenBoxIds.size === 0) {
+    if (hiddenBoxes.length === 0) {
         return null
     }
-
-    const hiddenBoxes = Array.from(hiddenBoxIds)
-        .map(
-            (id) =>
-                store.boxRef.current?.children.find(
-                    (child) => child.userData.id === id
-                ) as THREE.Group | undefined
-        )
-        .filter(Boolean) as THREE.Group[]
 
     return (
         <div className="fixed right-4 top-20 z-50 min-w-[200px] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-80">
@@ -75,15 +58,13 @@ export default function HiddenBoxesDisplay() {
 
                     {hiddenBoxes.map((box) => (
                         <div
-                            key={box.userData.id}
+                            key={box.id}
                             className="relative flex cursor-default select-none items-center rounded-sm px-2 text-sm outline-none justify-between"
                             title="Unhide Box"
                         >
                             <span>
-                                Box {box.userData.id}
-                                {box.userData.group !== 0
-                                    ? ` (Group ${box.userData.group})`
-                                    : ''}
+                                Box {box.index}
+                                {box.group !== 0 ? ` (Group ${box.group})` : ''}
                             </span>
                             <button
                                 className="ml-auto inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-muted/50 h-8 w-8"
@@ -95,7 +76,7 @@ export default function HiddenBoxesDisplay() {
                         </div>
                     ))}
 
-                    {hiddenBoxIds.size > 1 && (
+                    {hiddenBoxes.length > 1 && (
                         <>
                             <div className="-mx-1 my-1 h-px bg-border" />
                             <div

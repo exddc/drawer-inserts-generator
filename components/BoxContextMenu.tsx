@@ -1,8 +1,10 @@
 'use client'
 
-import { keyPress } from '@/lib/keyHelper'
+import type { GridCommands } from '@/hooks/useGridCommands'
+import { validateGridBoxCombination } from '@/lib/gridCombine'
+import { getBoxById, getGridBoxes } from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
-import { BoxInfo } from '@/lib/types'
+import type { GeneratedBoxMetadata, SelectionId } from '@/lib/types'
 import {
     Boxes,
     Combine,
@@ -11,8 +13,7 @@ import {
     SquareDashed,
     SquareSplitHorizontal,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import * as THREE from 'three'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 
 declare global {
     interface Window {
@@ -20,31 +21,35 @@ declare global {
     }
 }
 
-export default function BoxContextMenu() {
+interface BoxContextMenuProps {
+    containerRef: RefObject<HTMLDivElement | null>
+    pickBoxAtClientPoint: (
+        clientX: number,
+        clientY: number
+    ) => SelectionId | null
+    commands: GridCommands
+}
+
+export default function BoxContextMenu({
+    containerRef,
+    pickBoxAtClientPoint,
+    commands,
+}: BoxContextMenuProps) {
     const [open, setOpen] = useState(false)
     const [pos, setPos] = useState({ x: 0, y: 0 })
-    const [boxInfos, setBoxInfos] = useState<BoxInfo | null>(null)
+    const [boxInfos, setBoxInfos] = useState<GeneratedBoxMetadata | null>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
-    const storeContainerRef = useStore((state) => state.containerRef)
-    const cameraRef = useStore((state) => state.cameraRef)
-    const boxRef = useStore((state) => state.boxRef)
-    const setSelectedGroups = useStore((state) => state.setSelectedGroups)
-    const selectedGroups = useStore((state) => state.selectedGroups)
+    const grid = useStore((state) => state.grid)
+    const wallHeight = useStore((state) => state.wallHeight)
+    const setSelectedBoxIds = useStore((state) => state.setSelectedBoxIds)
+    const selectedBoxIds = useStore((state) => state.selectedBoxIds)
 
     const [canSplit, setCanSplit] = useState(false)
 
     useEffect(() => {
-        const container = storeContainerRef.current
-        const cam = cameraRef.current
-        const grp = boxRef.current
-
-        if (!container || !cam || !grp) {
-            return
-        }
-
-        const raycaster = new THREE.Raycaster()
-        const mouse = new THREE.Vector2()
+        const container = containerRef.current
+        if (!container) return
 
         const onContextMenu = (e: MouseEvent) => {
             e.preventDefault()
@@ -53,20 +58,16 @@ export default function BoxContextMenu() {
                 return
             }
 
-            if (!container) return
-            const rect = container.getBoundingClientRect()
-            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+            const boxId = pickBoxAtClientPoint(e.clientX, e.clientY)
 
-            raycaster.setFromCamera(mouse, cam)
-            const hits = raycaster.intersectObjects(grp.children, true)
-            const hit = hits.find((h) => {
-                const p = h.object.parent as THREE.Group
-                return typeof p.userData.group === 'number'
-            })
-
-            if (hit?.object.parent) {
-                setBoxInfos(hit.object.parent.userData as BoxInfo)
+            if (boxId) {
+                setBoxInfos(
+                    getBoxById(
+                        useStore.getState().grid,
+                        boxId,
+                        useStore.getState().wallHeight
+                    ) ?? null
+                )
             } else {
                 setBoxInfos(null)
             }
@@ -81,7 +82,7 @@ export default function BoxContextMenu() {
                 container.removeEventListener('contextmenu', onContextMenu)
             }
         }
-    }, [storeContainerRef, cameraRef, boxRef])
+    }, [containerRef, pickBoxAtClientPoint])
 
     useEffect(() => {
         if (!open) {
@@ -116,8 +117,11 @@ export default function BoxContextMenu() {
     }, [open])
 
     useEffect(() => {
-        if (selectedGroups.length === 1) {
-            if (selectedGroups[0].userData.group !== 0) {
+        const selectedBoxes = getGridBoxes(grid, wallHeight).filter((box) =>
+            selectedBoxIds.includes(box.id)
+        )
+        if (selectedBoxes.length === 1) {
+            if (selectedBoxes[0].group !== 0) {
                 setCanSplit(true)
             } else {
                 setCanSplit(false)
@@ -125,7 +129,7 @@ export default function BoxContextMenu() {
         } else {
             setCanSplit(false)
         }
-    }, [selectedGroups])
+    }, [selectedBoxIds, grid, wallHeight])
 
     const handleMenuItemClick = (
         action?:
@@ -142,38 +146,27 @@ export default function BoxContextMenu() {
         }
 
         if (action === 'Select Box') {
-            // Find the box group that matches the boxInfos using the unique ID
-            const boxGroup = boxRef.current?.children.find(
-                (child) => child.userData.id === boxInfos?.id
-            ) as THREE.Group | undefined
-
-            if (boxGroup) {
-                setSelectedGroups([boxGroup])
+            if (boxInfos) {
+                setSelectedBoxIds([boxInfos.id])
             }
         } else if (action === 'Add to Selection') {
-            // Find the box group that matches the boxInfos using the unique ID
-            const boxGroup = boxRef.current?.children.find(
-                (child) => child.userData.id === boxInfos?.id
-            ) as THREE.Group | undefined
-
-            if (boxGroup) {
-                // Add to existing selection if not already selected
-                if (!selectedGroups.includes(boxGroup)) {
-                    setSelectedGroups([...selectedGroups, boxGroup])
+            if (boxInfos) {
+                if (!selectedBoxIds.includes(boxInfos.id)) {
+                    setSelectedBoxIds([...selectedBoxIds, boxInfos.id])
                 }
             }
         } else if (action === 'Split Box') {
             if (canSplit) {
-                keyPress('s')
+                commands.splitSelection()
             }
         } else if (action === 'Combine Selected Boxes') {
-            if (selectedGroups.length >= 2) {
-                keyPress('c')
+            if (selectedBoxIds.length >= 2) {
+                commands.combineSelection()
             }
         } else if (action === 'Toggle Visibility') {
-            keyPress('h')
+            commands.toggleSelectionVisibility()
         } else if (action === 'Clear Selection') {
-            setSelectedGroups([])
+            commands.clearSelection()
         }
 
         setOpen(false)
@@ -183,13 +176,16 @@ export default function BoxContextMenu() {
 
     const isBoxSpecificMenu = boxInfos != null
 
-    const isBoxSelected =
-        boxInfos &&
-        selectedGroups.some((group) => group.userData.id === boxInfos.id)
+    const isBoxSelected = boxInfos && selectedBoxIds.includes(boxInfos.id)
 
-    const canCombine = selectedGroups.length >= 2
+    const selectedBoxes = getGridBoxes(grid, wallHeight).filter((box) =>
+        selectedBoxIds.includes(box.id)
+    )
+    const combineValidation = validateGridBoxCombination(grid, selectedBoxes)
+    const canAttemptCombine = selectedBoxes.length >= 2
+    const canCombine = combineValidation.valid
 
-    if (selectedGroups.length === 0) {
+    if (selectedBoxIds.length === 0) {
         // if no boxes are selected, don't show the menu
         return null
     }
@@ -220,7 +216,7 @@ export default function BoxContextMenu() {
                         </div>
                     )}
                     <div className="px-2 py-1.5 text-sm font-semibold">
-                        Box {boxInfos.id}
+                        Box {boxInfos.index}
                         {boxInfos.group != 0
                             ? `(| Group ${boxInfos.group})`
                             : ''}
@@ -290,23 +286,38 @@ export default function BoxContextMenu() {
                         </div>
                     )}
 
-                    {canCombine && (
+                    {canAttemptCombine && (
                         <div
-                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            className={
+                                'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground' +
+                                (canCombine ? '' : ' text-destructive')
+                            }
                             onClick={() =>
                                 handleMenuItemClick('Combine Selected Boxes')
                             }
-                            title="Combine selected boxes"
+                            title={
+                                canCombine
+                                    ? 'Combine selected boxes'
+                                    : combineValidation.message
+                            }
                         >
                             <Combine className="mr-2 h-4 w-4" />
-                            Combine Selected Boxes
+                            {canCombine
+                                ? 'Combine Selected Boxes'
+                                : 'Cannot Combine Selection'}
                             <span className="ml-auto text-xs tracking-widest text-muted-foreground">
                                 C
                             </span>
                         </div>
                     )}
 
-                    {(canSplit || canCombine) && (
+                    {canAttemptCombine && !combineValidation.valid && (
+                        <p className="px-2 pb-1 text-xs text-destructive">
+                            {combineValidation.message}
+                        </p>
+                    )}
+
+                    {(canSplit || canAttemptCombine) && (
                         <div className="-mx-1 my-1 h-px bg-border" />
                     )}
 
@@ -340,20 +351,35 @@ export default function BoxContextMenu() {
                         </span>
                     </div>
 
-                    {canCombine && (
+                    {canAttemptCombine && (
                         <div
-                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            className={
+                                'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground' +
+                                (canCombine ? '' : ' text-destructive')
+                            }
                             onClick={() =>
                                 handleMenuItemClick('Combine Selected Boxes')
                             }
-                            title="Combine selected boxes"
+                            title={
+                                canCombine
+                                    ? 'Combine selected boxes'
+                                    : combineValidation.message
+                            }
                         >
                             <Combine className="mr-2 h-4 w-4" />
-                            Combine Selected Boxes
+                            {canCombine
+                                ? 'Combine Selected Boxes'
+                                : 'Cannot Combine Selection'}
                             <span className="ml-auto text-xs tracking-widest text-muted-foreground">
                                 C
                             </span>
                         </div>
+                    )}
+
+                    {canAttemptCombine && !combineValidation.valid && (
+                        <p className="px-2 pb-1 text-xs text-destructive">
+                            {combineValidation.message}
+                        </p>
                     )}
 
                     <div className="-mx-1 my-1 h-px bg-border" />
