@@ -1,7 +1,7 @@
 'use client'
 
 import type { GridCommands } from '@/hooks/useGridCommands'
-import { canCombineGridBoxes } from '@/lib/gridCombine'
+import { validateGridBoxCombination } from '@/lib/gridCombine'
 import { getBoxById, getGridBoxes } from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
 import type { GeneratedBoxMetadata, SelectionId } from '@/lib/types'
@@ -178,14 +178,12 @@ export default function BoxContextMenu({
 
     const isBoxSelected = boxInfos && selectedBoxIds.includes(boxInfos.id)
 
-    const canCombine =
-        selectedBoxIds.length >= 2 &&
-        canCombineGridBoxes(
-            grid,
-            getGridBoxes(grid, wallHeight).filter((box) =>
-                selectedBoxIds.includes(box.id)
-            )
-        )
+    const selectedBoxes = getGridBoxes(grid, wallHeight).filter((box) =>
+        selectedBoxIds.includes(box.id)
+    )
+    const combineValidation = validateGridBoxCombination(grid, selectedBoxes)
+    const canAttemptCombine = selectedBoxes.length >= 2
+    const canCombine = combineValidation.valid
 
     if (selectedBoxIds.length === 0) {
         // if no boxes are selected, don't show the menu
@@ -288,23 +286,38 @@ export default function BoxContextMenu({
                         </div>
                     )}
 
-                    {canCombine && (
+                    {canAttemptCombine && (
                         <div
-                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            className={
+                                'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground' +
+                                (canCombine ? '' : ' text-destructive')
+                            }
                             onClick={() =>
                                 handleMenuItemClick('Combine Selected Boxes')
                             }
-                            title="Combine selected boxes"
+                            title={
+                                canCombine
+                                    ? 'Combine selected boxes'
+                                    : combineValidation.message
+                            }
                         >
                             <Combine className="mr-2 h-4 w-4" />
-                            Combine Selected Boxes
+                            {canCombine
+                                ? 'Combine Selected Boxes'
+                                : 'Cannot Combine Selection'}
                             <span className="ml-auto text-xs tracking-widest text-muted-foreground">
                                 C
                             </span>
                         </div>
                     )}
 
-                    {(canSplit || canCombine) && (
+                    {canAttemptCombine && !combineValidation.valid && (
+                        <p className="px-2 pb-1 text-xs text-destructive">
+                            {combineValidation.message}
+                        </p>
+                    )}
+
+                    {(canSplit || canAttemptCombine) && (
                         <div className="-mx-1 my-1 h-px bg-border" />
                     )}
 
@@ -338,20 +351,35 @@ export default function BoxContextMenu({
                         </span>
                     </div>
 
-                    {canCombine && (
+                    {canAttemptCombine && (
                         <div
-                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            className={
+                                'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground' +
+                                (canCombine ? '' : ' text-destructive')
+                            }
                             onClick={() =>
                                 handleMenuItemClick('Combine Selected Boxes')
                             }
-                            title="Combine selected boxes"
+                            title={
+                                canCombine
+                                    ? 'Combine selected boxes'
+                                    : combineValidation.message
+                            }
                         >
                             <Combine className="mr-2 h-4 w-4" />
-                            Combine Selected Boxes
+                            {canCombine
+                                ? 'Combine Selected Boxes'
+                                : 'Cannot Combine Selection'}
                             <span className="ml-auto text-xs tracking-widest text-muted-foreground">
                                 C
                             </span>
                         </div>
+                    )}
+
+                    {canAttemptCombine && !combineValidation.valid && (
+                        <p className="px-2 pb-1 text-xs text-destructive">
+                            {combineValidation.message}
+                        </p>
                     )}
 
                     <div className="-mx-1 my-1 h-px bg-border" />

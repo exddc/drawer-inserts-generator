@@ -14,7 +14,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { GridCommands } from '@/hooks/useGridCommands'
-import { canCombineGridBoxes } from '@/lib/gridCombine'
+import { validateGridBoxCombination } from '@/lib/gridCombine'
 import { getGridBoxes } from '@/lib/gridVisibility'
 import { useStore } from '@/lib/store'
 import {
@@ -45,10 +45,12 @@ export default function ActionsBar({
     )
     const enableClearSelection = selectedBoxes.length > 0
     const canSplit = selectedBoxes.length === 1 && selectedBoxes[0].group !== 0
-    const canCombine =
-        selectedBoxes.length >= 2 &&
-        canCombineGridBoxes(store.grid, selectedBoxes)
-    const canUseBoxAction = canSplit || canCombine
+    const combineValidation = validateGridBoxCombination(
+        store.grid,
+        selectedBoxes
+    )
+    const canAttemptCombine = selectedBoxes.length >= 2
+    const canUseBoxAction = canSplit || canAttemptCombine
 
     return (
         <div className="lg:bottom-18 lg:ml-auto lg:-right-6 z-10 transform relative lg:w-fit">
@@ -124,7 +126,7 @@ export default function ActionsBar({
                             onClick={() => {
                                 if (canSplit) {
                                     commands.splitSelection()
-                                } else if (canCombine) {
+                                } else if (canAttemptCombine) {
                                     commands.combineSelection()
                                 }
                             }}
@@ -138,6 +140,9 @@ export default function ActionsBar({
                         <TooltipContent>
                             {canSplit ? (
                                 <p>Split Combined Box (S)</p>
+                            ) : canAttemptCombine &&
+                              !combineValidation.valid ? (
+                                <p>{combineValidation.message}</p>
                             ) : (
                                 <p>Combine Selected Boxes (C)</p>
                             )}

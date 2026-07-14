@@ -1,4 +1,8 @@
-import { combineGridBoxes, getNextAvailableGroupId } from '@/lib/gridCombine'
+import {
+    getNextAvailableGroupId,
+    tryCombineGridBoxes,
+    type CombineValidationFailure,
+} from '@/lib/gridCombine'
 import {
     getBoxById,
     getGridBoxes,
@@ -11,15 +15,17 @@ export function combineSelectedBoxes(
     grid: Grid,
     wallHeight: number,
     selectedIds: SelectionId[]
-): Grid | null {
+):
+    | { combined: true; grid: Grid }
+    | { combined: false; validation: CombineValidationFailure } {
     const selectedBoxes = getGridBoxes(grid, wallHeight).filter((box) =>
         selectedIds.includes(box.id)
     )
-    if (selectedBoxes.length < 2) return null
-
     const nextGrid = cloneGrid(grid)
     const newId = getNextAvailableGroupId(nextGrid)
-    return combineGridBoxes(nextGrid, selectedBoxes, newId) ? nextGrid : null
+    const result = tryCombineGridBoxes(nextGrid, selectedBoxes, newId)
+    if (!result.combined) return result
+    return { combined: true, grid: nextGrid }
 }
 
 export function splitSelectedBoxes(
