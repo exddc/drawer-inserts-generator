@@ -3,6 +3,23 @@ import * as THREE from 'three'
 
 type Segment = { a: THREE.Vector2; b: THREE.Vector2 }
 
+export type OutlineTopologyCode =
+    | 'disconnected'
+    | 'self-intersection'
+    | 'incomplete-boundary'
+    | 'contains-hole'
+
+export class OutlineTopologyError extends Error {
+    constructor(
+        readonly groupId: number,
+        readonly code: OutlineTopologyCode,
+        message: string
+    ) {
+        super(`Cannot build outline for group ${groupId}: ${message}.`)
+        this.name = 'OutlineTopologyError'
+    }
+}
+
 export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
     if (grid.length === 0 || grid[0].length === 0) {
         throw new Error('Cannot build an outline for an empty grid.')
@@ -74,7 +91,7 @@ export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
     }
 
     if (!cellsAreConnected(cells)) {
-        throw outlineError(groupId, 'region is disconnected')
+        throw outlineError(groupId, 'disconnected')
     }
 
     const outgoing = new Map<string, number[]>()
@@ -89,10 +106,10 @@ export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
         const outgoingCount = outgoing.get(vertex)?.length ?? 0
         const incomingCount = incoming.get(vertex)?.length ?? 0
         if (outgoingCount > 1 || incomingCount > 1) {
-            throw outlineError(groupId, 'boundary self-intersects')
+            throw outlineError(groupId, 'self-intersection')
         }
         if (outgoingCount !== 1 || incomingCount !== 1) {
-            throw outlineError(groupId, 'boundary loop could not be completed')
+            throw outlineError(groupId, 'incomplete-boundary')
         }
     }
 
@@ -115,16 +132,16 @@ export function getOutline(grid: Grid, groupId: number): THREE.Vector2[] {
 
         const next = outgoing.get(nextKey)
         if (!next || next.length !== 1 || used.has(next[0])) {
-            throw outlineError(groupId, 'boundary loop could not be completed')
+            throw outlineError(groupId, 'incomplete-boundary')
         }
         currentIndex = next[0]
     }
 
     if (!closed) {
-        throw outlineError(groupId, 'boundary loop could not be completed')
+        throw outlineError(groupId, 'incomplete-boundary')
     }
     if (used.size !== segments.length) {
-        throw outlineError(groupId, 'region contains a hole')
+        throw outlineError(groupId, 'contains-hole')
     }
     // Positive dimensions make both coordinate maps strictly increasing, so
     // the validated grid-space topology cannot gain intersections here.
@@ -141,8 +158,17 @@ function addEdge(map: Map<string, number[]>, key: string, index: number): void {
     map.set(key, edges)
 }
 
-function outlineError(groupId: number, reason: string): Error {
-    return new Error(`Cannot build outline for group ${groupId}: ${reason}.`)
+function outlineError(
+    groupId: number,
+    code: OutlineTopologyCode
+): OutlineTopologyError {
+    const messages: Record<OutlineTopologyCode, string> = {
+        disconnected: 'region is disconnected',
+        'self-intersection': 'boundary self-intersects',
+        'incomplete-boundary': 'boundary loop could not be completed',
+        'contains-hole': 'region contains a hole',
+    }
+    return new OutlineTopologyError(groupId, code, messages[code])
 }
 
 function cellsAreConnected(cells: THREE.Vector2[]): boolean {

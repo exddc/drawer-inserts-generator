@@ -3,6 +3,7 @@ import {
     canCombineGridBoxes,
     combineGridBoxes,
     getNextAvailableGroupId,
+    validateGridBoxCombination,
 } from '@/lib/gridCombine'
 import { gridMatchesLayout, resizeGrid } from '@/lib/gridHelper'
 import {
@@ -10,7 +11,11 @@ import {
     isGridBoxVisible,
     setGridBoxVisible,
 } from '@/lib/gridVisibility'
-import { getOutline } from '@/lib/lineHelper'
+import {
+    getOutline,
+    OutlineTopologyError,
+    type OutlineTopologyCode,
+} from '@/lib/lineHelper'
 import { sanitizeModelParameters } from '@/lib/parameterValidation'
 import { useStore } from '@/lib/store'
 import { Grid } from '@/lib/types'
@@ -26,6 +31,19 @@ function signedArea(outline: ReturnType<typeof getOutline>): number {
         const next = outline[(index + 1) % outline.length]
         return sum + point.x * next.y - next.x * point.y
     }, 0)
+}
+
+function expectTopologyError(
+    action: () => unknown,
+    code: OutlineTopologyCode
+): void {
+    try {
+        action()
+        throw new Error('Expected a topology error')
+    } catch (error) {
+        expect(error).toBeInstanceOf(OutlineTopologyError)
+        expect((error as OutlineTopologyError).code).toBe(code)
+    }
 }
 
 function meshes(object: THREE.Object3D): THREE.Mesh[] {
@@ -234,9 +252,7 @@ describe('geometry outlines', () => {
             ],
         ]
 
-        expect(() => getOutline(grid, 9)).toThrow(
-            'Cannot build outline for group 9: region is disconnected.'
-        )
+        expectTopologyError(() => getOutline(grid, 9), 'disconnected')
     })
 
     it('rejects holed groups that need multiple outline loops', () => {
@@ -258,9 +274,7 @@ describe('geometry outlines', () => {
             ],
         ]
 
-        expect(() => getOutline(grid, 8)).toThrow(
-            'Cannot build outline for group 8: region contains a hole.'
-        )
+        expectTopologyError(() => getOutline(grid, 8), 'contains-hole')
     })
 
     it('rejects boundaries that touch and self-intersect at a vertex', () => {
@@ -282,9 +296,7 @@ describe('geometry outlines', () => {
             ],
         ]
 
-        expect(() => getOutline(grid, 5)).toThrow(
-            'Cannot build outline for group 5: boundary self-intersects.'
-        )
+        expectTopologyError(() => getOutline(grid, 5), 'self-intersection')
     })
 
     it('rejects malformed grids explicitly', () => {
@@ -479,9 +491,11 @@ describe('box generation', () => {
             ],
         ]
 
-        expect(() =>
-            generateCustomBox(grid, generationOptions({ cornerRadius: 0 }))
-        ).toThrow('Cannot build outline for group 6: region is disconnected.')
+        expectTopologyError(
+            () =>
+                generateCustomBox(grid, generationOptions({ cornerRadius: 0 })),
+            'disconnected'
+        )
     })
 
     it('makes every generation option observable in the output', () => {
@@ -585,8 +599,31 @@ describe('grid combine policy', () => {
         const boxes = [{ cells: [{ x: 0, z: 0 }] }, { cells: [{ x: 2, z: 0 }] }]
 
         expect(canCombineGridBoxes(grid, boxes)).toBe(false)
+        expect(validateGridBoxCombination(grid, boxes)).toMatchObject({
+            valid: false,
+            code: 'disconnected',
+        })
         expect(combineGridBoxes(grid, boxes, 1)).toBe(false)
         expect(grid[0].map((cell) => cell.group)).toEqual([0, 0, 0])
+    })
+
+    it('does not treat diagonal corner contact as connected', () => {
+        const grid: Grid = [
+            [
+                { group: 0, width: 20, depth: 20 },
+                { group: 0, width: 20, depth: 20 },
+            ],
+            [
+                { group: 0, width: 20, depth: 20 },
+                { group: 0, width: 20, depth: 20 },
+            ],
+        ]
+        const boxes = [{ cells: [{ x: 0, z: 0 }] }, { cells: [{ x: 1, z: 1 }] }]
+
+        expect(validateGridBoxCombination(grid, boxes)).toMatchObject({
+            valid: false,
+            code: 'disconnected',
+        })
     })
 
     it('rejects holed selected boxes without mutating the grid', () => {
@@ -619,8 +656,32 @@ describe('grid combine policy', () => {
         ]
 
         expect(canCombineGridBoxes(grid, boxes)).toBe(false)
+        expect(validateGridBoxCombination(grid, boxes)).toMatchObject({
+            valid: false,
+            code: 'contains-hole',
+        })
         expect(combineGridBoxes(grid, boxes, 1)).toBe(false)
         expect(grid.flat().map((cell) => cell.group)).toEqual(Array(9).fill(0))
+    })
+
+    it('accepts cells connected through an L-shaped edge path', () => {
+        const grid: Grid = [
+            [
+                { group: 0, width: 20, depth: 20 },
+                { group: 0, width: 20, depth: 20 },
+            ],
+            [
+                { group: 0, width: 20, depth: 20 },
+                { group: 0, width: 20, depth: 20 },
+            ],
+        ]
+        const boxes = [
+            { cells: [{ x: 0, z: 0 }] },
+            { cells: [{ x: 1, z: 0 }] },
+            { cells: [{ x: 0, z: 1 }] },
+        ]
+
+        expect(validateGridBoxCombination(grid, boxes)).toEqual({ valid: true })
     })
 })
 
