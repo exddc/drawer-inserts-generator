@@ -1,3 +1,4 @@
+import { segmentSizes } from '@/lib/gridSizing'
 import { Grid } from '@/lib/types'
 
 export function resizeGrid(
@@ -5,10 +6,11 @@ export function resizeGrid(
     totalWidth: number,
     totalDepth: number,
     maxBoxWidth: number,
-    maxBoxDepth: number
+    maxBoxDepth: number,
+    minBoxSize = 0
 ): Grid {
-    const widths = segmentSizes(totalWidth, maxBoxWidth)
-    const depths = segmentSizes(totalDepth, maxBoxDepth)
+    const widths = segmentSizes(totalWidth, maxBoxWidth, minBoxSize)
+    const depths = segmentSizes(totalDepth, maxBoxDepth, minBoxSize)
 
     return depths.map((depth, rowIdx) =>
         widths.map((width, colIdx) => {
@@ -30,10 +32,11 @@ export function gridMatchesLayout(
     totalWidth: number,
     totalDepth: number,
     maxBoxWidth: number,
-    maxBoxDepth: number
+    maxBoxDepth: number,
+    minBoxSize = 0
 ): boolean {
-    const widths = segmentSizes(totalWidth, maxBoxWidth)
-    const depths = segmentSizes(totalDepth, maxBoxDepth)
+    const widths = segmentSizes(totalWidth, maxBoxWidth, minBoxSize)
+    const depths = segmentSizes(totalDepth, maxBoxDepth, minBoxSize)
 
     if (grid.length !== depths.length) return false
     if (grid.length === 0) return widths.length === 0
@@ -44,15 +47,4 @@ export function gridMatchesLayout(
         widths.every((width, colIdx) => grid[0][colIdx].width === width) &&
         depths.every((depth, rowIdx) => grid[rowIdx][0].depth === depth)
     )
-}
-
-function segmentSizes(total: number, maxSize: number): number[] {
-    if (!Number.isFinite(total) || !Number.isFinite(maxSize)) return [1]
-    if (total <= 0 || maxSize <= 0) return [1]
-
-    const fullCount = Math.floor(total / maxSize)
-    const remainder = total - fullCount * maxSize
-    const segments = Array(fullCount).fill(maxSize)
-    if (remainder > 0) segments.push(remainder)
-    return segments
 }
