@@ -5,6 +5,7 @@ import {
     CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { parameters } from '@/lib/defaults'
+import { getMinimumBoxSize } from '@/lib/parameterValidation'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { ChevronsDown } from 'lucide-react'
@@ -16,6 +17,10 @@ export default function ModelSettings() {
     const store = useStore()
     const [generalCollapsable, setGeneralCollapsable] = useState(true)
     const [gridCollapsable, setGridCollapsable] = useState(true)
+    const minBoxSize = getMinimumBoxSize(
+        store.wallThickness,
+        store.cornerRadius
+    )
     return (
         <>
             <Collapsible
@@ -40,7 +45,7 @@ export default function ModelSettings() {
                         label="Total Width (mm)"
                         value={store.totalWidth}
                         setValue={store.setTotalWidth}
-                        min={parameters.totalWidth.min}
+                        min={Math.max(parameters.totalWidth.min, minBoxSize)}
                         max={parameters.totalWidth.max}
                         step={parameters.totalWidth.steps}
                     />
@@ -49,7 +54,7 @@ export default function ModelSettings() {
                         label="Total Depth (mm)"
                         value={store.totalDepth}
                         setValue={store.setTotalDepth}
-                        min={parameters.totalDepth.min}
+                        min={Math.max(parameters.totalDepth.min, minBoxSize)}
                         max={parameters.totalDepth.max}
                         step={parameters.totalDepth.steps}
                     />
@@ -112,7 +117,7 @@ export default function ModelSettings() {
                         label="Max Box Width (mm)"
                         value={store.maxBoxWidth}
                         setValue={store.setMaxBoxWidth}
-                        min={parameters.maxBoxWidth.min}
+                        min={Math.max(parameters.maxBoxWidth.min, minBoxSize)}
                         max={parameters.maxBoxWidth.max}
                         step={parameters.maxBoxWidth.steps}
                     />
@@ -122,7 +127,7 @@ export default function ModelSettings() {
                         label="Max Box Depth (mm)"
                         value={store.maxBoxDepth}
                         setValue={store.setMaxBoxDepth}
-                        min={parameters.maxBoxDepth.min}
+                        min={Math.max(parameters.maxBoxDepth.min, minBoxSize)}
                         max={parameters.maxBoxDepth.max}
                         step={parameters.maxBoxDepth.steps}
                     />

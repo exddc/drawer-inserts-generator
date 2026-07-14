@@ -16,7 +16,10 @@ import {
     OutlineTopologyError,
     type OutlineTopologyCode,
 } from '@/lib/lineHelper'
-import { sanitizeModelParameters } from '@/lib/parameterValidation'
+import {
+    getMinimumBoxSize,
+    sanitizeModelParameters,
+} from '@/lib/parameterValidation'
 import { useStore } from '@/lib/store'
 import { Grid } from '@/lib/types'
 import * as THREE from 'three'
@@ -774,6 +777,49 @@ describe('grid resizing', () => {
 })
 
 describe('parameter validation', () => {
+    it.each([
+        [201, 100, 100.5],
+        [150, 149, 150],
+        [100, 1, 100 / 7],
+        [113, 100, 100],
+        [26.000000001, 13, 13],
+    ])(
+        'keeps every segment valid for a %d mm total and %d mm requested max',
+        (total, requestedMax, expectedMax) => {
+            const sanitized = sanitizeModelParameters({
+                totalWidth: total,
+                totalDepth: total,
+                maxBoxWidth: requestedMax,
+                maxBoxDepth: requestedMax,
+                wallThickness: 2,
+                cornerRadius: 4,
+            })
+            const minBoxSize = getMinimumBoxSize(
+                sanitized.wallThickness,
+                sanitized.cornerRadius
+            )
+            const grid = resizeGrid(
+                [],
+                sanitized.totalWidth,
+                sanitized.totalDepth,
+                sanitized.maxBoxWidth,
+                sanitized.maxBoxDepth
+            )
+
+            expect(minBoxSize).toBe(13)
+            expect(sanitized.maxBoxWidth).toBeCloseTo(expectedMax)
+            expect(sanitized.maxBoxDepth).toBeCloseTo(expectedMax)
+            expect(
+                grid.every((row) =>
+                    row.every(
+                        (cell) =>
+                            cell.width >= minBoxSize && cell.depth >= minBoxSize
+                    )
+                )
+            ).toBe(true)
+        }
+    )
+
     it('clamps invalid model parameters to finite safe values', () => {
         const sanitized = sanitizeModelParameters({
             totalWidth: Number.NaN,
@@ -786,13 +832,13 @@ describe('parameter validation', () => {
         })
 
         expect(sanitized.totalWidth).toBe(150)
-        expect(sanitized.totalDepth).toBe(1)
-        expect(sanitized.maxBoxWidth).toBe(1)
+        expect(sanitized.totalDepth).toBe(91)
+        expect(sanitized.maxBoxWidth).toBe(150)
         expect(sanitized.maxBoxDepth).toBe(100)
         expect(sanitized.wallHeight).toBe(30)
         expect(Number.isFinite(sanitized.wallThickness)).toBe(true)
         expect(Number.isFinite(sanitized.cornerRadius)).toBe(true)
-        expect(sanitized.wallThickness).toBeLessThanOrEqual(0.4)
-        expect(sanitized.cornerRadius).toBeLessThanOrEqual(0.5)
+        expect(sanitized.wallThickness).toBe(15)
+        expect(sanitized.cornerRadius).toBe(30)
     })
 })

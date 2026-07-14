@@ -1,3 +1,4 @@
+import { segmentSizes } from '@/lib/gridSizing'
 import { Grid } from '@/lib/types'
 
 export function resizeGrid(
@@ -44,15 +45,4 @@ export function gridMatchesLayout(
         widths.every((width, colIdx) => grid[0][colIdx].width === width) &&
         depths.every((depth, rowIdx) => grid[rowIdx][0].depth === depth)
     )
-}
-
-function segmentSizes(total: number, maxSize: number): number[] {
-    if (!Number.isFinite(total) || !Number.isFinite(maxSize)) return [1]
-    if (total <= 0 || maxSize <= 0) return [1]
-
-    const fullCount = Math.floor(total / maxSize)
-    const remainder = total - fullCount * maxSize
-    const segments = Array(fullCount).fill(maxSize)
-    if (remainder > 0) segments.push(remainder)
-    return segments
 }
