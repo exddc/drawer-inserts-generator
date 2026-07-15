@@ -2,6 +2,7 @@
 import GeneralSettings from '@/components/ConfigSidebar/GeneralSettings'
 import ModelSettings from '@/components/ConfigSidebar/ModelSettings'
 import ExportButton from '@/components/ExportButton'
+import ShareLinkButton from '@/components/ShareLinkButton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { version } from '../package.json'
 
@@ -46,7 +47,10 @@ export default function Sidebar() {
                 </TabsContent>
             </Tabs>
 
-            <ExportButton />
+            <div className="flex flex-col gap-2">
+                <ShareLinkButton />
+                <ExportButton />
+            </div>
         </div>
     )
 }

@@ -1,18 +1,27 @@
+import { loadPersistedLayout } from '@/lib/layoutPersistence'
+import { applyModelSnapshot } from '@/lib/modelSnapshot'
 import { cornerLine, material, parameters } from '@/lib/defaults'
 import type { ModelParameters } from '@/lib/parameterValidation'
 import { sanitizeModelParameters } from '@/lib/parameterValidation'
 import { StoreState } from '@/lib/types'
 import { create } from 'zustand'
 
+const persistedLayout =
+    typeof window !== 'undefined' ? loadPersistedLayout() : null
+const persistedState = persistedLayout
+    ? applyModelSnapshot(persistedLayout)
+    : null
+
 export const useStore = create<StoreState>((set, get) => ({
-    totalWidth: parameters.totalWidth.default,
-    totalDepth: parameters.totalDepth.default,
-    wallThickness: parameters.wallThickness.default,
-    cornerRadius: parameters.cornerRadius.default,
-    wallHeight: parameters.wallHeight.default,
-    generateBottom: true,
-    maxBoxWidth: parameters.maxBoxWidth.default,
-    maxBoxDepth: parameters.maxBoxDepth.default,
+    totalWidth: persistedState?.totalWidth ?? parameters.totalWidth.default,
+    totalDepth: persistedState?.totalDepth ?? parameters.totalDepth.default,
+    wallThickness:
+        persistedState?.wallThickness ?? parameters.wallThickness.default,
+    cornerRadius: persistedState?.cornerRadius ?? parameters.cornerRadius.default,
+    wallHeight: persistedState?.wallHeight ?? parameters.wallHeight.default,
+    generateBottom: persistedState?.generateBottom ?? true,
+    maxBoxWidth: persistedState?.maxBoxWidth ?? parameters.maxBoxWidth.default,
+    maxBoxDepth: persistedState?.maxBoxDepth ?? parameters.maxBoxDepth.default,
 
     setTotalWidth: (width: number) =>
         setModelParameter(set, get, 'totalWidth', width),
@@ -30,7 +39,7 @@ export const useStore = create<StoreState>((set, get) => ({
     setMaxBoxDepth: (depth: number) =>
         setModelParameter(set, get, 'maxBoxDepth', depth),
 
-    grid: [],
+    grid: persistedState?.grid ?? [],
     setGrid: (grid) => set({ grid }),
 
     selectedBoxIds: [],
