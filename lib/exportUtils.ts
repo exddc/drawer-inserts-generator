@@ -1,7 +1,7 @@
 import {
     buildExportAssembly,
     buildExportBoxMeshes,
-    type ExportBoxMesh,
+    groupExportBoxMeshes,
 } from '@/lib/exportModel'
 import { useStore } from '@/lib/store'
 import { disposeObject } from '@/lib/threeDisposal'
@@ -28,8 +28,7 @@ export function handleStlExport(): void {
 }
 
 /**
- * Export unique boxes (deduped by W×D×H, swap-insensitive) as separate STLs
- * with a `_qtyN` suffix and pack into a ZIP.
+ * Export unique box shapes as separate STLs with a `_qtyN` suffix in a ZIP.
  */
 export async function handleExportMultipleSTLs(): Promise<void> {
     const model = createExportModelSnapshot(useStore.getState())
@@ -37,57 +36,28 @@ export async function handleExportMultipleSTLs(): Promise<void> {
 
     const exportMeshes = buildExportBoxMeshes(model)
 
-    // group boxes by dimensions (ignoring width↔depth swap)
-    type GroupInfo = {
-        representative: ExportBoxMesh
-        count: number
-        w: number
-        d: number
-        h: number
-        isCombined: boolean
-    }
-    const groups = new Map<string, GroupInfo>()
-
-    exportMeshes.forEach((entry) => {
-        const metadata = entry.metadata
-        const rawW = metadata.dimensions.width
-        const rawD = metadata.dimensions.depth
-        const h = metadata.dimensions.height
-        const isCombined = metadata.isCombined
-        const [w, d] = [rawW, rawD].sort((a, b) => a - b)
-        const prefix = isCombined ? 'combined_box' : 'box'
-        const key = `${prefix}_${w.toFixed(2)}_${d.toFixed(2)}_${h.toFixed(2)}`
-
-        if (groups.has(key)) {
-            groups.get(key)!.count++
-        } else {
-            groups.set(key, {
-                representative: entry,
-                count: 1,
-                w,
-                d,
-                h,
-                isCombined,
-            })
-        }
-    })
+    const groups = groupExportBoxMeshes(exportMeshes)
 
     try {
         const JSZip = (await import('jszip')).default
         const zip = new JSZip()
         let uniqIndex = 1
 
-        for (const [, info] of groups) {
-            const { representative, count, w, d, h, isCombined } = info
+        for (const { representative, count } of groups) {
+            const { dimensions, isCombined } = representative.metadata
+            const [w, d] = [dimensions.width, dimensions.depth].sort(
+                (a, b) => a - b
+            )
             const qtySuffix = count > 1 ? `_qty${count}` : ''
-            const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqIndex}_${w.toFixed(0)}x${d.toFixed(0)}x${h.toFixed(0)}mm${qtySuffix}.stl`
+            const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqIndex}_${w.toFixed(0)}x${d.toFixed(0)}x${dimensions.height.toFixed(0)}mm${qtySuffix}.stl`
             zip.file(filename, serializeStl(representative.mesh))
             uniqIndex++
         }
 
         const readme = `# Box Grid Export
 
-This ZIP contains ${groups.size} unique box designs (_qtyN suffix shows multiples_).
+This ZIP contains ${groups.length} unique box designs (_qtyN suffix shows multiples_).
+Designs are deduplicated by their actual footprint, including non-rectangular shapes.
 
 ## File Naming Convention
 - Regular boxes: box_[i]_[W]x[D]x[H]mm[_qtyN].stl  
