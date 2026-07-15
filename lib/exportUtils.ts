@@ -1,53 +1,30 @@
-import { generateCustomBox } from '@/lib/boxHelper'
-import { getGridBoxes } from '@/lib/gridVisibility'
+import {
+    buildExportAssembly,
+    buildExportBoxMeshes,
+    type ExportBoxMesh,
+} from '@/lib/exportModel'
 import { useStore } from '@/lib/store'
 import { disposeObject } from '@/lib/threeDisposal'
+import type { DrawerInsert, StoreState } from '@/lib/types'
 import * as THREE from 'three'
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 
 /**
- * Export the entire scene as one single STL
+ * Export the domain model as one single STL.
  */
 export function handleStlExport(): void {
-    const state = useStore.getState()
-    const grid = state.grid
-    if (grid.length === 0) return
+    const model = createExportModelSnapshot(useStore.getState())
+    if (model.grid.length === 0) return
 
-    // Wrap & rotate so Three's Y-up becomes STL Z-up
-    const tmpScene = new THREE.Scene()
-    const box = generateCustomBox(grid, {
-        wallThickness: state.wallThickness,
-        cornerRadius: state.cornerRadius,
-        wallHeight: state.wallHeight,
-        generateBottom: state.generateBottom,
-        cornerLines: {
-            show: false,
-            color: state.cornerLineColor,
-            opacity: state.cornerLineOpacity,
-        },
-    })
-    removeHiddenObjects(box)
-    box.position.set(0, 0, 0)
-    box.rotation.set(Math.PI / 2, 0, 0)
-    tmpScene.add(box)
-    tmpScene.updateMatrixWorld()
-
-    const exporter = new STLExporter()
-    let stlString: string
+    const assembly = buildExportAssembly(model)
     try {
-        stlString = exporter.parse(tmpScene, { binary: false })
-    } catch {
-        stlString = exporter.parse(tmpScene)
+        downloadBlob(
+            new Blob([serializeStl(assembly)], { type: 'text/plain' }),
+            `drawer-inserts-${model.config.totalWidth}x${model.config.totalDepth}x${model.config.wallHeight}-single-box.stl`
+        )
+    } finally {
+        disposeObject(assembly)
     }
-
-    const blob = new Blob([stlString], { type: 'text/plain' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `drawer-inserts-${state.totalWidth}x${state.totalDepth}x${state.wallHeight}-single-box.stl`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(link.href), 100)
 }
 
 /**
@@ -55,29 +32,14 @@ export function handleStlExport(): void {
  * with a `_qtyN` suffix and pack into a ZIP.
  */
 export async function handleExportMultipleSTLs(): Promise<void> {
-    const state = useStore.getState()
-    const grid = state.grid
-    if (grid.length === 0) return
+    const model = createExportModelSnapshot(useStore.getState())
+    if (model.grid.length === 0) return
 
-    const boxGroup = generateCustomBox(grid, {
-        wallThickness: state.wallThickness,
-        cornerRadius: state.cornerRadius,
-        wallHeight: state.wallHeight,
-        generateBottom: state.generateBottom,
-        cornerLines: {
-            show: false,
-            color: state.cornerLineColor,
-            opacity: state.cornerLineOpacity,
-        },
-    })
-
-    const boxWidths = grid[0].map((cell) => cell.width)
-    const boxDepths = grid.map((row) => row[0].depth)
-    const gridBoxes = getGridBoxes(grid, state.wallHeight)
+    const exportMeshes = buildExportBoxMeshes(model)
 
     // group boxes by dimensions (ignoring width↔depth swap)
     type GroupInfo = {
-        representative: THREE.Object3D
+        representative: ExportBoxMesh
         count: number
         w: number
         d: number
@@ -86,10 +48,8 @@ export async function handleExportMultipleSTLs(): Promise<void> {
     }
     const groups = new Map<string, GroupInfo>()
 
-    boxGroup.children.forEach((box) => {
-        const metadata = gridBoxes.find((entry) => entry.id === box.name)
-        if (!metadata || metadata.visibility === 'hidden') return
-
+    exportMeshes.forEach((entry) => {
+        const metadata = entry.metadata
         const rawW = metadata.dimensions.width
         const rawD = metadata.dimensions.depth
         const h = metadata.dimensions.height
@@ -102,7 +62,7 @@ export async function handleExportMultipleSTLs(): Promise<void> {
             groups.get(key)!.count++
         } else {
             groups.set(key, {
-                representative: box,
+                representative: entry,
                 count: 1,
                 w,
                 d,
@@ -112,77 +72,92 @@ export async function handleExportMultipleSTLs(): Promise<void> {
         }
     })
 
-    const JSZip = (await import('jszip')).default
-    const zip = new JSZip()
-    const exporter = new STLExporter()
-    let uniqIndex = 1
+    try {
+        const JSZip = (await import('jszip')).default
+        const zip = new JSZip()
+        let uniqIndex = 1
 
-    for (const [, info] of groups) {
-        const { representative, count, w, d, h, isCombined } = info
-
-        // Wrap & rotate so Three's Y-up becomes STL Z-up
-        const tmpScene = new THREE.Scene()
-        const sceneClone = representative.clone(true)
-        sceneClone.position.set(0, 0, 0)
-        sceneClone.rotation.set(Math.PI / 2, 0, 0)
-        tmpScene.add(sceneClone)
-        tmpScene.updateMatrixWorld()
-
-        let stlString: string
-        try {
-            stlString = exporter.parse(tmpScene, { binary: false })
-        } catch {
-            stlString = exporter.parse(tmpScene)
+        for (const [, info] of groups) {
+            const { representative, count, w, d, h, isCombined } = info
+            const qtySuffix = count > 1 ? `_qty${count}` : ''
+            const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqIndex}_${w.toFixed(0)}x${d.toFixed(0)}x${h.toFixed(0)}mm${qtySuffix}.stl`
+            zip.file(filename, serializeStl(representative.mesh))
+            uniqIndex++
         }
 
-        const qtySuffix = count > 1 ? `_qty${count}` : ''
-        const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqIndex}_${w.toFixed(0)}x${d.toFixed(0)}x${h.toFixed(0)}mm${qtySuffix}.stl`
-        zip.file(filename, stlString)
-        uniqIndex++
-    }
+        const readme = `# Box Grid Export
 
-    // README
-    const uniqueCount = groups.size
-    const cols = boxWidths.length
-    const rows = boxDepths.length
-    const readme = `# Box Grid Export
-
-This ZIP contains ${uniqueCount} unique box designs (_qtyN suffix shows multiples_).
+This ZIP contains ${groups.size} unique box designs (_qtyN suffix shows multiples_).
 
 ## File Naming Convention
 - Regular boxes: box_[i]_[W]x[D]x[H]mm[_qtyN].stl  
 - Combined boxes: combined_box_[i]_[W]x[D]x[H]mm[_qtyN].stl  
 
 ## Grid Layout
-- Grid size: ${cols}×${rows}  
-- Total width: ${state.totalWidth} mm  
-- Total depth: ${state.totalDepth} mm  
-- Box height: ${state.wallHeight} mm  
-- Wall thickness: ${state.wallThickness} mm  
+- Grid size: ${model.grid[0].length}×${model.grid.length}
+- Total width: ${model.config.totalWidth} mm
+- Total depth: ${model.config.totalDepth} mm
+- Box height: ${model.config.wallHeight} mm
+- Wall thickness: ${model.config.wallThickness} mm
 
 Thanks for using Box Grid Generator by timoweiss.me!
 Happy printing!
 `
-    zip.file('README.txt', readme)
+        zip.file('README.txt', readme)
 
-    const content = await zip.generateAsync({ type: 'blob' })
+        const content = await zip.generateAsync({ type: 'blob' })
+        downloadBlob(
+            content,
+            `drawer-inserts-${model.config.totalWidth}x${model.config.totalDepth}x${model.config.wallHeight}-grid.zip`
+        )
+    } finally {
+        exportMeshes.forEach(({ mesh }) => disposeObject(mesh))
+    }
+}
+
+/** Capture only domain state so later UI/store changes cannot affect an export. */
+export function createExportModelSnapshot(state: StoreState): DrawerInsert {
+    return {
+        config: {
+            totalWidth: state.totalWidth,
+            totalDepth: state.totalDepth,
+            wallThickness: state.wallThickness,
+            cornerRadius: state.cornerRadius,
+            wallHeight: state.wallHeight,
+            generateBottom: state.generateBottom,
+            maxBoxWidth: state.maxBoxWidth,
+            maxBoxDepth: state.maxBoxDepth,
+        },
+        grid: state.grid.map((row) => row.map((cell) => ({ ...cell }))),
+        selectedBoxIds: [...state.selectedBoxIds],
+    }
+}
+
+/** Serialize a generated mesh using the fixed Y-up to STL Z-up transform. */
+export function serializeStl(object: THREE.Object3D): string {
+    const exportRoot = new THREE.Group()
+    exportRoot.rotation.set(Math.PI / 2, 0, 0)
+    exportRoot.add(object)
+    exportRoot.updateMatrixWorld(true)
+
+    const exporter = new STLExporter()
+    try {
+        try {
+            return exporter.parse(exportRoot, { binary: false }) as string
+        } catch {
+            return exporter.parse(exportRoot) as string
+        }
+    } finally {
+        exportRoot.remove(object)
+    }
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(content)
-    link.download = `drawer-inserts-${state.totalWidth}x${state.totalDepth}x${state.wallHeight}-grid.zip`
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     setTimeout(() => URL.revokeObjectURL(link.href), 100)
-    disposeObject(boxGroup)
-}
-
-function removeHiddenObjects(object: THREE.Object3D): void {
-    for (const child of [...object.children]) {
-        if (!child.visible) {
-            object.remove(child)
-            continue
-        }
-
-        removeHiddenObjects(child)
-    }
 }
