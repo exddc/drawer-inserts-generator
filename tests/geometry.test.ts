@@ -160,7 +160,10 @@ function hasFootprintPoint(
     })
 }
 
-function projectedTriangleArea(mesh: THREE.Mesh): number {
+function horizontalTriangleAreaAtHeight(
+    mesh: THREE.Mesh,
+    height: number
+): number {
     mesh.updateMatrixWorld(true)
 
     const position = mesh.geometry.getAttribute('position')
@@ -195,15 +198,71 @@ function projectedTriangleArea(mesh: THREE.Mesh): number {
             triangle[corner].copy(vertex)
         }
 
-        area +=
-            Math.abs(
-                triangle[0].x * (triangle[1].z - triangle[2].z) +
-                    triangle[1].x * (triangle[2].z - triangle[0].z) +
-                    triangle[2].x * (triangle[0].z - triangle[1].z)
-            ) / 2
+        if (triangle.every((point) => Math.abs(point.y - height) < 1e-5)) {
+            area +=
+                Math.abs(
+                    triangle[0].x * (triangle[1].z - triangle[2].z) +
+                        triangle[1].x * (triangle[2].z - triangle[0].z) +
+                        triangle[2].x * (triangle[0].z - triangle[1].z)
+                ) / 2
+        }
     }
 
     return area
+}
+
+function hasVertexAtHeight(object: THREE.Object3D, height: number): boolean {
+    return meshes(object).some((mesh) => {
+        const position = mesh.geometry.getAttribute('position')
+        return Array.from({ length: position.count }, (_, index) =>
+            position.getY(index)
+        ).some((value) => Math.abs(value - height) < 1e-5)
+    })
+}
+
+function expectWatertight(object: THREE.Object3D): void {
+    meshes(object).forEach((mesh) => {
+        const position = mesh.geometry.getAttribute('position')
+        const index = mesh.geometry.getIndex()
+        expect(index).not.toBeNull()
+
+        const edgeUse = new Map<string, { count: number; balance: number }>()
+        const triangleCount = index!.count / 3
+        for (
+            let triangleIndex = 0;
+            triangleIndex < triangleCount;
+            triangleIndex++
+        ) {
+            const vertices = [0, 1, 2].map((corner) =>
+                index!.getX(triangleIndex * 3 + corner)
+            )
+            const points = vertices.map((vertexIndex) =>
+                new THREE.Vector3().fromBufferAttribute(position, vertexIndex)
+            )
+            expect(
+                new THREE.Triangle(points[0], points[1], points[2]).getArea()
+            ).toBeGreaterThan(1e-8)
+
+            ;[
+                [vertices[0], vertices[1]],
+                [vertices[1], vertices[2]],
+                [vertices[2], vertices[0]],
+            ].forEach(([a, b]) => {
+                const key = a < b ? `${a}:${b}` : `${b}:${a}`
+                const edge = edgeUse.get(key) ?? { count: 0, balance: 0 }
+                edge.count++
+                edge.balance += a < b ? 1 : -1
+                edgeUse.set(key, edge)
+            })
+        }
+
+        expect(
+            new Set([...edgeUse.values()].map(({ count }) => count))
+        ).toEqual(new Set([2]))
+        expect(
+            new Set([...edgeUse.values()].map(({ balance }) => balance))
+        ).toEqual(new Set([0]))
+    })
 }
 
 describe('geometry outlines', () => {
@@ -361,7 +420,7 @@ describe('box generation', () => {
         const size = boundingSize(cell)
 
         expect(box.children).toHaveLength(1)
-        expect(meshes(cell)).toHaveLength(2)
+        expect(meshes(cell)).toHaveLength(1)
         expect(cell.visible).toBe(true)
         expect(getGridBoxes(grid, 30)[0].dimensions).toMatchObject({
             width: 30,
@@ -371,22 +430,24 @@ describe('box generation', () => {
         expect(size.y).toBeCloseTo(30)
         expect(size.z).toBeCloseTo(20)
         expectFiniteGeometry(cell)
+        expectWatertight(cell)
     })
 
     it('omits bottom geometry when bottom generation is disabled', () => {
         const grid: Grid = [[{ group: 0, width: 30, depth: 20 }]]
 
-        expect(
-            meshes(
-                generateCustomBox(
-                    grid,
-                    generationOptions({ generateBottom: false })
-                )
-            )
-        ).toHaveLength(1)
-        expect(
-            meshes(generateCustomBox(grid, generationOptions()))
-        ).toHaveLength(2)
+        const bottomless = generateCustomBox(
+            grid,
+            generationOptions({ generateBottom: false })
+        )
+        const bottomed = generateCustomBox(grid, generationOptions())
+
+        expect(meshes(bottomless)).toHaveLength(1)
+        expect(meshes(bottomed)).toHaveLength(1)
+        expect(hasVertexAtHeight(bottomless, 2)).toBe(false)
+        expect(hasVertexAtHeight(bottomed, 2)).toBe(true)
+        expectWatertight(bottomless)
+        expectWatertight(bottomed)
     })
 
     it('generates one box for combined cells and split boxes after ungrouping', () => {
@@ -447,7 +508,7 @@ describe('box generation', () => {
         )
 
         expect(combined).toBeDefined()
-        expect(meshes(combined!)).toHaveLength(2)
+        expect(meshes(combined!)).toHaveLength(1)
         expect(metadata?.cells).toEqual([
             { x: 0, z: 0 },
             { x: 1, z: 0 },
@@ -464,9 +525,10 @@ describe('box generation', () => {
         expect(size.z).toBeCloseTo(70)
         expectFiniteGeometry(combined!)
 
-        const combinedMeshes = meshes(combined!)
-        const bottomMesh = combinedMeshes[1]
-        expect(projectedTriangleArea(bottomMesh) / 2).toBeCloseTo(1300)
+        expect(
+            horizontalTriangleAreaAtHeight(meshes(combined!)[0], 0)
+        ).toBeCloseTo(1300)
+        expectWatertight(combined!)
 
         const footprint = footprintPoints(combined!)
         expect(hasFootprintPoint(footprint, (x, z) => x >= 28 && z <= 30)).toBe(
@@ -527,8 +589,8 @@ describe('box generation', () => {
             .material as THREE.LineBasicMaterial
 
         expect(size.y).toBeCloseTo(18)
-        expect(boxMeshes).toHaveLength(2)
-        expect(boundingSize(boxMeshes[1]).y).toBeCloseTo(2)
+        expect(boxMeshes).toHaveLength(1)
+        expect(hasVertexAtHeight(box, 2)).toBe(true)
         expect(roundedPositionCount).toBeGreaterThan(sharpPositionCount)
         expect(lines).toHaveLength(2)
         expect(lineMaterial.color.getHex()).toBe(0x123456)

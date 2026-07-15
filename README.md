@@ -6,6 +6,22 @@ Simple parameterized generator to create a grid of boxes for 3D printing. The gr
 
 Play with it here: [box-grid.timoweiss.me](https://box-grid.timoweiss.me)
 
+## Printable exports
+
+- **STL print plate** exports every visible box as a binary STL and places 5 mm
+  between parts. Each part is a closed manifold shell, so adjacent drawer boxes
+  do not introduce coincident faces in the file.
+- **3MF** exports the same deterministic print-plate layout in millimeters while
+  preserving each box as a separate object.
+- **Separate STL ZIP** exports one binary STL per unique design. Identical
+  designs are counted by generated mesh shape (including rotated equivalents),
+  while different non-rectangular shapes with the same bounding dimensions stay
+  separate.
+
+Bottomed boxes are generated as one stitched solid rather than overlapping wall
+and bottom meshes. Bottomless boxes are closed wall shells. Display helpers,
+selection state, colors, and camera state are not part of any export.
+
 ## Getting Started
 
 First, run the development server:

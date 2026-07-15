@@ -1,65 +1,128 @@
 import { material } from '@/lib/defaults'
 import * as THREE from 'three'
 
-export function buildWallMesh(
-    outerPts: THREE.Vector2[],
-    innerPts: THREE.Vector2[],
-    wallHeight: number
+const coordinatePrecision = 1e6
+
+/**
+ * Build one indexed, watertight box solid.
+ *
+ * A bottomed box is deliberately not represented as an overlapping wall ring
+ * and slab. Its underside, outside wall, inside wall, cavity floor, and rim are
+ * stitched into one boundary so every mesh edge belongs to exactly two faces.
+ */
+export function buildBoxMesh(
+    outerPoints: THREE.Vector2[],
+    innerPoints: THREE.Vector2[],
+    wallHeight: number,
+    bottomThickness?: number
 ): THREE.Mesh {
-    const shape = new THREE.Shape()
-    if (outerPts.length) {
-        shape.moveTo(outerPts[0].x, outerPts[0].y)
-        outerPts.slice(1).forEach((pt) => shape.lineTo(pt.x, pt.y))
-        shape.closePath()
+    const outer = normalizeLoop(outerPoints)
+    const inner = normalizeLoop(innerPoints)
+    if (outer.length < 3 || inner.length < 3) {
+        throw new Error('Cannot build box geometry from an invalid outline.')
     }
 
-    if (innerPts.length) {
-        const hole = new THREE.Path()
-        hole.moveTo(innerPts[0].x, innerPts[0].y)
-        innerPts.slice(1).forEach((pt) => hole.lineTo(pt.x, pt.y))
-        hole.closePath()
-        shape.holes.push(hole)
+    const positions: number[] = []
+    const indices: number[] = []
+    const vertices = new Map<string, number>()
+
+    const vertex = (point: THREE.Vector2, height: number): number => {
+        const key = [point.x, height, point.y]
+            .map((value) => Math.round(value * coordinatePrecision))
+            .join(':')
+        const existing = vertices.get(key)
+        if (existing !== undefined) return existing
+
+        const index = positions.length / 3
+        positions.push(point.x, height, point.y)
+        vertices.set(key, index)
+        return index
     }
 
-    const geo = new THREE.ExtrudeGeometry(shape, {
-        steps: 1,
-        depth: wallHeight,
-        bevelEnabled: false,
-    })
-    geo.rotateX(Math.PI / 2)
-    geo.translate(0, wallHeight, 0)
+    const triangle = (
+        a: THREE.Vector2,
+        aHeight: number,
+        b: THREE.Vector2,
+        bHeight: number,
+        c: THREE.Vector2,
+        cHeight: number,
+        reverse = false
+    ) => {
+        const face = [
+            vertex(a, aHeight),
+            vertex(b, bHeight),
+            vertex(c, cHeight),
+        ]
+        if (reverse) face.reverse()
+        indices.push(...face)
+    }
 
-    const mat = new THREE.MeshStandardMaterial({
+    const horizontalSurface = (
+        contour: THREE.Vector2[],
+        holes: THREE.Vector2[][],
+        height: number,
+        faceUp: boolean
+    ) => {
+        const points = [...contour, ...holes.flat()]
+        THREE.ShapeUtils.triangulateShape(contour, holes).forEach(([a, b, c]) =>
+            triangle(
+                points[a],
+                height,
+                points[b],
+                height,
+                points[c],
+                height,
+                faceUp
+            )
+        )
+    }
+
+    const sideSurface = (
+        loop: THREE.Vector2[],
+        bottom: number,
+        top: number,
+        faceInward: boolean
+    ) => {
+        loop.forEach((current, index) => {
+            const next = loop[(index + 1) % loop.length]
+            triangle(current, bottom, current, top, next, top, faceInward)
+            triangle(current, bottom, next, top, next, bottom, faceInward)
+        })
+    }
+
+    const hasBottom = bottomThickness !== undefined && bottomThickness > 0
+    horizontalSurface(outer, hasBottom ? [] : [inner], 0, false)
+    horizontalSurface(outer, [inner], wallHeight, true)
+    if (hasBottom) horizontalSurface(inner, [], bottomThickness, true)
+    sideSurface(outer, 0, wallHeight, false)
+    sideSurface(inner, hasBottom ? bottomThickness : 0, wallHeight, true)
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(positions, 3)
+    )
+    geometry.setIndex(indices)
+    geometry.computeVertexNormals()
+    geometry.computeBoundingBox()
+    geometry.computeBoundingSphere()
+
+    const boxMaterial = new THREE.MeshStandardMaterial({
         color: material.standard.color,
         roughness: material.standard.roughness,
         metalness: material.standard.metalness,
         side: THREE.DoubleSide,
     })
-    return new THREE.Mesh(geo, mat)
+    return new THREE.Mesh(geometry, boxMaterial)
 }
 
-export function buildBottomMesh(
-    outerPts: THREE.Vector2[],
-    thickness: number
-): THREE.Mesh {
-    const shape = new THREE.Shape()
-    shape.moveTo(outerPts[0].x, outerPts[0].y)
-    outerPts.slice(1).forEach((pt) => shape.lineTo(pt.x, pt.y))
-    shape.closePath()
-
-    const geo = new THREE.ExtrudeGeometry(shape, {
-        steps: 1,
-        depth: thickness,
-        bevelEnabled: false,
+function normalizeLoop(points: THREE.Vector2[]): THREE.Vector2[] {
+    const normalized: THREE.Vector2[] = []
+    points.forEach((point) => {
+        if (!normalized.at(-1)?.equals(point)) normalized.push(point.clone())
     })
-    geo.rotateX(Math.PI / 2)
-    geo.translate(0, thickness, 0)
-
-    const mat = new THREE.MeshStandardMaterial({
-        color: material.standard.color,
-        roughness: material.standard.roughness,
-        metalness: material.standard.metalness,
-        side: THREE.DoubleSide,
-    })
-    return new THREE.Mesh(geo, mat)
+    if (normalized.length > 1 && normalized[0].equals(normalized.at(-1)!)) {
+        normalized.pop()
+    }
+    return normalized
 }

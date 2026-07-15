@@ -1,188 +1,210 @@
-import { generateCustomBox } from '@/lib/boxHelper'
-import { getGridBoxes } from '@/lib/gridVisibility'
+import {
+    buildPrintableParts,
+    groupPrintableParts,
+    snapshotPrintableModel,
+    type PrintableModel,
+    type PrintablePart,
+} from '@/lib/printableModel'
 import { useStore } from '@/lib/store'
 import { disposeObject } from '@/lib/threeDisposal'
+import { exportThreeMf } from '@/lib/threeMfExporter'
+import JSZip from 'jszip'
 import * as THREE from 'three'
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 
-/**
- * Export the entire scene as one single STL
- */
-export function handleStlExport(): void {
-    const state = useStore.getState()
-    const grid = state.grid
-    if (grid.length === 0) return
+const printPlateGap = 5
 
-    // Wrap & rotate so Three's Y-up becomes STL Z-up
-    const tmpScene = new THREE.Scene()
-    const box = generateCustomBox(grid, {
-        wallThickness: state.wallThickness,
-        cornerRadius: state.cornerRadius,
-        wallHeight: state.wallHeight,
-        generateBottom: state.generateBottom,
-        cornerLines: {
-            show: false,
-            color: state.cornerLineColor,
-            opacity: state.cornerLineOpacity,
-        },
-    })
-    removeHiddenObjects(box)
-    box.position.set(0, 0, 0)
-    box.rotation.set(Math.PI / 2, 0, 0)
-    tmpScene.add(box)
-    tmpScene.updateMatrixWorld()
-
-    const exporter = new STLExporter()
-    let stlString: string
-    try {
-        stlString = exporter.parse(tmpScene, { binary: false })
-    } catch {
-        stlString = exporter.parse(tmpScene)
-    }
-
-    const blob = new Blob([stlString], { type: 'text/plain' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `drawer-inserts-${state.totalWidth}x${state.totalDepth}x${state.wallHeight}-single-box.stl`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(link.href), 100)
+export function generateStl(model: PrintableModel): ArrayBuffer {
+    const parts = buildPrintableParts(model)
+    if (parts.length === 0) throw new Error('Cannot export an empty STL model.')
+    layoutPartsOnPrintPlate(parts, printPlateWidth(model))
+    return exportPartsAsStl(parts)
 }
 
-/**
- * Export unique boxes (deduped by W×D×H, swap-insensitive) as separate STLs
- * with a `_qtyN` suffix and pack into a ZIP.
- */
-export async function handleExportMultipleSTLs(): Promise<void> {
-    const state = useStore.getState()
-    const grid = state.grid
-    if (grid.length === 0) return
-
-    const boxGroup = generateCustomBox(grid, {
-        wallThickness: state.wallThickness,
-        cornerRadius: state.cornerRadius,
-        wallHeight: state.wallHeight,
-        generateBottom: state.generateBottom,
-        cornerLines: {
-            show: false,
-            color: state.cornerLineColor,
-            opacity: state.cornerLineOpacity,
-        },
-    })
-
-    const boxWidths = grid[0].map((cell) => cell.width)
-    const boxDepths = grid.map((row) => row[0].depth)
-    const gridBoxes = getGridBoxes(grid, state.wallHeight)
-
-    // group boxes by dimensions (ignoring width↔depth swap)
-    type GroupInfo = {
-        representative: THREE.Object3D
-        count: number
-        w: number
-        d: number
-        h: number
-        isCombined: boolean
+export async function generateThreeMf(
+    model: PrintableModel
+): Promise<Uint8Array> {
+    const parts = buildPrintableParts(model)
+    if (parts.length === 0) throw new Error('Cannot export an empty 3MF model.')
+    layoutPartsOnPrintPlate(parts, printPlateWidth(model))
+    const printable = orientForPrinting(parts.map((part) => part.object))
+    try {
+        return await exportThreeMf(printable, exportBaseName(model))
+    } finally {
+        disposeObject(printable)
     }
-    const groups = new Map<string, GroupInfo>()
+}
 
-    boxGroup.children.forEach((box) => {
-        const metadata = gridBoxes.find((entry) => entry.id === box.name)
-        if (!metadata || metadata.visibility === 'hidden') return
+export async function generateSeparateStlZip(
+    model: PrintableModel
+): Promise<Uint8Array> {
+    const parts = buildPrintableParts(model)
+    const groups = groupPrintableParts(parts)
+    if (groups.length === 0)
+        throw new Error('Cannot export an empty STL archive.')
 
-        const rawW = metadata.dimensions.width
-        const rawD = metadata.dimensions.depth
-        const h = metadata.dimensions.height
-        const isCombined = metadata.isCombined
-        const [w, d] = [rawW, rawD].sort((a, b) => a - b)
-        const prefix = isCombined ? 'combined_box' : 'box'
-        const key = `${prefix}_${w.toFixed(2)}_${d.toFixed(2)}_${h.toFixed(2)}`
-
-        if (groups.has(key)) {
-            groups.get(key)!.count++
-        } else {
-            groups.set(key, {
-                representative: box,
-                count: 1,
-                w,
-                d,
-                h,
-                isCombined,
-            })
-        }
-    })
-
-    const JSZip = (await import('jszip')).default
     const zip = new JSZip()
-    const exporter = new STLExporter()
-    let uniqIndex = 1
-
-    for (const [, info] of groups) {
-        const { representative, count, w, d, h, isCombined } = info
-
-        // Wrap & rotate so Three's Y-up becomes STL Z-up
-        const tmpScene = new THREE.Scene()
-        const sceneClone = representative.clone(true)
-        sceneClone.position.set(0, 0, 0)
-        sceneClone.rotation.set(Math.PI / 2, 0, 0)
-        tmpScene.add(sceneClone)
-        tmpScene.updateMatrixWorld()
-
-        let stlString: string
-        try {
-            stlString = exporter.parse(tmpScene, { binary: false })
-        } catch {
-            stlString = exporter.parse(tmpScene)
-        }
-
-        const qtySuffix = count > 1 ? `_qty${count}` : ''
-        const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqIndex}_${w.toFixed(0)}x${d.toFixed(0)}x${h.toFixed(0)}mm${qtySuffix}.stl`
-        zip.file(filename, stlString)
-        uniqIndex++
+    let uniqueIndex = 1
+    for (const group of groups) {
+        const { representative, count } = group
+        const { dimensions, isCombined } = representative.metadata
+        const [width, depth] = [dimensions.width, dimensions.depth].sort(
+            (a, b) => a - b
+        )
+        const quantity = count > 1 ? `_qty${count}` : ''
+        const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqueIndex}_${width.toFixed(0)}x${depth.toFixed(0)}x${dimensions.height.toFixed(0)}mm${quantity}.stl`
+        zip.file(filename, exportPartsAsStl([representative]))
+        uniqueIndex++
     }
 
-    // README
-    const uniqueCount = groups.size
-    const cols = boxWidths.length
-    const rows = boxDepths.length
-    const readme = `# Box Grid Export
+    zip.file('README.txt', archiveReadme(model, groups.length))
+    parts.forEach((part) => {
+        if (part.object.parent === null) disposeObject(part.object)
+    })
+    return zip.generateAsync({
+        type: 'uint8array',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 },
+    })
+}
+
+export function handleStlExport(): void {
+    const model = snapshotPrintableModel(useStore.getState())
+    if (model.grid.length === 0) return
+    download(
+        generateStl(model),
+        `${exportBaseName(model)}-print-plate.stl`,
+        'model/stl'
+    )
+}
+
+export async function handleThreeMfExport(): Promise<void> {
+    const model = snapshotPrintableModel(useStore.getState())
+    if (model.grid.length === 0) return
+    download(
+        await generateThreeMf(model),
+        `${exportBaseName(model)}.3mf`,
+        'model/3mf'
+    )
+}
+
+export async function handleExportMultipleSTLs(): Promise<void> {
+    const model = snapshotPrintableModel(useStore.getState())
+    if (model.grid.length === 0) return
+    download(
+        await generateSeparateStlZip(model),
+        `${exportBaseName(model)}-grid.zip`,
+        'application/zip'
+    )
+}
+
+function exportPartsAsStl(parts: PrintablePart[]): ArrayBuffer {
+    const objects = parts.map((part) => part.object)
+    const printable = orientForPrinting(objects)
+    try {
+        const output: unknown = new STLExporter().parse(printable, {
+            binary: true,
+        })
+        if (output instanceof ArrayBuffer) return output
+        if (ArrayBuffer.isView(output)) {
+            return new Uint8Array(
+                output.buffer,
+                output.byteOffset,
+                output.byteLength
+            ).slice().buffer
+        }
+        throw new Error('STL exporter did not return binary output.')
+    } finally {
+        disposeObject(printable)
+    }
+}
+
+function layoutPartsOnPrintPlate(
+    parts: PrintablePart[],
+    maximumRowWidth: number
+): void {
+    let x = 0
+    let z = 0
+    let rowDepth = 0
+
+    parts.forEach((part) => {
+        part.object.updateMatrixWorld(true)
+        let bounds = new THREE.Box3().setFromObject(part.object)
+        const size = bounds.getSize(new THREE.Vector3())
+        if (x > 0 && x + size.x > maximumRowWidth + 1e-5) {
+            x = 0
+            z += rowDepth + printPlateGap
+            rowDepth = 0
+        }
+
+        part.object.position.x += x - bounds.min.x
+        part.object.position.z += z - bounds.min.z
+        part.object.updateMatrixWorld(true)
+        bounds = new THREE.Box3().setFromObject(part.object)
+        x = bounds.max.x + printPlateGap
+        rowDepth = Math.max(rowDepth, size.z)
+    })
+}
+
+function orientForPrinting(objects: THREE.Object3D[]): THREE.Group {
+    const group = new THREE.Group()
+    objects.forEach((object) => group.add(object))
+    group.rotation.x = Math.PI / 2
+    group.updateMatrixWorld(true)
+
+    const bounds = new THREE.Box3().setFromObject(group)
+    group.position.set(-bounds.min.x, -bounds.min.y, -bounds.min.z)
+    group.updateMatrixWorld(true)
+    return group
+}
+
+function exportBaseName(model: PrintableModel): string {
+    return `drawer-inserts-${model.totalWidth}x${model.totalDepth}x${model.wallHeight}`
+}
+
+function printPlateWidth(model: PrintableModel): number {
+    return (
+        model.totalWidth + printPlateGap * Math.max(0, model.grid[0].length - 1)
+    )
+}
+
+function archiveReadme(model: PrintableModel, uniqueCount: number): string {
+    return `# Box Grid Export
 
 This ZIP contains ${uniqueCount} unique box designs (_qtyN suffix shows multiples_).
+Designs are deduplicated by their generated mesh shape, including non-rectangular outlines.
 
 ## File Naming Convention
-- Regular boxes: box_[i]_[W]x[D]x[H]mm[_qtyN].stl  
-- Combined boxes: combined_box_[i]_[W]x[D]x[H]mm[_qtyN].stl  
+- Regular boxes: box_[i]_[W]x[D]x[H]mm[_qtyN].stl
+- Combined boxes: combined_box_[i]_[W]x[D]x[H]mm[_qtyN].stl
 
 ## Grid Layout
-- Grid size: ${cols}×${rows}  
-- Total width: ${state.totalWidth} mm  
-- Total depth: ${state.totalDepth} mm  
-- Box height: ${state.wallHeight} mm  
-- Wall thickness: ${state.wallThickness} mm  
+- Grid size: ${model.grid[0].length}×${model.grid.length}
+- Total width: ${model.totalWidth} mm
+- Total depth: ${model.totalDepth} mm
+- Box height: ${model.wallHeight} mm
+- Wall thickness: ${model.wallThickness} mm
 
 Thanks for using Box Grid Generator by timoweiss.me!
 Happy printing!
 `
-    zip.file('README.txt', readme)
+}
 
-    const content = await zip.generateAsync({ type: 'blob' })
+function download(
+    data: ArrayBuffer | Uint8Array,
+    filename: string,
+    contentType: string
+): void {
+    const blobData =
+        data instanceof Uint8Array ? new Uint8Array(data).buffer : data
+    const href = URL.createObjectURL(
+        new Blob([blobData], { type: contentType })
+    )
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(content)
-    link.download = `drawer-inserts-${state.totalWidth}x${state.totalDepth}x${state.wallHeight}-grid.zip`
+    link.href = href
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(link.href), 100)
-    disposeObject(boxGroup)
-}
-
-function removeHiddenObjects(object: THREE.Object3D): void {
-    for (const child of [...object.children]) {
-        if (!child.visible) {
-            object.remove(child)
-            continue
-        }
-
-        removeHiddenObjects(child)
-    }
+    setTimeout(() => URL.revokeObjectURL(href), 100)
 }

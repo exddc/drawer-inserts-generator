@@ -6,7 +6,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { handleExportMultipleSTLs, handleStlExport } from '@/lib/exportUtils'
+import {
+    handleExportMultipleSTLs,
+    handleStlExport,
+    handleThreeMfExport,
+} from '@/lib/exportUtils'
 
 export default function ExportButton() {
     return (
@@ -18,7 +22,10 @@ export default function ExportButton() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
                 <DropdownMenuItem onClick={handleStlExport}>
-                    Export as STL (Single Object)
+                    Export as STL (Print Plate)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleThreeMfExport}>
+                    Export as 3MF
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportMultipleSTLs}>
                     Export as ZIP (Separate STL Files)

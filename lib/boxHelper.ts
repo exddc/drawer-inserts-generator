@@ -6,7 +6,7 @@ import {
 } from '@/lib/lineHelper'
 import { Cell, Grid } from '@/lib/types'
 import * as THREE from 'three'
-import { buildBottomMesh, buildWallMesh } from './meshHelper'
+import { buildBoxMesh } from './meshHelper'
 
 export type BoxGenerationOptions = {
     wallThickness: number
@@ -88,9 +88,14 @@ export function generateCustomBox(
         boxGroup.name = `group:${id}`
         boxGroup.visible = isBoxVisible
 
-        boxGroup.add(buildWallMesh(outR, inR, options.wallHeight))
-        if (options.generateBottom)
-            boxGroup.add(buildBottomMesh(outR, options.wallThickness))
+        boxGroup.add(
+            buildBoxMesh(
+                outR,
+                inR,
+                options.wallHeight,
+                options.generateBottom ? options.wallThickness : undefined
+            )
+        )
 
         if (options.cornerLines.show) {
             const cornerLines = createCornerLines(
@@ -152,9 +157,14 @@ export function generateCustomBox(
             const cellGroup = new THREE.Group()
             cellGroup.name = `cell:${x}:${z}`
             cellGroup.visible = cell.visibility !== 'hidden'
-            cellGroup.add(buildWallMesh(outR, inR, options.wallHeight))
-            if (options.generateBottom)
-                cellGroup.add(buildBottomMesh(outR, options.wallThickness))
+            cellGroup.add(
+                buildBoxMesh(
+                    outR,
+                    inR,
+                    options.wallHeight,
+                    options.generateBottom ? options.wallThickness : undefined
+                )
+            )
 
             if (options.cornerLines.show) {
                 const outerLines = createCornerLines(
