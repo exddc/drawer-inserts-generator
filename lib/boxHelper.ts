@@ -13,6 +13,7 @@ export type BoxGenerationOptions = {
     cornerRadius: number
     wallHeight: number
     generateBottom: boolean
+    includeHidden?: boolean
     cornerLines: {
         show: boolean
         color: number
@@ -55,6 +56,7 @@ export function generateCustomBox(
             }
         }
 
+        if (!isBoxVisible && options.includeHidden === false) return
         const rawO = getOutline(grid, id)
         if (!rawO.length) return
 
@@ -93,7 +95,9 @@ export function generateCustomBox(
                 outR,
                 inR,
                 options.wallHeight,
-                options.generateBottom ? options.wallThickness : undefined
+                options.generateBottom
+                    ? Math.min(options.wallThickness, options.wallHeight)
+                    : undefined
             )
         )
 
@@ -116,6 +120,8 @@ export function generateCustomBox(
         for (let x = 0; x < grid[0].length; x++) {
             const cell = grid[z][x]
             if (cell.group !== 0) continue
+            if (cell.visibility === 'hidden' && options.includeHidden === false)
+                continue
 
             const singleGrid: Cell[][] = [
                 [
@@ -162,7 +168,9 @@ export function generateCustomBox(
                     outR,
                     inR,
                     options.wallHeight,
-                    options.generateBottom ? options.wallThickness : undefined
+                    options.generateBottom
+                        ? Math.min(options.wallThickness, options.wallHeight)
+                        : undefined
                 )
             )
 

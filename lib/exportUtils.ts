@@ -1,11 +1,11 @@
 import {
     buildPrintableParts,
+    exportLimits,
+    ExportModelError,
     groupPrintableParts,
-    snapshotPrintableModel,
     type PrintableModel,
     type PrintablePart,
 } from '@/lib/printableModel'
-import { useStore } from '@/lib/store'
 import { disposeObject } from '@/lib/threeDisposal'
 import { exportThreeMf } from '@/lib/threeMfExporter'
 import JSZip from 'jszip'
@@ -18,7 +18,9 @@ export function generateStl(model: PrintableModel): ArrayBuffer {
     const parts = buildPrintableParts(model)
     if (parts.length === 0) throw new Error('Cannot export an empty STL model.')
     layoutPartsOnPrintPlate(parts, printPlateWidth(model))
-    return exportPartsAsStl(parts)
+    const output = exportPartsAsStl(parts)
+    validateOutputSize(output.byteLength)
+    return output
 }
 
 export async function generateThreeMf(
@@ -29,7 +31,9 @@ export async function generateThreeMf(
     layoutPartsOnPrintPlate(parts, printPlateWidth(model))
     const printable = orientForPrinting(parts.map((part) => part.object))
     try {
-        return await exportThreeMf(printable, exportBaseName(model))
+        const output = await exportThreeMf(printable, exportBaseName(model))
+        validateOutputSize(output.byteLength)
+        return output
     } finally {
         disposeObject(printable)
     }
@@ -52,7 +56,7 @@ export async function generateSeparateStlZip(
             (a, b) => a - b
         )
         const quantity = count > 1 ? `_qty${count}` : ''
-        const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqueIndex}_${width.toFixed(0)}x${depth.toFixed(0)}x${dimensions.height.toFixed(0)}mm${quantity}.stl`
+        const filename = `${isCombined ? 'combined_box' : 'box'}_${uniqueIndex}_${formatDimension(width)}x${formatDimension(depth)}x${formatDimension(dimensions.height)}mm${quantity}.stl`
         zip.file(filename, exportPartsAsStl([representative]))
         uniqueIndex++
     }
@@ -61,41 +65,13 @@ export async function generateSeparateStlZip(
     parts.forEach((part) => {
         if (part.object.parent === null) disposeObject(part.object)
     })
-    return zip.generateAsync({
+    const output = await zip.generateAsync({
         type: 'uint8array',
         compression: 'DEFLATE',
         compressionOptions: { level: 6 },
     })
-}
-
-export function handleStlExport(): void {
-    const model = snapshotPrintableModel(useStore.getState())
-    if (model.grid.length === 0) return
-    download(
-        generateStl(model),
-        `${exportBaseName(model)}-print-plate.stl`,
-        'model/stl'
-    )
-}
-
-export async function handleThreeMfExport(): Promise<void> {
-    const model = snapshotPrintableModel(useStore.getState())
-    if (model.grid.length === 0) return
-    download(
-        await generateThreeMf(model),
-        `${exportBaseName(model)}.3mf`,
-        'model/3mf'
-    )
-}
-
-export async function handleExportMultipleSTLs(): Promise<void> {
-    const model = snapshotPrintableModel(useStore.getState())
-    if (model.grid.length === 0) return
-    download(
-        await generateSeparateStlZip(model),
-        `${exportBaseName(model)}-grid.zip`,
-        'application/zip'
-    )
+    validateOutputSize(output.byteLength)
+    return output
 }
 
 function exportPartsAsStl(parts: PrintablePart[]): ArrayBuffer {
@@ -159,7 +135,19 @@ function orientForPrinting(objects: THREE.Object3D[]): THREE.Group {
 }
 
 function exportBaseName(model: PrintableModel): string {
-    return `drawer-inserts-${model.totalWidth}x${model.totalDepth}x${model.wallHeight}`
+    return `drawer-inserts-${formatDimension(model.totalWidth)}x${formatDimension(model.totalDepth)}x${formatDimension(model.wallHeight)}`
+}
+
+function formatDimension(value: number): string {
+    return Number(value.toFixed(4)).toString()
+}
+
+function validateOutputSize(byteLength: number): void {
+    if (byteLength <= exportLimits.maxOutputBytes) return
+    throw new ExportModelError(
+        'output-limit',
+        `The generated file is larger than the supported ${exportLimits.maxOutputBytes / 1024 / 1024} MB export limit.`
+    )
 }
 
 function printPlateWidth(model: PrintableModel): number {
@@ -188,23 +176,4 @@ Designs are deduplicated by their generated mesh shape, including non-rectangula
 Thanks for using Box Grid Generator by timoweiss.me!
 Happy printing!
 `
-}
-
-function download(
-    data: ArrayBuffer | Uint8Array,
-    filename: string,
-    contentType: string
-): void {
-    const blobData =
-        data instanceof Uint8Array ? new Uint8Array(data).buffer : data
-    const href = URL.createObjectURL(
-        new Blob([blobData], { type: contentType })
-    )
-    const link = document.createElement('a')
-    link.href = href
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(href), 100)
 }

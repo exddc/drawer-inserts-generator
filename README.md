@@ -22,6 +22,12 @@ Bottomed boxes are generated as one stitched solid rather than overlapping wall
 and bottom meshes. Bottomless boxes are closed wall shells. Display helpers,
 selection state, colors, and camera state are not part of any export.
 
+Exports support up to 2,500 grid cells, 250 visible parts, and a 32 MB finished
+artifact. Geometry and compression run in a cancellable worker so the editor
+remains responsive; the supported limit is stress-tested against a 128 MB worker
+heap-growth budget. Excess models are rejected with an actionable message before
+mesh generation, and hidden boxes are filtered before geometry is materialized.
+
 ## Getting Started
 
 First, run the development server:

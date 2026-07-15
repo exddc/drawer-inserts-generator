@@ -231,41 +231,76 @@ export function getRoundedOutline(
     corner_radius: number,
     wall_thickness: number
 ): THREE.Vector2[] {
-    if (radius <= 0 || pts.length < 3) return pts.slice()
-    const N = pts.length
-    const path = new THREE.Path()
+    if (pts.length < 3 || (radius <= 0 && corner_radius <= 0))
+        return pts.slice()
+    const pointCount = pts.length
+    const rounded: THREE.Vector2[] = []
 
-    const prev0 = pts[N - 1]
-    const curr0 = pts[0]
-    const d0 = curr0.clone().sub(prev0).normalize()
-    path.moveTo(curr0.x - d0.x * radius, curr0.y - d0.y * radius)
-
-    for (let i = 0; i < N; i++) {
-        const prev = pts[(i + N - 1) % N]
+    for (let i = 0; i < pointCount; i++) {
+        const prev = pts[(i + pointCount - 1) % pointCount]
         const curr = pts[i]
-        const next = pts[(i + 1) % N]
+        const next = pts[(i + 1) % pointCount]
 
-        const dPrev = curr.clone().sub(prev).normalize()
-        const dNext = next.clone().sub(curr).normalize()
+        const previousEdge = curr.clone().sub(prev)
+        const nextEdge = next.clone().sub(curr)
+        const previousLength = previousEdge.length()
+        const nextLength = nextEdge.length()
+        if (previousLength === 0 || nextLength === 0) continue
+
+        const dPrev = previousEdge.divideScalar(previousLength)
+        const dNext = nextEdge.divideScalar(nextLength)
         const cross = dPrev.x * dNext.y - dPrev.y * dNext.x
-        const isConvex = cross >= 0
+        if (Math.abs(cross) <= 1e-10) {
+            pushUniquePoint(rounded, curr)
+            continue
+        }
 
-        const r = isConvex
-            ? radius
-            : radius === corner_radius
-              ? corner_radius - wall_thickness
-              : corner_radius
+        const requestedRadius =
+            cross > 0
+                ? radius
+                : radius === corner_radius
+                  ? corner_radius - wall_thickness
+                  : corner_radius
+        const r = Math.min(
+            Math.max(0, requestedRadius),
+            previousLength / 2,
+            nextLength / 2
+        )
+        if (r <= 1e-8) {
+            pushUniquePoint(rounded, curr)
+            continue
+        }
 
         const pA = curr.clone().addScaledVector(dPrev, -r)
         const pB = curr.clone().addScaledVector(dNext, r)
-
-        path.lineTo(pA.x, pA.y)
-        path.quadraticCurveTo(curr.x, curr.y, pB.x, pB.y)
+        pushUniquePoint(rounded, pA)
+        for (let segment = 1; segment <= segmentsPerCorner; segment++) {
+            const t = segment / segmentsPerCorner
+            const inverse = 1 - t
+            pushUniquePoint(
+                rounded,
+                new THREE.Vector2(
+                    inverse * inverse * pA.x +
+                        2 * inverse * t * curr.x +
+                        t * t * pB.x,
+                    inverse * inverse * pA.y +
+                        2 * inverse * t * curr.y +
+                        t * t * pB.y
+                )
+            )
+        }
     }
 
-    path.closePath()
-    const ptsOut = path.getPoints(N * segmentsPerCorner)
-    return ptsOut.map((p) => new THREE.Vector2(p.x, p.y))
+    if (rounded.length > 1 && rounded[0].distanceTo(rounded.at(-1)!) <= 1e-8) {
+        rounded.pop()
+    }
+    return rounded
+}
+
+function pushUniquePoint(points: THREE.Vector2[], point: THREE.Vector2): void {
+    const previous = points.at(-1)
+    if (previous && previous.distanceTo(point) <= 1e-8) return
+    points.push(point.clone())
 }
 
 export function createCornerLines(
