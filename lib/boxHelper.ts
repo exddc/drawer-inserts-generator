@@ -1,7 +1,7 @@
 import {
     createCornerLines,
     getOutline,
-    getRoundedOutline,
+    getRoundedOutlineGeometry,
     offsetPolygonCCW,
 } from '@/lib/lineHelper'
 import { Cell, Grid } from '@/lib/types'
@@ -30,6 +30,9 @@ export function generateCustomBox(
     }
 
     const group = new THREE.Group()
+    const bottomThickness = options.generateBottom
+        ? Math.min(options.wallThickness, options.wallHeight)
+        : 0
     const ids = Array.from(new Set(grid.flat().map((c) => c.group))).filter(
         (i) => i > 0
     )
@@ -61,14 +64,14 @@ export function generateCustomBox(
         if (!rawO.length) return
 
         const rawI = offsetPolygonCCW(rawO, options.wallThickness)
-        const outR = getRoundedOutline(
+        const outerOutline = getRoundedOutlineGeometry(
             rawO,
             options.cornerRadius,
             5,
             options.cornerRadius,
             options.wallThickness
         )
-        const inR = getRoundedOutline(
+        const innerOutline = getRoundedOutlineGeometry(
             rawI,
             options.cornerRadius - options.wallThickness,
             5,
@@ -92,18 +95,16 @@ export function generateCustomBox(
 
         boxGroup.add(
             buildBoxMesh(
-                outR,
-                inR,
+                outerOutline,
+                innerOutline,
                 options.wallHeight,
-                options.generateBottom
-                    ? Math.min(options.wallThickness, options.wallHeight)
-                    : undefined
+                options.generateBottom ? bottomThickness : undefined
             )
         )
 
         if (options.cornerLines.show) {
             const cornerLines = createCornerLines(
-                outR,
+                outerOutline.points,
                 options.wallHeight,
                 options.cornerLines.color,
                 options.cornerLines.opacity,
@@ -135,14 +136,14 @@ export function generateCustomBox(
             ]
             const rawO = getOutline(singleGrid, 0)
             const rawI = offsetPolygonCCW(rawO, options.wallThickness)
-            const outR = getRoundedOutline(
+            const outerOutline = getRoundedOutlineGeometry(
                 rawO,
                 options.cornerRadius,
                 5,
                 options.cornerRadius,
                 options.wallThickness
             )
-            const inR = getRoundedOutline(
+            const innerOutline = getRoundedOutlineGeometry(
                 rawI,
                 options.cornerRadius - options.wallThickness,
                 5,
@@ -151,11 +152,11 @@ export function generateCustomBox(
             )
             const x0 = cumW[x],
                 z0 = cumD[z]
-            outR.forEach((p) => {
+            outerOutline.points.forEach((p) => {
                 p.x += x0
                 p.y += z0
             })
-            inR.forEach((p) => {
+            innerOutline.points.forEach((p) => {
                 p.x += x0
                 p.y += z0
             })
@@ -165,18 +166,16 @@ export function generateCustomBox(
             cellGroup.visible = cell.visibility !== 'hidden'
             cellGroup.add(
                 buildBoxMesh(
-                    outR,
-                    inR,
+                    outerOutline,
+                    innerOutline,
                     options.wallHeight,
-                    options.generateBottom
-                        ? Math.min(options.wallThickness, options.wallHeight)
-                        : undefined
+                    options.generateBottom ? bottomThickness : undefined
                 )
             )
 
             if (options.cornerLines.show) {
                 const outerLines = createCornerLines(
-                    outR,
+                    outerOutline.points,
                     options.wallHeight,
                     options.cornerLines.color,
                     options.cornerLines.opacity,
@@ -185,11 +184,11 @@ export function generateCustomBox(
                 cellGroup.add(outerLines)
 
                 const innerLines = createCornerLines(
-                    inR,
+                    innerOutline.points,
                     options.wallHeight,
                     options.cornerLines.color,
                     options.cornerLines.opacity,
-                    options.generateBottom ? options.wallThickness : 0,
+                    bottomThickness,
                     true
                 )
                 cellGroup.add(innerLines)

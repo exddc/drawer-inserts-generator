@@ -33,6 +33,21 @@ function model(overrides: Partial<PrintableModel> = {}): PrintableModel {
     }
 }
 
+function gridFromPattern(pattern: string[]): PrintableModel['grid'] {
+    return pattern.map((row) =>
+        [...row].map((cell) =>
+            cell === '#'
+                ? { group: 1, width: 20, depth: 20 }
+                : {
+                      group: 0,
+                      width: 20,
+                      depth: 20,
+                      visibility: 'hidden' as const,
+                  }
+        )
+    )
+}
+
 function expectBinaryStlToBeWatertight(buffer: ArrayBuffer): void {
     const geometry = new STLLoader().parse(buffer)
     const position = geometry.getAttribute('position')
@@ -167,10 +182,10 @@ describe('printable model export', () => {
         expectThreeMfMeshesToBeWatertight(modelXml)
     })
 
-    it.each([1, 2, 4])(
-        'exports rounded L-shaped solids at a %d mm radius',
+    it.each([1, 2, 4, 8])(
+        'exports rounded concave solids at a %d mm radius',
         async (cornerRadius) => {
-            const orientations = [
+            const grids = [
                 [
                     [
                         { group: 1, width: 20, depth: 20 },
@@ -201,17 +216,19 @@ describe('printable model export', () => {
                         { group: 1, width: 20, depth: 20 },
                     ],
                 ],
+                gridFromPattern(['.##.', '##..', '#...', '....']),
+                gridFromPattern(['####', '#...', '....', '....']),
             ]
 
-            for (const grid of orientations) {
-                const lShape = model({
-                    totalWidth: 40,
-                    totalDepth: 40,
+            for (const grid of grids) {
+                const concaveModel = model({
+                    totalWidth: grid[0].length * 20,
+                    totalDepth: grid.length * 20,
                     cornerRadius,
                     grid,
                 })
-                const stl = generateStl(lShape)
-                const threeMf = await generateThreeMf(lShape)
+                const stl = generateStl(concaveModel)
+                const threeMf = await generateThreeMf(concaveModel)
                 const zip = await JSZip.loadAsync(threeMf)
                 const modelXml = await zip
                     .file('3D/3dmodel.model')!

@@ -224,22 +224,31 @@ export function offsetPolygonCCW(pts: THREE.Vector2[], t: number) {
     return inner
 }
 
-export function getRoundedOutline(
+export type RoundedOutlineGeometry = {
+    points: THREE.Vector2[]
+    corners: THREE.Vector2[][]
+}
+
+export function getRoundedOutlineGeometry(
     pts: THREE.Vector2[],
     radius: number,
     segmentsPerCorner = 5,
     corner_radius: number,
     wall_thickness: number
-): THREE.Vector2[] {
-    if (pts.length < 3 || (radius <= 0 && corner_radius <= 0))
-        return pts.slice()
-    const pointCount = pts.length
-    const rounded: THREE.Vector2[] = []
+): RoundedOutlineGeometry {
+    const outline = removeCollinearOutlinePoints(pts)
+    if (outline.length < 3) return { points: outline, corners: [] }
+    if (radius <= 0 && corner_radius <= 0) {
+        const corners = outline.map((point) => [point.clone()])
+        return { points: corners.flat(), corners }
+    }
+    const pointCount = outline.length
+    const corners: THREE.Vector2[][] = []
 
     for (let i = 0; i < pointCount; i++) {
-        const prev = pts[(i + pointCount - 1) % pointCount]
-        const curr = pts[i]
-        const next = pts[(i + 1) % pointCount]
+        const prev = outline[(i + pointCount - 1) % pointCount]
+        const curr = outline[i]
+        const next = outline[(i + 1) % pointCount]
 
         const previousEdge = curr.clone().sub(prev)
         const nextEdge = next.clone().sub(curr)
@@ -251,7 +260,7 @@ export function getRoundedOutline(
         const dNext = nextEdge.divideScalar(nextLength)
         const cross = dPrev.x * dNext.y - dPrev.y * dNext.x
         if (Math.abs(cross) <= 1e-10) {
-            pushUniquePoint(rounded, curr)
+            corners.push([curr.clone()])
             continue
         }
 
@@ -267,18 +276,19 @@ export function getRoundedOutline(
             nextLength / 2
         )
         if (r <= 1e-8) {
-            pushUniquePoint(rounded, curr)
+            corners.push([curr.clone()])
             continue
         }
 
         const pA = curr.clone().addScaledVector(dPrev, -r)
         const pB = curr.clone().addScaledVector(dNext, r)
-        pushUniquePoint(rounded, pA)
+        const corner: THREE.Vector2[] = []
+        pushUniquePoint(corner, pA)
         for (let segment = 1; segment <= segmentsPerCorner; segment++) {
             const t = segment / segmentsPerCorner
             const inverse = 1 - t
             pushUniquePoint(
-                rounded,
+                corner,
                 new THREE.Vector2(
                     inverse * inverse * pA.x +
                         2 * inverse * t * curr.x +
@@ -289,18 +299,46 @@ export function getRoundedOutline(
                 )
             )
         }
+        corners.push(corner)
     }
 
-    if (rounded.length > 1 && rounded[0].distanceTo(rounded.at(-1)!) <= 1e-8) {
-        rounded.pop()
-    }
-    return rounded
+    return { points: corners.flat(), corners }
+}
+
+export function getRoundedOutline(
+    pts: THREE.Vector2[],
+    radius: number,
+    segmentsPerCorner = 5,
+    corner_radius: number,
+    wall_thickness: number
+): THREE.Vector2[] {
+    return getRoundedOutlineGeometry(
+        pts,
+        radius,
+        segmentsPerCorner,
+        corner_radius,
+        wall_thickness
+    ).points
 }
 
 function pushUniquePoint(points: THREE.Vector2[], point: THREE.Vector2): void {
     const previous = points.at(-1)
     if (previous && previous.distanceTo(point) <= 1e-8) return
     points.push(point.clone())
+}
+
+function removeCollinearOutlinePoints(
+    points: THREE.Vector2[]
+): THREE.Vector2[] {
+    return points
+        .filter((current, index) => {
+            const previous = points[(index + points.length - 1) % points.length]
+            const next = points[(index + 1) % points.length]
+            const first = current.clone().sub(previous)
+            const second = next.clone().sub(current)
+            return Math.abs(first.x * second.y - first.y * second.x) > 1e-10
+        })
+        .map((point) => point.clone())
 }
 
 export function createCornerLines(

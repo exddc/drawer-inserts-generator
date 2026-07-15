@@ -71,6 +71,30 @@ function generationOptions(
     }
 }
 
+function polyominoGrid(mask: number, size = 4): Grid {
+    return Array.from({ length: size }, (_, z) =>
+        Array.from({ length: size }, (_, x) => {
+            const selected = (mask & (1 << (z * size + x))) !== 0
+            return {
+                group: selected ? 1 : 0,
+                width: 20,
+                depth: 20,
+                visibility: selected
+                    ? ('visible' as const)
+                    : ('hidden' as const),
+            }
+        })
+    )
+}
+
+function selectionForMask(mask: number, size = 4) {
+    return Array.from({ length: size * size }, (_, index) => index)
+        .filter((index) => (mask & (1 << index)) !== 0)
+        .map((index) => ({
+            cells: [{ x: index % size, z: Math.floor(index / size) }],
+        }))
+}
+
 function expectFiniteGeometry(object: THREE.Object3D): void {
     const objectMeshes = meshes(object)
     expect(objectMeshes.length).toBeGreaterThan(0)
@@ -596,6 +620,67 @@ describe('box generation', () => {
         expect(lineMaterial.color.getHex()).toBe(0x123456)
         expect(lineMaterial.opacity).toBe(0.4)
     })
+
+    it('keeps thin-model helper lines within the clamped model height', () => {
+        const grid: Grid = [[{ group: 0, width: 20, depth: 20 }]]
+        const options = generationOptions({
+            wallThickness: 2,
+            wallHeight: 0.1,
+            generateBottom: true,
+            cornerLines: { show: true, color: 0, opacity: 1 },
+        })
+
+        const withoutHelpers = generateCustomBox(grid, {
+            ...options,
+            cornerLines: { ...options.cornerLines, show: false },
+        })
+        const withHelpers = generateCustomBox(grid, options)
+
+        expect(boundingSize(withoutHelpers).y).toBeCloseTo(0.1)
+        expect(boundingSize(withHelpers).y).toBeCloseTo(0.1)
+    })
+
+    it('generates a watertight rounded mesh corpus for accepted polyominoes', () => {
+        const explicitMasks = [
+            // .##. / ##.. / #... / ....
+            (1 << 1) | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 8),
+            // #### / #... / .... / ....
+            (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4),
+        ]
+        const corpusSize = 1_000
+        const acceptedMasks: number[] = []
+        for (
+            let mask = 1;
+            mask < 1 << 16 && acceptedMasks.length < corpusSize;
+            mask++
+        ) {
+            const selection = selectionForMask(mask)
+            if (selection.length < 2) continue
+            const candidate = polyominoGrid(0).map((row) =>
+                row.map((cell) => ({ ...cell, visibility: 'visible' as const }))
+            )
+            if (validateGridBoxCombination(candidate, selection).valid) {
+                acceptedMasks.push(mask)
+            }
+        }
+        const corpus = [...new Set([...explicitMasks, ...acceptedMasks])]
+
+        for (const radius of [1, 2, 4, 8]) {
+            for (const mask of corpus) {
+                const generated = generateCustomBox(
+                    polyominoGrid(mask),
+                    generationOptions({
+                        cornerRadius: radius,
+                        includeHidden: false,
+                    })
+                )
+                expect(generated.children).toHaveLength(1)
+                expectWatertight(generated)
+            }
+        }
+
+        expect(acceptedMasks).toHaveLength(corpusSize)
+    }, 30_000)
 
     const explicitOptions = generationOptions({
         wallThickness: 2,

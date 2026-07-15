@@ -1,4 +1,5 @@
 import { material } from '@/lib/defaults'
+import type { RoundedOutlineGeometry } from '@/lib/lineHelper'
 import * as THREE from 'three'
 
 const coordinatePrecision = 1e6
@@ -12,13 +13,13 @@ const geometryTolerance = 1e-7
  * stitched into one boundary so every mesh edge belongs to exactly two faces.
  */
 export function buildBoxMesh(
-    outerPoints: THREE.Vector2[],
-    innerPoints: THREE.Vector2[],
+    outerOutline: RoundedOutlineGeometry,
+    innerOutline: RoundedOutlineGeometry,
     wallHeight: number,
     bottomThickness?: number
 ): THREE.Mesh {
-    const outer = normalizeLoop(outerPoints)
-    const inner = normalizeLoop(innerPoints)
+    const outer = normalizeLoop(outerOutline.points)
+    const inner = normalizeLoop(innerOutline.points)
     if (outer.length < 3 || inner.length < 3) {
         throw new Error('Cannot build box geometry from an invalid outline.')
     }
@@ -55,28 +56,32 @@ export function buildBoxMesh(
             vertex(c, cHeight),
         ]
         if (reverse) face.reverse()
-        if (new Set(face).size < 3) return
+        if (new Set(face).size < 3) {
+            throw new Error('Printable mesh triangulation collapsed a face.')
+        }
 
         const ab = new THREE.Vector3(b.x - a.x, bHeight - aHeight, b.y - a.y)
         const ac = new THREE.Vector3(c.x - a.x, cHeight - aHeight, c.y - a.y)
-        if (ab.cross(ac).lengthSq() <= geometryTolerance ** 2) return
+        if (ab.cross(ac).lengthSq() <= geometryTolerance ** 2) {
+            throw new Error(
+                'Printable mesh triangulation produced a degenerate face.'
+            )
+        }
         indices.push(...face)
     }
 
     const horizontalSurface = (
         contour: THREE.Vector2[],
-        holes: THREE.Vector2[][],
         height: number,
         faceUp: boolean
     ) => {
-        const points = [...contour, ...holes.flat()]
-        THREE.ShapeUtils.triangulateShape(contour, holes).forEach(([a, b, c]) =>
+        triangulateSimplePolygon(contour).forEach(([a, b, c]) =>
             triangle(
-                points[a],
+                contour[a],
                 height,
-                points[b],
+                contour[b],
                 height,
-                points[c],
+                contour[c],
                 height,
                 faceUp
             )
@@ -89,6 +94,7 @@ export function buildBoxMesh(
         top: number,
         faceInward: boolean
     ) => {
+        if (Math.abs(top - bottom) <= geometryTolerance) return
         loop.forEach((current, index) => {
             const next = loop[(index + 1) % loop.length]
             triangle(current, bottom, current, top, next, top, faceInward)
@@ -97,87 +103,104 @@ export function buildBoxMesh(
     }
 
     const ringSurface = (
-        outerLoop: THREE.Vector2[],
-        innerLoop: THREE.Vector2[],
+        outerCorners: THREE.Vector2[][],
+        innerCorners: THREE.Vector2[][],
         height: number,
         faceUp: boolean
     ) => {
-        const outerProgress = loopProgress(outerLoop)
-        const innerProgress = loopProgress(innerLoop)
-        let outerIndex = 0
-        let innerIndex = 0
-
-        while (outerIndex < outerLoop.length || innerIndex < innerLoop.length) {
-            const outerCurrent = outerLoop[outerIndex % outerLoop.length]
-            const innerCurrent = innerLoop[innerIndex % innerLoop.length]
-            const nextOuterProgress =
-                outerIndex < outerLoop.length
-                    ? outerProgress[outerIndex + 1]
-                    : Infinity
-            const nextInnerProgress =
-                innerIndex < innerLoop.length
-                    ? innerProgress[innerIndex + 1]
-                    : Infinity
-
-            if (
-                Math.abs(nextOuterProgress - nextInnerProgress) <=
-                geometryTolerance
-            ) {
-                const outerNext = outerLoop[(outerIndex + 1) % outerLoop.length]
-                const innerNext = innerLoop[(innerIndex + 1) % innerLoop.length]
-                triangle(
-                    outerCurrent,
-                    height,
-                    outerNext,
-                    height,
-                    innerCurrent,
-                    height,
-                    faceUp
-                )
-                triangle(
-                    outerNext,
-                    height,
-                    innerNext,
-                    height,
-                    innerCurrent,
-                    height,
-                    faceUp
-                )
-                outerIndex++
-                innerIndex++
-            } else if (nextOuterProgress < nextInnerProgress) {
-                const outerNext = outerLoop[(outerIndex + 1) % outerLoop.length]
-                triangle(
-                    outerCurrent,
-                    height,
-                    outerNext,
-                    height,
-                    innerCurrent,
-                    height,
-                    faceUp
-                )
-                outerIndex++
-            } else {
-                const innerNext = innerLoop[(innerIndex + 1) % innerLoop.length]
-                triangle(
-                    outerCurrent,
-                    height,
-                    innerNext,
-                    height,
-                    innerCurrent,
-                    height,
-                    faceUp
-                )
-                innerIndex++
-            }
+        if (outerCorners.length !== innerCorners.length) {
+            throw new Error('Printable mesh outlines have mismatched corners.')
         }
+
+        outerCorners.forEach((outerCorner, cornerIndex) => {
+            const innerCorner = innerCorners[cornerIndex]
+            if (outerCorner.length === 1) {
+                for (let index = 0; index < innerCorner.length - 1; index++) {
+                    triangle(
+                        outerCorner[0],
+                        height,
+                        innerCorner[index + 1],
+                        height,
+                        innerCorner[index],
+                        height,
+                        faceUp
+                    )
+                }
+            } else if (innerCorner.length === 1) {
+                for (let index = 0; index < outerCorner.length - 1; index++) {
+                    triangle(
+                        outerCorner[index],
+                        height,
+                        outerCorner[index + 1],
+                        height,
+                        innerCorner[0],
+                        height,
+                        faceUp
+                    )
+                }
+            } else {
+                if (outerCorner.length !== innerCorner.length) {
+                    throw new Error(
+                        'Printable mesh rounded corners have mismatched samples.'
+                    )
+                }
+                for (let index = 0; index < outerCorner.length - 1; index++) {
+                    const outerCurrent = outerCorner[index]
+                    const outerNext = outerCorner[index + 1]
+                    const innerCurrent = innerCorner[index]
+                    const innerNext = innerCorner[index + 1]
+                    triangle(
+                        outerCurrent,
+                        height,
+                        outerNext,
+                        height,
+                        innerCurrent,
+                        height,
+                        faceUp
+                    )
+                    triangle(
+                        outerNext,
+                        height,
+                        innerNext,
+                        height,
+                        innerCurrent,
+                        height,
+                        faceUp
+                    )
+                }
+            }
+
+            const nextCorner = (cornerIndex + 1) % outerCorners.length
+            const outerCurrent = outerCorner.at(-1)!
+            const outerNext = outerCorners[nextCorner][0]
+            const innerCurrent = innerCorner.at(-1)!
+            const innerNext = innerCorners[nextCorner][0]
+            triangle(
+                outerCurrent,
+                height,
+                outerNext,
+                height,
+                innerCurrent,
+                height,
+                faceUp
+            )
+            triangle(
+                outerNext,
+                height,
+                innerNext,
+                height,
+                innerCurrent,
+                height,
+                faceUp
+            )
+        })
     }
 
     const hasBottom = bottomThickness !== undefined && bottomThickness > 0
-    if (hasBottom) horizontalSurface(outer, [], 0, false)
-    else ringSurface(outer, inner, 0, false)
-    ringSurface(outer, inner, wallHeight, true)
-    if (hasBottom) horizontalSurface(inner, [], bottomThickness, true)
+    if (hasBottom) horizontalSurface(outer, 0, false)
+    else ringSurface(outerOutline.corners, innerOutline.corners, 0, false)
+    ringSurface(outerOutline.corners, innerOutline.corners, wallHeight, true)
+    if (hasBottom) horizontalSurface(inner, bottomThickness, true)
     sideSurface(outer, 0, wallHeight, false)
     sideSurface(inner, hasBottom ? bottomThickness : 0, wallHeight, true)
 
@@ -199,19 +222,6 @@ export function buildBoxMesh(
         side: THREE.DoubleSide,
     })
     return new THREE.Mesh(geometry, boxMaterial)
-}
-
-function loopProgress(loop: THREE.Vector2[]): number[] {
-    const lengths = loop.map((point, index) =>
-        point.distanceTo(loop[(index + 1) % loop.length])
-    )
-    const total = lengths.reduce((sum, length) => sum + length, 0)
-    const progress = [0]
-    lengths.forEach((length) =>
-        progress.push(progress.at(-1)! + length / total)
-    )
-    progress[progress.length - 1] = 1
-    return progress
 }
 
 export function validatePrintableGeometry(
@@ -315,4 +325,148 @@ function normalizeLoop(points: THREE.Vector2[]): THREE.Vector2[] {
         }
     }
     return normalized
+}
+
+/**
+ * Triangulate one validated, hole-free outline while retaining its boundary
+ * vertices. Three.js delegates this case to Earcut, which can choose a
+ * zero-area ear when a concave orthogonal outline and its rounded samples line
+ * up. A local ear clipper can reject those ears without dropping any boundary
+ * edge, keeping the horizontal faces stitched to the side walls.
+ */
+function triangulateSimplePolygon(
+    points: THREE.Vector2[]
+): [number, number, number][] {
+    if (points.length < 3) {
+        throw new Error(
+            'Cannot triangulate a printable face with fewer than 3 points.'
+        )
+    }
+
+    const order = points.map((_, index) => index)
+    if (signedArea(points) < 0) order.reverse()
+
+    const previous: number[] = []
+    const next: number[] = []
+    const active = points.map(() => true)
+    order.forEach((index, position) => {
+        previous[index] = order[(position + order.length - 1) % order.length]
+        next[index] = order[(position + 1) % order.length]
+    })
+
+    const isEar = (currentIndex: number): boolean => {
+        if (!active[currentIndex]) return false
+
+        const previousIndex = previous[currentIndex]
+        const nextIndex = next[currentIndex]
+        const previousPoint = points[previousIndex]
+        const currentPoint = points[currentIndex]
+        const nextPoint = points[nextIndex]
+        if (
+            cross2d(previousPoint, currentPoint, nextPoint) <=
+            geometryTolerance * 2
+        ) {
+            return false
+        }
+
+        return !active.some(
+            (isActive, candidateIndex) =>
+                isActive &&
+                candidateIndex !== previousIndex &&
+                candidateIndex !== currentIndex &&
+                candidateIndex !== nextIndex &&
+                pointInOrOnTriangle(
+                    points[candidateIndex],
+                    previousPoint,
+                    currentPoint,
+                    nextPoint
+                )
+        )
+    }
+
+    const ears = new Set(order.filter(isEar))
+    const refreshEar = (index: number) => {
+        ears.delete(index)
+        if (isEar(index)) ears.add(index)
+    }
+
+    const triangles: [number, number, number][] = []
+    let remainingCount = points.length
+    while (remainingCount > 3) {
+        if (ears.size === 0) {
+            active.forEach((isActive, index) => {
+                if (isActive && isEar(index)) ears.add(index)
+            })
+        }
+        if (ears.size === 0) {
+            throw new Error(
+                'Printable mesh face could not be triangulated without degenerate triangles.'
+            )
+        }
+
+        let currentIndex = -1
+        let bestEarArea = -Infinity
+        ears.forEach((candidateIndex) => {
+            const area = cross2d(
+                points[previous[candidateIndex]],
+                points[candidateIndex],
+                points[next[candidateIndex]]
+            )
+            if (area > bestEarArea) {
+                bestEarArea = area
+                currentIndex = candidateIndex
+            }
+        })
+
+        const previousIndex = previous[currentIndex]
+        const nextIndex = next[currentIndex]
+        triangles.push([previousIndex, currentIndex, nextIndex])
+        active[currentIndex] = false
+        remainingCount--
+        ears.delete(currentIndex)
+        next[previousIndex] = nextIndex
+        previous[nextIndex] = previousIndex
+        refreshEar(previousIndex)
+        refreshEar(nextIndex)
+    }
+
+    const first = active.findIndex(Boolean)
+    const remaining = [first, next[first], next[next[first]]]
+
+    if (
+        cross2d(
+            points[remaining[0]],
+            points[remaining[1]],
+            points[remaining[2]]
+        ) <=
+        geometryTolerance * 2
+    ) {
+        throw new Error('Printable mesh face ended with a degenerate triangle.')
+    }
+    triangles.push([remaining[0], remaining[1], remaining[2]])
+    return triangles
+}
+
+function signedArea(points: THREE.Vector2[]): number {
+    return points.reduce((area, point, index) => {
+        const next = points[(index + 1) % points.length]
+        return area + point.x * next.y - next.x * point.y
+    }, 0)
+}
+
+function cross2d(a: THREE.Vector2, b: THREE.Vector2, c: THREE.Vector2): number {
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+}
+
+function pointInOrOnTriangle(
+    point: THREE.Vector2,
+    a: THREE.Vector2,
+    b: THREE.Vector2,
+    c: THREE.Vector2
+): boolean {
+    return (
+        cross2d(a, b, point) >= -geometryTolerance &&
+        cross2d(b, c, point) >= -geometryTolerance &&
+        cross2d(c, a, point) >= -geometryTolerance
+    )
 }
