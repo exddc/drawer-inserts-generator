@@ -25,7 +25,7 @@ export default function ShareLinkButton() {
             onClick={handleCopyShareLink}
         >
             <Link2 className="h-4 w-4" />
-            Copy Share Link
+            Share
         </Button>
     )
 }
