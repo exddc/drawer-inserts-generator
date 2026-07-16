@@ -1,5 +1,6 @@
 import { generateCustomBox } from '@/lib/boxHelper'
 import { getGridBoxes } from '@/lib/gridVisibility'
+import { getOutline } from '@/lib/lineHelper'
 import { disposeObject } from '@/lib/threeDisposal'
 import type {
     DrawerInsert,
@@ -12,6 +13,12 @@ import * as THREE from 'three'
 export type ExportBoxMesh = {
     metadata: GeneratedBoxMetadata
     mesh: THREE.Group
+    shapeSignature: string
+}
+
+export type ExportBoxMeshGroup = {
+    representative: ExportBoxMesh
+    count: number
 }
 
 /**
@@ -58,11 +65,77 @@ export function buildExportBoxMeshes(model: DrawerInsert): ExportBoxMesh[] {
 
             assembly.remove(mesh)
             positionAtLocalOrigin(mesh, model.grid, metadata)
-            return { metadata, mesh }
+            return {
+                metadata,
+                mesh,
+                shapeSignature: createExportShapeSignature(model, metadata),
+            }
         })
 
     disposeObject(assembly)
     return result
+}
+
+/** Group rotationally equivalent meshes while preserving distinct footprints. */
+export function groupExportBoxMeshes(
+    entries: ExportBoxMesh[]
+): ExportBoxMeshGroup[] {
+    const groups = new Map<string, ExportBoxMeshGroup>()
+
+    entries.forEach((entry) => {
+        const group = groups.get(entry.shapeSignature)
+        if (group) group.count++
+        else
+            groups.set(entry.shapeSignature, {
+                representative: entry,
+                count: 1,
+            })
+    })
+
+    return [...groups.values()]
+}
+
+/**
+ * Canonicalize the printable footprint and mesh-affecting options under quarter
+ * turns. Removing collinear seams makes the signature independent of how an
+ * otherwise identical shape is partitioned in the source grid.
+ */
+export function createExportShapeSignature(
+    model: DrawerInsert,
+    metadata: GeneratedBoxMetadata
+): string {
+    const cumulativeWidths = cumulative(model.grid[0].map((cell) => cell.width))
+    const cumulativeDepths = cumulative(model.grid.map((row) => row[0].depth))
+    const rawOutline = metadata.isCombined
+        ? getOutline(model.grid, metadata.group)
+        : rectangleOutline(metadata, cumulativeWidths, cumulativeDepths)
+    const outline = removeCollinearPoints(rawOutline)
+    const footprint = Array.from({ length: 4 }, (_, turns) => {
+        const rotated = outline.map((point) =>
+            rotateQuarterTurn(point.x, point.y, turns)
+        )
+        const minimumX = Math.min(...rotated.map(([x]) => x))
+        const minimumZ = Math.min(...rotated.map(([, z]) => z))
+        const points = rotated.map(([x, z]) =>
+            [x - minimumX, z - minimumZ].map(quantize).join(',')
+        )
+
+        return points
+            .map((_, start) =>
+                [...points.slice(start), ...points.slice(0, start)].join(';')
+            )
+            .sort()[0]
+    }).sort()[0]
+    const options = [
+        model.config.wallThickness,
+        model.config.cornerRadius,
+        model.config.wallHeight,
+        model.config.generateBottom ? 1 : 0,
+    ]
+        .map(quantize)
+        .join('|')
+
+    return `${options}|${footprint}`
 }
 
 function exportOptions(config: ModelConfig) {
@@ -94,4 +167,59 @@ function positionAtLocalOrigin(
         .reduce((sum, row) => sum + row[0].depth, 0)
 
     mesh.position.set(-xOffset, 0, -zOffset)
+}
+
+function rectangleOutline(
+    metadata: GeneratedBoxMetadata,
+    cumulativeWidths: number[],
+    cumulativeDepths: number[]
+): THREE.Vector2[] {
+    const [{ x, z }] = metadata.cells
+    return [
+        new THREE.Vector2(cumulativeWidths[x], cumulativeDepths[z]),
+        new THREE.Vector2(cumulativeWidths[x + 1], cumulativeDepths[z]),
+        new THREE.Vector2(cumulativeWidths[x + 1], cumulativeDepths[z + 1]),
+        new THREE.Vector2(cumulativeWidths[x], cumulativeDepths[z + 1]),
+    ]
+}
+
+function removeCollinearPoints(points: THREE.Vector2[]): THREE.Vector2[] {
+    return points.filter((current, index) => {
+        const previous = points[(index + points.length - 1) % points.length]
+        const next = points[(index + 1) % points.length]
+        const first = current.clone().sub(previous)
+        const second = next.clone().sub(current)
+        return Math.abs(first.x * second.y - first.y * second.x) > 1e-8
+    })
+}
+
+function cumulative(values: number[]): number[] {
+    return values.reduce<number[]>(
+        (result, value) => {
+            result.push(result.at(-1)! + value)
+            return result
+        },
+        [0]
+    )
+}
+
+function rotateQuarterTurn(
+    x: number,
+    z: number,
+    turns: number
+): [number, number] {
+    switch (turns) {
+        case 1:
+            return [-z, x]
+        case 2:
+            return [-x, -z]
+        case 3:
+            return [z, -x]
+        default:
+            return [x, z]
+    }
+}
+
+function quantize(value: number): string {
+    return (Math.round(value * 1e5) / 1e5).toFixed(5)
 }
