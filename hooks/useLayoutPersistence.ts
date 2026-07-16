@@ -1,78 +1,105 @@
 'use client'
 
-import { persistLayout } from '@/lib/layoutPersistence'
+import {
+    getShareUrl,
+    persistLayout,
+    type PersistLayoutResult,
+} from '@/lib/layoutPersistence'
+import {
+    createLayoutPersistenceController,
+    PERSIST_DEBOUNCE_MS,
+} from '@/lib/layoutPersistenceController'
 import { useStore } from '@/lib/store'
-import type { StoreState } from '@/lib/types'
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
+import { toast } from 'sonner'
 
-const PERSIST_DEBOUNCE_MS = 300
+export { PERSIST_DEBOUNCE_MS }
 
-const PERSISTENCE_KEYS: (keyof StoreState)[] = [
-    'totalWidth',
-    'totalDepth',
-    'wallThickness',
-    'cornerRadius',
-    'wallHeight',
-    'generateBottom',
-    'maxBoxWidth',
-    'maxBoxDepth',
-    'grid',
-]
-
-function hasPersistenceChanges(
-    current: StoreState,
-    previous: StoreState
+export function reportPersistFailure(
+    result: PersistLayoutResult,
+    options: { alreadyReported: boolean }
 ): boolean {
-    if (current.grid !== previous.grid) return true
+    if (result.localStorageWritten) return false
 
-    return PERSISTENCE_KEYS.some((key) => {
-        if (key === 'grid') return false
-        return current[key] !== previous[key]
-    })
+    if (!options.alreadyReported) {
+        if (!result.hashWritten) {
+            toast.error(
+                'Could not save layout. Changes may be lost on refresh.'
+            )
+        } else {
+            toast.error(
+                'Could not save layout locally. Share link may still work.'
+            )
+        }
+    }
+
+    return true
 }
 
 export function useLayoutPersistence(): void {
-    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const storageFailureReportedRef = useRef(false)
 
-    useEffect(() => {
-        const persistNow = (state: StoreState) => {
-            persistLayout(state)
-        }
-
-        const schedulePersist = (state: StoreState) => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current)
-            timeoutRef.current = setTimeout(() => {
-                persistNow(state)
-            }, PERSIST_DEBOUNCE_MS)
-        }
-
-        persistNow(useStore.getState())
-
-        const unsubscribe = useStore.subscribe((state, previousState) => {
-            if (!hasPersistenceChanges(state, previousState)) return
-            schedulePersist(state)
+    useLayoutEffect(() => {
+        const controller = createLayoutPersistenceController({
+            getState: () => useStore.getState(),
+            subscribe: (listener) => useStore.subscribe(listener),
+            onInvalidHash: () => {
+                toast.error(
+                    'Invalid share link. Loaded the default layout instead.'
+                )
+            },
+            onPersistResult: (result) => {
+                storageFailureReportedRef.current = reportPersistFailure(
+                    result,
+                    { alreadyReported: storageFailureReportedRef.current }
+                )
+            },
         })
 
+        controller.hydrate()
+        controller.start()
+
+        const onPageHide = () => controller.flush()
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') controller.flush()
+        }
+
+        window.addEventListener('pagehide', onPageHide)
+        document.addEventListener('visibilitychange', onVisibilityChange)
+
         return () => {
-            unsubscribe()
-            if (timeoutRef.current) clearTimeout(timeoutRef.current)
+            window.removeEventListener('pagehide', onPageHide)
+            document.removeEventListener('visibilitychange', onVisibilityChange)
+            controller.dispose()
         }
     }, [])
 }
 
-export function copyShareLink(): {
-    copied: boolean
-    tooLarge: boolean
-} {
-    const { encoded, hashWritten } = persistLayout(useStore.getState())
-    const shareUrl = hashWritten
-        ? new URL(window.location.href).toString()
-        : null
+export type CopyShareLinkResult =
+    | { status: 'copied' }
+    | { status: 'too-large' }
+    | { status: 'clipboard-unavailable' }
+    | { status: 'clipboard-failed' }
 
-    if (!shareUrl) {
-        return { copied: false, tooLarge: encoded.length > 0 }
+export async function copyShareLink(): Promise<CopyShareLinkResult> {
+    const result = persistLayout(useStore.getState())
+    const shareUrl = getShareUrl(result.encoded)
+    if (!shareUrl || !result.hashWritten) {
+        return { status: 'too-large' }
     }
 
-    void navigator.clipboard.writeText(shareUrl)
-    return { copied: true, tooLarge: false }
+    if (
+        typeof navigator === 'undefined' ||
+        !navigator.clipboard ||
+        typeof navigator.clipboard.writeText !== 'function'
+    ) {
+        return { status: 'clipboard-unavailable' }
+    }
+
+    try {
+        await navigator.clipboard.writeText(shareUrl)
+        return { status: 'copied' }
+    } catch {
+        return { status: 'clipboard-failed' }
+    }
 }

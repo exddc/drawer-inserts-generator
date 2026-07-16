@@ -4,15 +4,12 @@ import {
     getMinimumBoxSize,
     sanitizeModelParameters,
 } from '@/lib/parameterValidation'
-import type { DrawerInsert, Grid, ModelConfig, StoreState } from '@/lib/types'
+import type { DrawerInsert, ModelConfig, StoreState } from '@/lib/types'
 
 export type ModelSnapshot = Pick<DrawerInsert, 'config' | 'grid'>
 
 export function createModelSnapshot(
-    state: Pick<
-        StoreState,
-        keyof ModelConfig | 'grid'
-    >
+    state: Pick<StoreState, keyof ModelConfig | 'grid'>
 ): ModelSnapshot {
     return {
         config: {

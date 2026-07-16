@@ -1,64 +1,101 @@
 import { decodeLayout, encodeLayout } from '@/lib/layoutCodec'
 import { createModelSnapshot, type ModelSnapshot } from '@/lib/modelSnapshot'
-import type { StoreState } from '@/lib/types'
+import type { ModelConfig, StoreState } from '@/lib/types'
+
+export type PersistableState = Pick<StoreState, keyof ModelConfig | 'grid'>
 
 export const LAYOUT_STORAGE_KEY = 'box-grid:layout:v1'
 export const LAYOUT_HASH_PARAM = 'l'
 export const MAX_LAYOUT_HASH_LENGTH = 8000
 
-export function loadPersistedLayout(): ModelSnapshot | null {
-    if (typeof window === 'undefined') return null
-
-    const fromHash = readLayoutFromHash()
-    if (fromHash) return fromHash
-
-    return readLayoutFromLocalStorage()
+export type PersistLayoutResult = {
+    encoded: string
+    hashWritten: boolean
+    localStorageWritten: boolean
 }
 
-export function readLayoutFromHash(): ModelSnapshot | null {
-    const encoded = getHashPayload()
-    if (!encoded) return null
-    return decodeLayout(encoded)
+export type HydrationResult =
+    | { status: 'hash'; snapshot: ModelSnapshot }
+    | { status: 'local'; snapshot: ModelSnapshot }
+    | { status: 'default' }
+    | { status: 'invalid-hash'; reason: string }
+
+export function resolvePersistedLayout(): HydrationResult {
+    if (typeof window === 'undefined') return { status: 'default' }
+
+    const hashPayload = getHashPayload()
+    if (hashPayload !== null) {
+        const decoded = decodeLayout(hashPayload)
+        if (decoded.ok) {
+            return { status: 'hash', snapshot: decoded.snapshot }
+        }
+        return { status: 'invalid-hash', reason: decoded.reason }
+    }
+
+    const local = readLayoutFromLocalStorage()
+    if (local) return { status: 'local', snapshot: local }
+
+    return { status: 'default' }
 }
 
 export function readLayoutFromLocalStorage(): ModelSnapshot | null {
     try {
         const encoded = localStorage.getItem(LAYOUT_STORAGE_KEY)
         if (!encoded) return null
-        return decodeLayout(encoded)
+        const decoded = decodeLayout(encoded)
+        return decoded.ok ? decoded.snapshot : null
     } catch {
         return null
     }
 }
 
-export function persistLayout(state: StoreState): {
-    encoded: string
-    hashWritten: boolean
-} {
+export function persistLayout(state: PersistableState): PersistLayoutResult {
     const encoded = encodeLayout(createModelSnapshot(state))
-
-    try {
-        localStorage.setItem(LAYOUT_STORAGE_KEY, encoded)
-    } catch {
-        // Ignore quota or privacy-mode failures.
-    }
+    const localStorageWritten = writeLayoutToLocalStorage(encoded)
+    const hashWritten = writeLayoutToHash(encoded)
 
     return {
         encoded,
-        hashWritten: writeLayoutToHash(encoded),
+        hashWritten,
+        localStorageWritten,
+    }
+}
+
+export function writeLayoutToLocalStorage(encoded: string): boolean {
+    try {
+        localStorage.setItem(LAYOUT_STORAGE_KEY, encoded)
+        return true
+    } catch {
+        return false
     }
 }
 
 export function writeLayoutToHash(encoded: string): boolean {
-    if (encoded.length > MAX_LAYOUT_HASH_LENGTH) return false
+    if (typeof window === 'undefined') return false
+
+    if (encoded.length > MAX_LAYOUT_HASH_LENGTH) {
+        // Drop a stale smaller hash so reload uses the latest local save.
+        clearLayoutHash()
+        return false
+    }
 
     const url = new URL(window.location.href)
     url.hash = `${LAYOUT_HASH_PARAM}=${encoded}`
-    history.replaceState(null, '', url.toString())
+    history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
     return true
 }
 
+export function clearLayoutHash(): void {
+    if (typeof window === 'undefined') return
+
+    const url = new URL(window.location.href)
+    if (!url.hash) return
+
+    history.replaceState(null, '', `${url.pathname}${url.search}`)
+}
+
 export function getShareUrl(encoded: string): string | null {
+    if (typeof window === 'undefined') return null
     if (encoded.length > MAX_LAYOUT_HASH_LENGTH) return null
 
     const url = new URL(window.location.href)
@@ -66,11 +103,15 @@ export function getShareUrl(encoded: string): string | null {
     return url.toString()
 }
 
-function getHashPayload(): string | null {
+export function getHashPayload(): string | null {
+    if (typeof window === 'undefined') return null
+
     const hash = window.location.hash.startsWith('#')
         ? window.location.hash.slice(1)
         : window.location.hash
     if (!hash) return null
 
-    return new URLSearchParams(hash).get(LAYOUT_HASH_PARAM)
+    // Present but empty `l=` still counts as an explicit share payload.
+    if (!new URLSearchParams(hash).has(LAYOUT_HASH_PARAM)) return null
+    return new URLSearchParams(hash).get(LAYOUT_HASH_PARAM) ?? ''
 }

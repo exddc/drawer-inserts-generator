@@ -1,13 +1,38 @@
 import { resizeGrid } from '@/lib/gridHelper'
-import { defaultModelConfig } from '@/lib/modelSnapshot'
+import { getOutline, OutlineTopologyError } from '@/lib/lineHelper'
+import type { ModelSnapshot } from '@/lib/modelSnapshot'
 import {
     getMinimumBoxSize,
     sanitizeModelParameters,
 } from '@/lib/parameterValidation'
 import type { Grid, ModelConfig } from '@/lib/types'
-import type { ModelSnapshot } from '@/lib/modelSnapshot'
 
-const LAYOUT_VERSION = 1
+export const LAYOUT_VERSION = 1
+
+/**
+ * Frozen v1 defaults. Intentionally duplicated (not imported from app defaults)
+ * so existing v1 links keep decoding the same way if app defaults change later.
+ */
+export const V1_DEFAULT_CONFIG: Readonly<ModelConfig> = {
+    totalWidth: 150,
+    totalDepth: 150,
+    wallThickness: 2,
+    cornerRadius: 4,
+    wallHeight: 30,
+    generateBottom: true,
+    maxBoxWidth: 100,
+    maxBoxDepth: 100,
+}
+
+/** Reject encoded payloads larger than this before Base64/JSON work. */
+export const MAX_LAYOUT_DECODE_CHARS = 100_000
+
+export type LayoutDecodeFailureReason =
+    'empty' | 'oversized' | 'corrupt' | 'unsupported' | 'invalid-topology'
+
+export type LayoutDecodeResult =
+    | { ok: true; snapshot: ModelSnapshot }
+    | { ok: false; reason: LayoutDecodeFailureReason }
 
 type WireConfig = Partial<{
     w: number
@@ -27,23 +52,16 @@ type WireLayout = {
     z?: number[]
 }
 
-const CONFIG_KEY_MAP = {
-    totalWidth: 'w',
-    totalDepth: 'd',
-    wallThickness: 't',
-    cornerRadius: 'r',
-    wallHeight: 'h',
-    generateBottom: 'b',
-    maxBoxWidth: 'mw',
-    maxBoxDepth: 'md',
-} as const satisfies Record<keyof ModelConfig, keyof WireConfig | 'b'>
-
-const WIRE_CONFIG_KEY_MAP = Object.fromEntries(
-    Object.entries(CONFIG_KEY_MAP).map(([modelKey, wireKey]) => [
-        wireKey,
-        modelKey,
-    ])
-) as Record<keyof WireConfig, keyof ModelConfig>
+const WIRE_CONFIG_KEY_MAP = {
+    w: 'totalWidth',
+    d: 'totalDepth',
+    t: 'wallThickness',
+    r: 'cornerRadius',
+    h: 'wallHeight',
+    b: 'generateBottom',
+    mw: 'maxBoxWidth',
+    md: 'maxBoxDepth',
+} as const satisfies Record<keyof WireConfig, keyof ModelConfig>
 
 export function encodeLayout(snapshot: ModelSnapshot): string {
     const wire: WireLayout = { v: LAYOUT_VERSION }
@@ -59,10 +77,20 @@ export function encodeLayout(snapshot: ModelSnapshot): string {
     return toBase64Url(JSON.stringify(wire))
 }
 
-export function decodeLayout(encoded: string): ModelSnapshot | null {
+export function decodeLayout(encoded: string): LayoutDecodeResult {
+    if (!encoded) return { ok: false, reason: 'empty' }
+    if (encoded.length > MAX_LAYOUT_DECODE_CHARS) {
+        return { ok: false, reason: 'oversized' }
+    }
+
     try {
         const wire = JSON.parse(fromBase64Url(encoded)) as WireLayout
-        if (wire.v !== LAYOUT_VERSION) return null
+        if (!wire || typeof wire !== 'object' || Array.isArray(wire)) {
+            return { ok: false, reason: 'corrupt' }
+        }
+        if (wire.v !== LAYOUT_VERSION) {
+            return { ok: false, reason: 'unsupported' }
+        }
 
         const config = decodeConfig(wire.c)
         const minBoxSize = getMinimumBoxSize(
@@ -77,44 +105,76 @@ export function decodeLayout(encoded: string): ModelSnapshot | null {
             config.maxBoxDepth,
             minBoxSize
         )
+
         if (grid.length === 0) {
-            return { config, grid }
+            return { ok: true, snapshot: { config, grid } }
         }
 
-        applyGroups(grid, decodeGroups(wire.g, grid))
-        applyHiddenCells(grid, wire.z ?? [])
+        const cellCount = grid.length * grid[0].length
+        const groups = decodeGroups(wire.g, cellCount)
+        applyGroups(grid, groups)
 
-        return { config, grid }
-    } catch {
-        return null
+        const hidden = decodeHiddenCells(wire.z, cellCount)
+        applyHiddenCells(grid, hidden)
+
+        validateGridTopology(grid)
+
+        return { ok: true, snapshot: { config, grid } }
+    } catch (error) {
+        if (
+            error instanceof OutlineTopologyError ||
+            (error instanceof Error && error.message.includes('topology'))
+        ) {
+            return { ok: false, reason: 'invalid-topology' }
+        }
+        if (error instanceof LayoutCodecError) {
+            return {
+                ok: false,
+                reason:
+                    error.code === 'invalid-topology'
+                        ? 'invalid-topology'
+                        : 'corrupt',
+            }
+        }
+        return { ok: false, reason: 'corrupt' }
+    }
+}
+
+class LayoutCodecError extends Error {
+    constructor(
+        readonly code: 'corrupt' | 'invalid-topology',
+        message: string
+    ) {
+        super(message)
+        this.name = 'LayoutCodecError'
     }
 }
 
 function encodeConfigDiff(config: ModelConfig): WireConfig {
     const wire: WireConfig = {}
 
-    if (config.totalWidth !== defaultModelConfig.totalWidth) {
+    if (config.totalWidth !== V1_DEFAULT_CONFIG.totalWidth) {
         wire.w = config.totalWidth
     }
-    if (config.totalDepth !== defaultModelConfig.totalDepth) {
+    if (config.totalDepth !== V1_DEFAULT_CONFIG.totalDepth) {
         wire.d = config.totalDepth
     }
-    if (config.wallThickness !== defaultModelConfig.wallThickness) {
+    if (config.wallThickness !== V1_DEFAULT_CONFIG.wallThickness) {
         wire.t = config.wallThickness
     }
-    if (config.cornerRadius !== defaultModelConfig.cornerRadius) {
+    if (config.cornerRadius !== V1_DEFAULT_CONFIG.cornerRadius) {
         wire.r = config.cornerRadius
     }
-    if (config.wallHeight !== defaultModelConfig.wallHeight) {
+    if (config.wallHeight !== V1_DEFAULT_CONFIG.wallHeight) {
         wire.h = config.wallHeight
     }
-    if (config.generateBottom !== defaultModelConfig.generateBottom) {
+    if (config.generateBottom !== V1_DEFAULT_CONFIG.generateBottom) {
         wire.b = config.generateBottom ? 1 : 0
     }
-    if (config.maxBoxWidth !== defaultModelConfig.maxBoxWidth) {
+    if (config.maxBoxWidth !== V1_DEFAULT_CONFIG.maxBoxWidth) {
         wire.mw = config.maxBoxWidth
     }
-    if (config.maxBoxDepth !== defaultModelConfig.maxBoxDepth) {
+    if (config.maxBoxDepth !== V1_DEFAULT_CONFIG.maxBoxDepth) {
         wire.md = config.maxBoxDepth
     }
 
@@ -124,27 +184,36 @@ function encodeConfigDiff(config: ModelConfig): WireConfig {
 function decodeConfig(wire?: WireConfig): ModelConfig {
     const partial: Partial<ModelConfig> = {}
 
-    if (wire) {
+    if (wire && typeof wire === 'object' && !Array.isArray(wire)) {
         for (const [wireKey, modelKey] of Object.entries(WIRE_CONFIG_KEY_MAP)) {
             const value = wire[wireKey as keyof WireConfig]
             if (value === undefined) continue
 
             if (modelKey === 'generateBottom') {
+                if (value !== 0 && value !== 1) {
+                    throw new LayoutCodecError(
+                        'corrupt',
+                        'Invalid generateBottom flag'
+                    )
+                }
                 partial.generateBottom = value === 1
+            } else if (typeof value !== 'number' || !Number.isFinite(value)) {
+                throw new LayoutCodecError('corrupt', 'Invalid config number')
             } else {
-                partial[modelKey] = value as number
+                partial[modelKey] = value
             }
         }
     }
 
     const sanitized = sanitizeModelParameters({
-        ...defaultModelConfig,
+        ...V1_DEFAULT_CONFIG,
         ...partial,
     })
 
     return {
         ...sanitized,
-        generateBottom: partial.generateBottom ?? defaultModelConfig.generateBottom,
+        generateBottom:
+            partial.generateBottom ?? V1_DEFAULT_CONFIG.generateBottom,
     }
 }
 
@@ -160,12 +229,35 @@ function encodeGroups(grid: Grid): number[] | string | undefined {
 
 function decodeGroups(
     encoded: number[] | string | undefined,
-    grid: Grid
+    cellCount: number
 ): number[] {
-    const cellCount = grid.length * grid[0].length
-    if (!encoded) return Array(cellCount).fill(0)
-    if (typeof encoded === 'string') return fromRunLengthString(encoded, cellCount)
-    return encoded
+    if (encoded === undefined) {
+        return Array.from({ length: cellCount }, () => 0)
+    }
+
+    if (typeof encoded === 'string') {
+        return fromRunLengthString(encoded, cellCount)
+    }
+
+    if (!Array.isArray(encoded)) {
+        throw new LayoutCodecError('corrupt', 'Groups must be an array or RLE')
+    }
+    if (encoded.length !== cellCount) {
+        throw new LayoutCodecError(
+            'corrupt',
+            'Group count does not match grid size'
+        )
+    }
+
+    return encoded.map((group, index) => {
+        if (!Number.isInteger(group) || group < 0) {
+            throw new LayoutCodecError(
+                'corrupt',
+                `Invalid group id at index ${index}`
+            )
+        }
+        return group
+    })
 }
 
 function encodeHiddenCells(grid: Grid): number[] {
@@ -182,11 +274,31 @@ function encodeHiddenCells(grid: Grid): number[] {
     return hidden
 }
 
+function decodeHiddenCells(
+    hidden: number[] | undefined,
+    cellCount: number
+): number[] {
+    if (hidden === undefined) return []
+    if (!Array.isArray(hidden)) {
+        throw new LayoutCodecError('corrupt', 'Hidden cells must be an array')
+    }
+
+    return hidden.map((index, position) => {
+        if (!Number.isInteger(index) || index < 0 || index >= cellCount) {
+            throw new LayoutCodecError(
+                'corrupt',
+                `Invalid hidden cell index at position ${position}`
+            )
+        }
+        return index
+    })
+}
+
 function applyGroups(grid: Grid, groups: number[]): void {
     let index = 0
     for (const row of grid) {
         for (const cell of row) {
-            cell.group = groups[index] ?? 0
+            cell.group = groups[index]!
             index++
         }
     }
@@ -204,6 +316,29 @@ function applyHiddenCells(grid: Grid, hidden: number[]): void {
     }
 }
 
+function validateGridTopology(grid: Grid): void {
+    const groupIds = new Set(
+        grid
+            .flat()
+            .map((cell) => cell.group)
+            .filter((group) => group > 0)
+    )
+
+    for (const groupId of groupIds) {
+        try {
+            getOutline(grid, groupId)
+        } catch (error) {
+            if (error instanceof OutlineTopologyError) {
+                throw new LayoutCodecError('invalid-topology', error.message)
+            }
+            throw new LayoutCodecError(
+                'invalid-topology',
+                error instanceof Error ? error.message : 'Invalid topology'
+            )
+        }
+    }
+}
+
 function flattenGroups(grid: Grid): number[] {
     return grid.flatMap((row) => row.map((cell) => cell.group))
 }
@@ -212,7 +347,7 @@ function toRunLengthString(groups: number[]): string {
     if (groups.length === 0) return ''
 
     const runs: string[] = []
-    let current = groups[0]
+    let current = groups[0]!
     let count = 1
 
     for (let index = 1; index < groups.length; index++) {
@@ -222,7 +357,7 @@ function toRunLengthString(groups: number[]): string {
         }
 
         runs.push(`${current}:${count}`)
-        current = groups[index]
+        current = groups[index]!
         count = 1
     }
 
@@ -231,23 +366,55 @@ function toRunLengthString(groups: number[]): string {
 }
 
 function fromRunLengthString(encoded: string, cellCount: number): number[] {
-    const groups: number[] = []
+    if (encoded.length > MAX_LAYOUT_DECODE_CHARS) {
+        throw new LayoutCodecError('corrupt', 'RLE payload too large')
+    }
+
+    const groups = new Array<number>(cellCount)
+    let offset = 0
 
     for (const run of encoded.split('|')) {
-        const [value, countValue] = run.split(':')
-        const group = Number(value)
-        const count = Number(countValue)
-        if (!Number.isFinite(group) || !Number.isFinite(count) || count < 1) {
-            throw new Error('Invalid run-length groups')
+        if (!run) {
+            throw new LayoutCodecError('corrupt', 'Empty RLE run')
+        }
+
+        const separator = run.indexOf(':')
+        if (separator <= 0 || separator === run.length - 1) {
+            throw new LayoutCodecError('corrupt', 'Malformed RLE run')
+        }
+
+        const groupText = run.slice(0, separator)
+        const countText = run.slice(separator + 1)
+        if (!/^-?\d+$/.test(groupText) || !/^\d+$/.test(countText)) {
+            throw new LayoutCodecError('corrupt', 'Non-integer RLE values')
+        }
+
+        const group = Number(groupText)
+        const count = Number(countText)
+
+        if (!Number.isInteger(group) || group < 0) {
+            throw new LayoutCodecError('corrupt', 'Invalid RLE group id')
+        }
+        if (!Number.isInteger(count) || count < 1) {
+            throw new LayoutCodecError('corrupt', 'Invalid RLE count')
+        }
+        if (offset + count > cellCount) {
+            throw new LayoutCodecError(
+                'corrupt',
+                'RLE expansion exceeds grid size'
+            )
         }
 
         for (let index = 0; index < count; index++) {
-            groups.push(group)
+            groups[offset++] = group
         }
     }
 
-    if (groups.length !== cellCount) {
-        throw new Error('Group count does not match grid size')
+    if (offset !== cellCount) {
+        throw new LayoutCodecError(
+            'corrupt',
+            'Group count does not match grid size'
+        )
     }
 
     return groups
@@ -264,6 +431,10 @@ function toBase64Url(value: string): string {
 }
 
 function fromBase64Url(value: string): string {
+    if (!/^[A-Za-z0-9_-]*$/.test(value)) {
+        throw new LayoutCodecError('corrupt', 'Invalid base64url characters')
+    }
+
     const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
     const padding = (4 - (base64.length % 4)) % 4
     const bytes = Uint8Array.from(atob(base64 + '='.repeat(padding)), (char) =>
