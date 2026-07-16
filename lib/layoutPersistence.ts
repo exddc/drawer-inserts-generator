@@ -1,4 +1,8 @@
-import { decodeLayout, encodeLayout } from '@/lib/layoutCodec'
+import {
+    decodeLayout,
+    MAX_LAYOUT_STORAGE_CHARS,
+    tryEncodeLayout,
+} from '@/lib/layoutCodec'
 import { createModelSnapshot, type ModelSnapshot } from '@/lib/modelSnapshot'
 import type { ModelConfig, StoreState } from '@/lib/types'
 
@@ -12,6 +16,7 @@ export type PersistLayoutResult = {
     encoded: string
     hashWritten: boolean
     localStorageWritten: boolean
+    oversized: boolean
 }
 
 export type HydrationResult =
@@ -50,7 +55,28 @@ export function readLayoutFromLocalStorage(): ModelSnapshot | null {
 }
 
 export function persistLayout(state: PersistableState): PersistLayoutResult {
-    const encoded = encodeLayout(createModelSnapshot(state))
+    const encodedResult = tryEncodeLayout(createModelSnapshot(state))
+    if (!encodedResult.ok) {
+        clearLayoutHash()
+        return {
+            encoded: '',
+            hashWritten: false,
+            localStorageWritten: false,
+            oversized: encodedResult.reason === 'oversized',
+        }
+    }
+
+    const encoded = encodedResult.encoded
+    if (encoded.length > MAX_LAYOUT_STORAGE_CHARS) {
+        clearLayoutHash()
+        return {
+            encoded,
+            hashWritten: false,
+            localStorageWritten: false,
+            oversized: true,
+        }
+    }
+
     const localStorageWritten = writeLayoutToLocalStorage(encoded)
     const hashWritten = writeLayoutToHash(encoded)
 
@@ -58,10 +84,13 @@ export function persistLayout(state: PersistableState): PersistLayoutResult {
         encoded,
         hashWritten,
         localStorageWritten,
+        oversized: false,
     }
 }
 
 export function writeLayoutToLocalStorage(encoded: string): boolean {
+    if (encoded.length > MAX_LAYOUT_STORAGE_CHARS) return false
+
     try {
         localStorage.setItem(LAYOUT_STORAGE_KEY, encoded)
         return true
@@ -79,28 +108,44 @@ export function writeLayoutToHash(encoded: string): boolean {
         return false
     }
 
-    const url = new URL(window.location.href)
-    url.hash = `${LAYOUT_HASH_PARAM}=${encoded}`
-    history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
-    return true
+    try {
+        const url = new URL(window.location.href)
+        url.hash = `${LAYOUT_HASH_PARAM}=${encoded}`
+        history.replaceState(
+            null,
+            '',
+            `${url.pathname}${url.search}${url.hash}`
+        )
+        return true
+    } catch {
+        return false
+    }
 }
 
 export function clearLayoutHash(): void {
     if (typeof window === 'undefined') return
 
-    const url = new URL(window.location.href)
-    if (!url.hash) return
+    try {
+        const url = new URL(window.location.href)
+        if (!url.hash) return
 
-    history.replaceState(null, '', `${url.pathname}${url.search}`)
+        history.replaceState(null, '', `${url.pathname}${url.search}`)
+    } catch {
+        // Ignore history failures; callers treat hash as not written.
+    }
 }
 
 export function getShareUrl(encoded: string): string | null {
     if (typeof window === 'undefined') return null
     if (encoded.length > MAX_LAYOUT_HASH_LENGTH) return null
 
-    const url = new URL(window.location.href)
-    url.hash = `${LAYOUT_HASH_PARAM}=${encoded}`
-    return url.toString()
+    try {
+        const url = new URL(window.location.href)
+        url.hash = `${LAYOUT_HASH_PARAM}=${encoded}`
+        return url.toString()
+    } catch {
+        return null
+    }
 }
 
 export function getHashPayload(): string | null {

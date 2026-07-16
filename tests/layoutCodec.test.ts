@@ -1,19 +1,23 @@
-import { resizeGrid } from '@/lib/gridHelper'
 import {
     decodeLayout,
     encodeLayout,
     MAX_LAYOUT_DECODE_CHARS,
+    MAX_LAYOUT_STORAGE_CHARS,
+    tryEncodeLayout,
     V1_DEFAULT_CONFIG,
+    V1_MAX_LAYOUT_CELLS,
 } from '@/lib/layoutCodec'
+import {
+    V1_PARAMETER_RANGES,
+    v1GetMinimumBoxSize,
+    v1ResizeGrid,
+} from '@/lib/layoutCodecV1'
 import {
     applyModelSnapshot,
     createModelSnapshot,
     defaultModelConfig,
 } from '@/lib/modelSnapshot'
-import {
-    defaultModelParameters,
-    getMinimumBoxSize,
-} from '@/lib/parameterValidation'
+import { defaultModelParameters } from '@/lib/parameterValidation'
 import type { Grid, ModelConfig } from '@/lib/types'
 import { describe, expect, it } from 'vitest'
 
@@ -22,11 +26,11 @@ function createGridWithTopology(
     mutate?: (grid: Grid) => void
 ): Grid {
     const fullConfig = { ...V1_DEFAULT_CONFIG, ...config }
-    const minBoxSize = getMinimumBoxSize(
+    const minBoxSize = v1GetMinimumBoxSize(
         fullConfig.wallThickness,
         fullConfig.cornerRadius
     )
-    const grid = resizeGrid(
+    const grid = v1ResizeGrid(
         [],
         fullConfig.totalWidth,
         fullConfig.totalDepth,
@@ -154,7 +158,6 @@ describe('layoutCodec', () => {
     })
 
     it('keeps historical v1 fixtures stable if app defaults diverge', () => {
-        // Fixture encoded when omitted fields meant V1_DEFAULT_CONFIG values.
         const fixture = encodeWire({ v: 1, c: { w: 200 } })
         const decoded = decodeLayout(fixture)
 
@@ -171,6 +174,29 @@ describe('layoutCodec', () => {
         expect(decoded.snapshot.config.maxBoxWidth).toBe(
             V1_DEFAULT_CONFIG.maxBoxWidth
         )
+        // Frozen ranges are independent of live app defaults.
+        expect(V1_PARAMETER_RANGES.totalWidth.max).toBe(500)
+    })
+
+    it('rejects present-but-invalid config structures as corrupt', () => {
+        expect(decodeLayout(encodeWire({ v: 1, c: 'corrupt' }))).toEqual({
+            ok: false,
+            reason: 'corrupt',
+        })
+        expect(decodeLayout(encodeWire({ v: 1, c: null }))).toEqual({
+            ok: false,
+            reason: 'corrupt',
+        })
+        expect(decodeLayout(encodeWire({ v: 1, c: [1, 2] }))).toEqual({
+            ok: false,
+            reason: 'corrupt',
+        })
+        expect(
+            decodeLayout(encodeWire({ v: 1, c: { w: 200, nope: 1 } }))
+        ).toEqual({
+            ok: false,
+            reason: 'corrupt',
+        })
     })
 
     it('returns structured failures for corrupt or unsupported payloads', () => {
@@ -183,6 +209,7 @@ describe('layoutCodec', () => {
             ok: false,
             reason: 'oversized',
         })
+        expect(MAX_LAYOUT_DECODE_CHARS).toBe(MAX_LAYOUT_STORAGE_CHARS)
 
         const unsupportedVersion = encodeWire({ v: 99, c: { w: 200 } })
         expect(decodeLayout(unsupportedVersion)).toEqual({
@@ -255,7 +282,6 @@ describe('layoutCodec', () => {
     })
 
     it('rejects disconnected and hole-containing group topology', () => {
-        // Default 150/100 grid is 2x2. Groups 1 on diagonal is disconnected.
         expect(
             decodeLayout(
                 encodeWire({
@@ -265,8 +291,6 @@ describe('layoutCodec', () => {
             )
         ).toEqual({ ok: false, reason: 'invalid-topology' })
 
-        // 2x2 outer ring would need larger grid; hole in 3x3:
-        // Use custom dimensions that yield 3x3 (300 / 100).
         expect(
             decodeLayout(
                 encodeWire({
@@ -276,6 +300,89 @@ describe('layoutCodec', () => {
                 })
             )
         ).toEqual({ ok: false, reason: 'invalid-topology' })
+    })
+
+    it('rejects layouts that reconstruct above the cell workload cap', () => {
+        expect(
+            decodeLayout(
+                encodeWire({
+                    v: 1,
+                    c: { w: 500, d: 500, t: 0.1, r: 0, mw: 5, md: 5 },
+                })
+            )
+        ).toEqual({ ok: false, reason: 'oversized' })
+    })
+
+    it('refuses to encode grids larger than the shared storage/decode cap allows', () => {
+        const grid = createGridWithTopology({
+            totalWidth: 500,
+            totalDepth: 500,
+            wallThickness: 0.1,
+            cornerRadius: 0,
+            maxBoxWidth: 5,
+            maxBoxDepth: 5,
+        })
+        expect(grid.length * grid[0].length).toBeGreaterThan(
+            V1_MAX_LAYOUT_CELLS
+        )
+
+        const result = tryEncodeLayout(
+            snapshot(
+                {
+                    totalWidth: 500,
+                    totalDepth: 500,
+                    wallThickness: 0.1,
+                    cornerRadius: 0,
+                    maxBoxWidth: 5,
+                    maxBoxDepth: 5,
+                },
+                grid
+            )
+        )
+        expect(result).toEqual({ ok: false, reason: 'oversized' })
+    })
+
+    it('decodes the largest supported multi-group payload quickly', () => {
+        const grid = createGridWithTopology({
+            totalWidth: 500,
+            totalDepth: 500,
+            wallThickness: 0.1,
+            cornerRadius: 0,
+            maxBoxWidth: 10,
+            maxBoxDepth: 10,
+        })
+        let groupId = 1
+        for (let z = 0; z < grid.length; z++) {
+            for (let x = 0; x + 1 < grid[0].length; x += 2) {
+                grid[z][x].group = groupId
+                grid[z][x + 1].group = groupId
+                groupId++
+            }
+        }
+
+        const original = snapshot(
+            {
+                totalWidth: 500,
+                totalDepth: 500,
+                wallThickness: 0.1,
+                cornerRadius: 0,
+                maxBoxWidth: 10,
+                maxBoxDepth: 10,
+            },
+            grid
+        )
+        const encoded = encodeLayout(original)
+        expect(encoded.length).toBeLessThanOrEqual(MAX_LAYOUT_STORAGE_CHARS)
+
+        const started = Date.now()
+        const decoded = decodeLayout(encoded)
+        const elapsed = Date.now() - started
+
+        expect(decoded.ok).toBe(true)
+        expect(elapsed).toBeLessThan(100)
+        if (decoded.ok) {
+            expect(decoded.snapshot.grid).toEqual(original.grid)
+        }
     })
 
     it('applies decoded layouts back into store-shaped model state', () => {

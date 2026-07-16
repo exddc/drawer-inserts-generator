@@ -1,31 +1,23 @@
-import { resizeGrid } from '@/lib/gridHelper'
-import { getOutline, OutlineTopologyError } from '@/lib/lineHelper'
-import type { ModelSnapshot } from '@/lib/modelSnapshot'
 import {
-    getMinimumBoxSize,
-    sanitizeModelParameters,
-} from '@/lib/parameterValidation'
+    V1_DEFAULT_CONFIG,
+    V1_MAX_LAYOUT_CELLS,
+    v1GetMinimumBoxSize,
+    v1ResizeGrid,
+    v1SanitizeModelParameters,
+} from '@/lib/layoutCodecV1'
+import { validatePersistedGridTopology } from '@/lib/layoutTopology'
+import type { ModelSnapshot } from '@/lib/modelSnapshot'
 import type { Grid, ModelConfig } from '@/lib/types'
 
 export const LAYOUT_VERSION = 1
+export { V1_DEFAULT_CONFIG, V1_MAX_LAYOUT_CELLS }
 
 /**
- * Frozen v1 defaults. Intentionally duplicated (not imported from app defaults)
- * so existing v1 links keep decoding the same way if app defaults change later.
+ * Shared ceiling for local save and decode. URL hash uses a lower limit.
+ * Anything accepted by local save must still load.
  */
-export const V1_DEFAULT_CONFIG: Readonly<ModelConfig> = {
-    totalWidth: 150,
-    totalDepth: 150,
-    wallThickness: 2,
-    cornerRadius: 4,
-    wallHeight: 30,
-    generateBottom: true,
-    maxBoxWidth: 100,
-    maxBoxDepth: 100,
-}
-
-/** Reject encoded payloads larger than this before Base64/JSON work. */
-export const MAX_LAYOUT_DECODE_CHARS = 100_000
+export const MAX_LAYOUT_STORAGE_CHARS = 100_000
+export const MAX_LAYOUT_DECODE_CHARS = MAX_LAYOUT_STORAGE_CHARS
 
 export type LayoutDecodeFailureReason =
     'empty' | 'oversized' | 'corrupt' | 'unsupported' | 'invalid-topology'
@@ -33,6 +25,10 @@ export type LayoutDecodeFailureReason =
 export type LayoutDecodeResult =
     | { ok: true; snapshot: ModelSnapshot }
     | { ok: false; reason: LayoutDecodeFailureReason }
+
+export type LayoutEncodeResult =
+    | { ok: true; encoded: string }
+    | { ok: false; reason: 'oversized' | 'invalid-topology' }
 
 type WireConfig = Partial<{
     w: number
@@ -63,7 +59,36 @@ const WIRE_CONFIG_KEY_MAP = {
     md: 'maxBoxDepth',
 } as const satisfies Record<keyof WireConfig, keyof ModelConfig>
 
+const KNOWN_WIRE_KEYS = new Set(['v', 'c', 'g', 'z'])
+
 export function encodeLayout(snapshot: ModelSnapshot): string {
+    const result = tryEncodeLayout(snapshot)
+    if (!result.ok) {
+        throw new LayoutCodecError(
+            result.reason === 'invalid-topology'
+                ? 'invalid-topology'
+                : 'corrupt',
+            `Cannot encode layout: ${result.reason}`
+        )
+    }
+    return result.encoded
+}
+
+export function tryEncodeLayout(snapshot: ModelSnapshot): LayoutEncodeResult {
+    const cellCount =
+        snapshot.grid.length === 0
+            ? 0
+            : snapshot.grid.length * snapshot.grid[0].length
+    if (cellCount > V1_MAX_LAYOUT_CELLS) {
+        return { ok: false, reason: 'oversized' }
+    }
+
+    try {
+        validatePersistedGridTopology(snapshot.grid)
+    } catch {
+        return { ok: false, reason: 'invalid-topology' }
+    }
+
     const wire: WireLayout = { v: LAYOUT_VERSION }
     const configDiff = encodeConfigDiff(snapshot.config)
     if (Object.keys(configDiff).length > 0) wire.c = configDiff
@@ -74,7 +99,12 @@ export function encodeLayout(snapshot: ModelSnapshot): string {
     const hidden = encodeHiddenCells(snapshot.grid)
     if (hidden.length > 0) wire.z = hidden
 
-    return toBase64Url(JSON.stringify(wire))
+    const encoded = toBase64Url(JSON.stringify(wire))
+    if (encoded.length > MAX_LAYOUT_STORAGE_CHARS) {
+        return { ok: false, reason: 'oversized' }
+    }
+
+    return { ok: true, encoded }
 }
 
 export function decodeLayout(encoded: string): LayoutDecodeResult {
@@ -88,16 +118,21 @@ export function decodeLayout(encoded: string): LayoutDecodeResult {
         if (!wire || typeof wire !== 'object' || Array.isArray(wire)) {
             return { ok: false, reason: 'corrupt' }
         }
+        for (const key of Object.keys(wire)) {
+            if (!KNOWN_WIRE_KEYS.has(key)) {
+                return { ok: false, reason: 'corrupt' }
+            }
+        }
         if (wire.v !== LAYOUT_VERSION) {
             return { ok: false, reason: 'unsupported' }
         }
 
         const config = decodeConfig(wire.c)
-        const minBoxSize = getMinimumBoxSize(
+        const minBoxSize = v1GetMinimumBoxSize(
             config.wallThickness,
             config.cornerRadius
         )
-        const grid = resizeGrid(
+        const grid = v1ResizeGrid(
             [],
             config.totalWidth,
             config.totalDepth,
@@ -106,27 +141,25 @@ export function decodeLayout(encoded: string): LayoutDecodeResult {
             minBoxSize
         )
 
+        const cellCount = grid.length === 0 ? 0 : grid.length * grid[0].length
+        if (cellCount > V1_MAX_LAYOUT_CELLS) {
+            return { ok: false, reason: 'oversized' }
+        }
+
         if (grid.length === 0) {
             return { ok: true, snapshot: { config, grid } }
         }
 
-        const cellCount = grid.length * grid[0].length
         const groups = decodeGroups(wire.g, cellCount)
         applyGroups(grid, groups)
 
         const hidden = decodeHiddenCells(wire.z, cellCount)
         applyHiddenCells(grid, hidden)
 
-        validateGridTopology(grid)
+        validatePersistedGridTopology(grid)
 
         return { ok: true, snapshot: { config, grid } }
     } catch (error) {
-        if (
-            error instanceof OutlineTopologyError ||
-            (error instanceof Error && error.message.includes('topology'))
-        ) {
-            return { ok: false, reason: 'invalid-topology' }
-        }
         if (error instanceof LayoutCodecError) {
             return {
                 ok: false,
@@ -135,6 +168,12 @@ export function decodeLayout(encoded: string): LayoutDecodeResult {
                         ? 'invalid-topology'
                         : 'corrupt',
             }
+        }
+        if (
+            error instanceof Error &&
+            /disconnected|hole/i.test(error.message)
+        ) {
+            return { ok: false, reason: 'invalid-topology' }
         }
         return { ok: false, reason: 'corrupt' }
     }
@@ -182,30 +221,42 @@ function encodeConfigDiff(config: ModelConfig): WireConfig {
 }
 
 function decodeConfig(wire?: WireConfig): ModelConfig {
+    if (wire === undefined) {
+        return { ...V1_DEFAULT_CONFIG }
+    }
+
+    if (wire === null || typeof wire !== 'object' || Array.isArray(wire)) {
+        throw new LayoutCodecError('corrupt', 'Config must be an object')
+    }
+
     const partial: Partial<ModelConfig> = {}
 
-    if (wire && typeof wire === 'object' && !Array.isArray(wire)) {
-        for (const [wireKey, modelKey] of Object.entries(WIRE_CONFIG_KEY_MAP)) {
-            const value = wire[wireKey as keyof WireConfig]
-            if (value === undefined) continue
-
-            if (modelKey === 'generateBottom') {
-                if (value !== 0 && value !== 1) {
-                    throw new LayoutCodecError(
-                        'corrupt',
-                        'Invalid generateBottom flag'
-                    )
-                }
-                partial.generateBottom = value === 1
-            } else if (typeof value !== 'number' || !Number.isFinite(value)) {
-                throw new LayoutCodecError('corrupt', 'Invalid config number')
-            } else {
-                partial[modelKey] = value
-            }
+    for (const key of Object.keys(wire)) {
+        if (!(key in WIRE_CONFIG_KEY_MAP)) {
+            throw new LayoutCodecError('corrupt', `Unknown config key ${key}`)
         }
     }
 
-    const sanitized = sanitizeModelParameters({
+    for (const [wireKey, modelKey] of Object.entries(WIRE_CONFIG_KEY_MAP)) {
+        const value = wire[wireKey as keyof WireConfig]
+        if (value === undefined) continue
+
+        if (modelKey === 'generateBottom') {
+            if (value !== 0 && value !== 1) {
+                throw new LayoutCodecError(
+                    'corrupt',
+                    'Invalid generateBottom flag'
+                )
+            }
+            partial.generateBottom = value === 1
+        } else if (typeof value !== 'number' || !Number.isFinite(value)) {
+            throw new LayoutCodecError('corrupt', 'Invalid config number')
+        } else {
+            partial[modelKey] = value
+        }
+    }
+
+    const sanitized = v1SanitizeModelParameters({
         ...V1_DEFAULT_CONFIG,
         ...partial,
     })
@@ -312,29 +363,6 @@ function applyHiddenCells(grid: Grid, hidden: number[]): void {
         for (const cell of row) {
             if (hiddenSet.has(index)) cell.visibility = 'hidden'
             index++
-        }
-    }
-}
-
-function validateGridTopology(grid: Grid): void {
-    const groupIds = new Set(
-        grid
-            .flat()
-            .map((cell) => cell.group)
-            .filter((group) => group > 0)
-    )
-
-    for (const groupId of groupIds) {
-        try {
-            getOutline(grid, groupId)
-        } catch (error) {
-            if (error instanceof OutlineTopologyError) {
-                throw new LayoutCodecError('invalid-topology', error.message)
-            }
-            throw new LayoutCodecError(
-                'invalid-topology',
-                error instanceof Error ? error.message : 'Invalid topology'
-            )
         }
     }
 }

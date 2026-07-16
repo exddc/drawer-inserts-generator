@@ -21,6 +21,11 @@ export default function ShareLinkButton() {
                 return
             }
 
+            if (result.status === 'hash-failed') {
+                toast.error('Could not update the share URL')
+                return
+            }
+
             if (result.status === 'clipboard-unavailable') {
                 toast.error('Clipboard is not available in this browser')
                 return

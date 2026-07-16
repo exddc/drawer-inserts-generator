@@ -22,7 +22,9 @@ export function reportPersistFailure(
     if (result.localStorageWritten) return false
 
     if (!options.alreadyReported) {
-        if (!result.hashWritten) {
+        if (result.oversized) {
+            toast.error('Layout is too large to save.')
+        } else if (!result.hashWritten) {
             toast.error(
                 'Could not save layout. Changes may be lost on refresh.'
             )
@@ -78,14 +80,24 @@ export function useLayoutPersistence(): void {
 export type CopyShareLinkResult =
     | { status: 'copied' }
     | { status: 'too-large' }
+    | { status: 'hash-failed' }
     | { status: 'clipboard-unavailable' }
     | { status: 'clipboard-failed' }
 
 export async function copyShareLink(): Promise<CopyShareLinkResult> {
     const result = persistLayout(useStore.getState())
-    const shareUrl = getShareUrl(result.encoded)
-    if (!shareUrl || !result.hashWritten) {
+
+    if (result.oversized || result.encoded.length === 0) {
         return { status: 'too-large' }
+    }
+
+    const shareUrl = getShareUrl(result.encoded)
+    if (!shareUrl) {
+        return { status: 'too-large' }
+    }
+
+    if (!result.hashWritten) {
+        return { status: 'hash-failed' }
     }
 
     if (

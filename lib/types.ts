@@ -61,6 +61,10 @@ export interface StoreState extends ModelConfig {
     grid: Grid
     setGrid: (grid: Grid) => void
 
+    /** False until layout persistence has hydrated (or decided defaults). */
+    layoutHydrated: boolean
+    setLayoutHydrated: (hydrated: boolean) => void
+
     selectedBoxIds: SelectionId[]
     setSelectedBoxIds: (ids: SelectionId[]) => void
 

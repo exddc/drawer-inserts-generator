@@ -1,5 +1,9 @@
 import { resizeGrid } from '@/lib/gridHelper'
-import { encodeLayout, V1_DEFAULT_CONFIG } from '@/lib/layoutCodec'
+import {
+    encodeLayout,
+    MAX_LAYOUT_STORAGE_CHARS,
+    V1_DEFAULT_CONFIG,
+} from '@/lib/layoutCodec'
 import {
     clearLayoutHash,
     getShareUrl,
@@ -205,6 +209,38 @@ describe('layoutPersistence', () => {
         const result = persistLayout(storeFromSnapshot())
         expect(result.localStorageWritten).toBe(false)
         expect(result.hashWritten).toBe(true)
+        expect(result.oversized).toBe(false)
+    })
+
+    it('rejects local writes above the shared storage/decode ceiling', () => {
+        const oversized = 'x'.repeat(MAX_LAYOUT_STORAGE_CHARS + 1)
+        expect(writeLayoutToLocalStorage(oversized)).toBe(false)
+        expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull()
+    })
+
+    it('returns hashWritten false when history.replaceState throws', () => {
+        vi.stubGlobal('history', {
+            replaceState: () => {
+                throw new Error('history blocked')
+            },
+        })
+        vi.stubGlobal('window', {
+            localStorage,
+            location,
+            history: {
+                replaceState: () => {
+                    throw new Error('history blocked')
+                },
+            },
+        })
+
+        const result = writeLayoutToHash(encodeLayout(snapshot()))
+        expect(result).toBe(false)
+
+        const persisted = persistLayout(storeFromSnapshot())
+        expect(persisted.localStorageWritten).toBe(true)
+        expect(persisted.hashWritten).toBe(false)
+        expect(persisted.oversized).toBe(false)
     })
 
     it('returns null share urls for oversized encodings', () => {

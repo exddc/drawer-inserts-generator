@@ -104,6 +104,7 @@ describe('layout persistence controller', () => {
             ...V1_DEFAULT_CONFIG,
             grid: [],
             selectedBoxIds: [],
+            layoutHydrated: false,
         })
         vi.mocked(toast.error).mockClear()
         vi.useFakeTimers()
@@ -243,6 +244,7 @@ describe('layout persistence controller', () => {
                     encoded: 'abc',
                     hashWritten: false,
                     localStorageWritten: false,
+                    oversized: false,
                 },
                 { alreadyReported: false }
             )
@@ -255,6 +257,7 @@ describe('layout persistence controller', () => {
                     encoded: 'abc',
                     hashWritten: false,
                     localStorageWritten: false,
+                    oversized: false,
                 },
                 { alreadyReported: true }
             )
@@ -270,6 +273,7 @@ describe('copyShareLink', () => {
             ...V1_DEFAULT_CONFIG,
             grid: defaultGrid(),
             selectedBoxIds: [],
+            layoutHydrated: true,
         })
     })
 
@@ -303,6 +307,29 @@ describe('copyShareLink', () => {
 
         await expect(copyShareLink()).resolves.toEqual({
             status: 'clipboard-unavailable',
+        })
+    })
+
+    it('reports hash-failed when history.replaceState throws', async () => {
+        vi.stubGlobal('navigator', {
+            clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+        })
+        vi.stubGlobal('history', {
+            replaceState: () => {
+                throw new Error('blocked')
+            },
+        })
+        vi.stubGlobal('window', {
+            ...window,
+            history: {
+                replaceState: () => {
+                    throw new Error('blocked')
+                },
+            },
+        })
+
+        await expect(copyShareLink()).resolves.toEqual({
+            status: 'hash-failed',
         })
     })
 })

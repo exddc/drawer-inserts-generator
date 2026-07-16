@@ -12,6 +12,8 @@ interface GridLayoutOptions {
     maxBoxDepth: number
     minBoxSize: number
     setGrid: (grid: Grid) => void
+    /** When false, skip resize writes so pre-hydration effects cannot clobber. */
+    layoutHydrated: boolean
 }
 
 export function useGridLayout({
@@ -22,8 +24,11 @@ export function useGridLayout({
     maxBoxDepth,
     minBoxSize,
     setGrid,
+    layoutHydrated,
 }: GridLayoutOptions): Grid {
     const resolvedGrid = useMemo(() => {
+        if (!layoutHydrated) return grid
+
         if (
             gridMatchesLayout(
                 grid,
@@ -44,11 +49,20 @@ export function useGridLayout({
             maxBoxDepth,
             minBoxSize
         )
-    }, [grid, totalWidth, totalDepth, maxBoxWidth, maxBoxDepth, minBoxSize])
+    }, [
+        grid,
+        totalWidth,
+        totalDepth,
+        maxBoxWidth,
+        maxBoxDepth,
+        minBoxSize,
+        layoutHydrated,
+    ])
 
     useEffect(() => {
+        if (!layoutHydrated) return
         if (resolvedGrid !== grid) setGrid(resolvedGrid)
-    }, [grid, resolvedGrid, setGrid])
+    }, [grid, resolvedGrid, setGrid, layoutHydrated])
 
     return resolvedGrid
 }

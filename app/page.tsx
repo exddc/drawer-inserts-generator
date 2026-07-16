@@ -28,6 +28,7 @@ export default function Home() {
         maxBoxDepth: state.maxBoxDepth,
         minBoxSize,
         setGrid: state.setGrid,
+        layoutHydrated: state.layoutHydrated,
     })
 
     const handlePointerSelection = useCallback(

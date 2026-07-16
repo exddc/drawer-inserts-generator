@@ -4,7 +4,7 @@ import {
     resolvePersistedLayout,
     type PersistLayoutResult,
 } from '@/lib/layoutPersistence'
-import { hydrateStoreFromSnapshot } from '@/lib/store'
+import { hydrateStoreFromSnapshot, markLayoutHydrated } from '@/lib/store'
 import type { StoreState } from '@/lib/types'
 
 export const PERSIST_DEBOUNCE_MS = 300
@@ -84,12 +84,16 @@ export function createLayoutPersistenceController(
                 hydrateStoreFromSnapshot(hydration.snapshot)
             } else if (hydration.status === 'invalid-hash') {
                 clearLayoutHash()
+                markLayoutHydrated()
                 options.onInvalidHash?.(hydration.reason)
+            } else {
+                markLayoutHydrated()
             }
             return hydration
         },
         start() {
             unsubscribe = options.subscribe((state, previousState) => {
+                if (!state.layoutHydrated) return
                 if (!hasPersistenceChanges(state, previousState)) return
                 schedulePersist(state)
             })
