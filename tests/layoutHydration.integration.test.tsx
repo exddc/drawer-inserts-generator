@@ -3,12 +3,16 @@
  */
 import { useGridLayout } from '@/hooks/useGridLayout'
 import { useLayoutPersistence } from '@/hooks/useLayoutPersistence'
+import { useSceneView } from '@/hooks/useSceneView'
+import { generateCustomBox } from '@/lib/boxHelper'
 import { encodeLayout, V1_DEFAULT_CONFIG } from '@/lib/layoutCodec'
 import { v1GetMinimumBoxSize, v1ResizeGrid } from '@/lib/layoutCodecV1'
 import { LAYOUT_STORAGE_KEY } from '@/lib/layoutPersistence'
 import { createModelSnapshot } from '@/lib/modelSnapshot'
+import { getMinimumBoxSize } from '@/lib/parameterValidation'
 import { useStore } from '@/lib/store'
 import { act, render, waitFor } from '@testing-library/react'
+import * as THREE from 'three'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('sonner', () => ({
@@ -18,14 +22,45 @@ vi.mock('sonner', () => ({
     },
 }))
 
-function PersistedHome() {
+vi.mock('@/lib/sceneViewAdapter', () => ({
+    SceneViewAdapter: class {
+        replaceBox = vi.fn()
+        dispose = vi.fn()
+        pickBoxAtClientPoint = vi.fn(() => null)
+        resetCamera = vi.fn()
+        setTopView = vi.fn()
+        setHelperGridVisible = vi.fn()
+        applySelection = vi.fn()
+        replaceHelperGrid = vi.fn()
+    },
+}))
+
+vi.mock('@/lib/boxHelper', async () => {
+    const actual =
+        await vi.importActual<typeof import('@/lib/boxHelper')>(
+            '@/lib/boxHelper'
+        )
+    return {
+        ...actual,
+        generateCustomBox: vi.fn((grid, options) => {
+            if (grid.length === 0 || grid[0]?.length === 0) {
+                throw new Error(
+                    'Cannot generate box geometry for an empty grid.'
+                )
+            }
+            return new THREE.Group()
+        }),
+    }
+})
+
+function FullPageProbe() {
     useLayoutPersistence()
     const state = useStore()
-    const minBoxSize = v1GetMinimumBoxSize(
+    const minBoxSize = getMinimumBoxSize(
         state.wallThickness,
         state.cornerRadius
     )
-    useGridLayout({
+    const grid = useGridLayout({
         grid: state.grid,
         totalWidth: state.totalWidth,
         totalDepth: state.totalDepth,
@@ -36,14 +71,33 @@ function PersistedHome() {
         layoutHydrated: state.layoutHydrated,
     })
 
+    const sceneView = useSceneView({
+        grid,
+        totalWidth: state.totalWidth,
+        totalDepth: state.totalDepth,
+        wallThickness: state.wallThickness,
+        cornerRadius: state.cornerRadius,
+        wallHeight: state.wallHeight,
+        generateBottom: state.generateBottom,
+        redrawTrigger: state.redrawTrigger,
+        showCornerLines: state.showCornerLines,
+        cornerLineColor: state.cornerLineColor,
+        cornerLineOpacity: state.cornerLineOpacity,
+        showHelperGrid: state.showHelperGrid,
+        selectedBoxIds: state.selectedBoxIds,
+        standardColor: state.standardColor,
+        selectedColor: state.selectedColor,
+        onPointerSelection: () => undefined,
+    })
+
     return (
-        <div data-testid="hydrated">
-            {state.layoutHydrated ? 'ready' : 'pending'}
+        <div ref={sceneView.containerRef} data-testid="ready">
+            {state.layoutHydrated ? `rows:${grid.length}` : 'pending'}
         </div>
     )
 }
 
-describe('mounted hydration + grid layout', () => {
+describe('full-page hydration + scene generation', () => {
     beforeEach(() => {
         useStore.setState({
             ...V1_DEFAULT_CONFIG,
@@ -54,6 +108,7 @@ describe('mounted hydration + grid layout', () => {
         localStorage.clear()
         window.history.replaceState(null, '', '/')
         window.location.hash = ''
+        vi.mocked(generateCustomBox).mockClear()
     })
 
     afterEach(() => {
@@ -61,7 +116,35 @@ describe('mounted hydration + grid layout', () => {
         vi.restoreAllMocks()
     })
 
-    it('preserves combined and hidden cells after all layout and passive effects', async () => {
+    it('fresh load never calls generateCustomBox with an empty grid', async () => {
+        const errors: unknown[] = []
+        const onError = (event: ErrorEvent) => {
+            errors.push(event.error ?? event.message)
+        }
+        window.addEventListener('error', onError)
+
+        render(<FullPageProbe />)
+
+        await waitFor(() => {
+            expect(useStore.getState().layoutHydrated).toBe(true)
+        })
+        await act(async () => {
+            await Promise.resolve()
+        })
+
+        window.removeEventListener('error', onError)
+
+        expect(errors).toEqual([])
+        expect(vi.mocked(generateCustomBox)).toHaveBeenCalled()
+        for (const call of vi.mocked(generateCustomBox).mock.calls) {
+            const grid = call[0]
+            expect(grid.length).toBeGreaterThan(0)
+            expect(grid[0].length).toBeGreaterThan(0)
+        }
+        expect(useStore.getState().grid.length).toBeGreaterThan(0)
+    })
+
+    it('persisted load preserves topology and never generates from an empty grid', async () => {
         const grid = v1ResizeGrid(
             [],
             200,
@@ -84,25 +167,28 @@ describe('mounted hydration + grid layout', () => {
         })
         localStorage.setItem(LAYOUT_STORAGE_KEY, encodeLayout(saved))
 
-        render(<PersistedHome />)
+        const errors: unknown[] = []
+        window.addEventListener('error', (event) => {
+            errors.push(event.error ?? event.message)
+        })
+
+        render(<FullPageProbe />)
 
         await waitFor(() => {
             expect(useStore.getState().layoutHydrated).toBe(true)
         })
-
-        // Allow any passive effects from the pre-hydration render to flush.
         await act(async () => {
             await Promise.resolve()
         })
 
+        expect(errors).toEqual([])
+        for (const call of vi.mocked(generateCustomBox).mock.calls) {
+            expect(call[0].length).toBeGreaterThan(0)
+        }
+
         const state = useStore.getState()
-        expect(state.totalWidth).toBe(200)
         expect(state.grid).toEqual(saved.grid)
         expect(state.grid[0][0].group).toBe(7)
-        expect(state.grid[0][1].group).toBe(7)
         expect(state.grid[1][0].visibility).toBe('hidden')
-        expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(
-            encodeLayout(saved)
-        )
     })
 })

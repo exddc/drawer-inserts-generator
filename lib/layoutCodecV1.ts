@@ -30,8 +30,8 @@ export const V1_PARAMETER_RANGES = {
 export const V1_MIN_BOX_CLEARANCE = 1
 export const V1_DIMENSION_TOLERANCE = 1e-9
 
-/** Soft cap on reconstructed cells for decode/encode workload. */
-export const V1_MAX_LAYOUT_CELLS = 2500
+/** Max cells any layout may have (app model + persistence share this). */
+export const V1_MAX_LAYOUT_CELLS = 10_000
 
 type V1ModelParameters = Omit<ModelConfig, 'generateBottom'>
 
@@ -98,6 +98,13 @@ export function v1SanitizeModelParameters(
         ),
         minBoxSize
     )
+    const fitted = fitWithinCellBudget(
+        totalWidth,
+        totalDepth,
+        maxBoxWidth,
+        maxBoxDepth,
+        minBoxSize
+    )
     const wallHeight = clampFinite(
         values.wallHeight,
         fallback.wallHeight,
@@ -111,8 +118,8 @@ export function v1SanitizeModelParameters(
         wallThickness,
         cornerRadius,
         wallHeight,
-        maxBoxWidth,
-        maxBoxDepth,
+        maxBoxWidth: fitted.maxBoxWidth,
+        maxBoxDepth: fitted.maxBoxDepth,
     }
 }
 
@@ -166,6 +173,47 @@ export function v1ResizeGrid(
             }
         })
     )
+}
+
+function fitWithinCellBudget(
+    totalWidth: number,
+    totalDepth: number,
+    maxBoxWidth: number,
+    maxBoxDepth: number,
+    minBoxSize: number
+): { maxBoxWidth: number; maxBoxDepth: number } {
+    let width = maxBoxWidth
+    let depth = maxBoxDepth
+
+    for (let guard = 0; guard < 256; guard++) {
+        const cols = v1SegmentSizes(totalWidth, width, minBoxSize).length
+        const rows = v1SegmentSizes(totalDepth, depth, minBoxSize).length
+        if (cols * rows <= V1_MAX_LAYOUT_CELLS) {
+            return { maxBoxWidth: width, maxBoxDepth: depth }
+        }
+
+        if (cols >= rows && width < totalWidth) {
+            const nextCols = Math.max(1, cols - 1)
+            width = Math.min(
+                totalWidth,
+                Math.max(width, roundDimensionUp(totalWidth / nextCols))
+            )
+            continue
+        }
+
+        if (depth < totalDepth) {
+            const nextRows = Math.max(1, rows - 1)
+            depth = Math.min(
+                totalDepth,
+                Math.max(depth, roundDimensionUp(totalDepth / nextRows))
+            )
+            continue
+        }
+
+        break
+    }
+
+    return { maxBoxWidth: width, maxBoxDepth: depth }
 }
 
 function extendMaxBoxSize(

@@ -3,7 +3,7 @@ import type { Grid } from '@/lib/types'
 /**
  * Near-linear topology checks for persisted layouts.
  * Connectivity: one flood-fill pass over all positive groups.
- * Holes: exterior flood-fill per multi-cell group (skipped for single cells).
+ * Holes: exterior flood-fill per multi-cell group (skipped for tiny shapes).
  */
 export function validatePersistedGridTopology(grid: Grid): void {
     if (grid.length === 0) return
@@ -17,6 +17,11 @@ export function validatePersistedGridTopology(grid: Grid): void {
     for (let z = 0; z < rows; z++) {
         for (let x = 0; x < cols; x++) {
             const group = grid[z][x].group
+            if (!Number.isInteger(group) || group < 0) {
+                throw new Error(
+                    `Invalid group id ${String(group)} at ${x},${z}`
+                )
+            }
             if (group > 0) {
                 totals.set(group, (totals.get(group) ?? 0) + 1)
             }

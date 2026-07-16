@@ -11,6 +11,7 @@ import {
     V1_PARAMETER_RANGES,
     v1GetMinimumBoxSize,
     v1ResizeGrid,
+    v1SanitizeModelParameters,
 } from '@/lib/layoutCodecV1'
 import {
     applyModelSnapshot,
@@ -25,17 +26,25 @@ function createGridWithTopology(
     config: Partial<ModelConfig> = {},
     mutate?: (grid: Grid) => void
 ): Grid {
-    const fullConfig = { ...V1_DEFAULT_CONFIG, ...config }
+    const sanitized = {
+        ...V1_DEFAULT_CONFIG,
+        ...v1SanitizeModelParameters({
+            ...V1_DEFAULT_CONFIG,
+            ...config,
+        }),
+        generateBottom:
+            config.generateBottom ?? V1_DEFAULT_CONFIG.generateBottom,
+    }
     const minBoxSize = v1GetMinimumBoxSize(
-        fullConfig.wallThickness,
-        fullConfig.cornerRadius
+        sanitized.wallThickness,
+        sanitized.cornerRadius
     )
     const grid = v1ResizeGrid(
         [],
-        fullConfig.totalWidth,
-        fullConfig.totalDepth,
-        fullConfig.maxBoxWidth,
-        fullConfig.maxBoxDepth,
+        sanitized.totalWidth,
+        sanitized.totalDepth,
+        sanitized.maxBoxWidth,
+        sanitized.maxBoxDepth,
         minBoxSize
     )
 
@@ -302,18 +311,85 @@ describe('layoutCodec', () => {
         ).toEqual({ ok: false, reason: 'invalid-topology' })
     })
 
-    it('rejects layouts that reconstruct above the cell workload cap', () => {
-        expect(
-            decodeLayout(
-                encodeWire({
-                    v: 1,
-                    c: { w: 500, d: 500, t: 0.1, r: 0, mw: 5, md: 5 },
-                })
-            )
-        ).toEqual({ ok: false, reason: 'oversized' })
+    it('rejects encoding grids with invalid group ids', () => {
+        const grid = createGridWithTopology()
+        grid[0][0].group = -1
+        expect(tryEncodeLayout(snapshot({}, grid))).toEqual({
+            ok: false,
+            reason: 'invalid',
+        })
     })
 
-    it('refuses to encode grids larger than the shared storage/decode cap allows', () => {
+    it('roundtrips every successful encode through decode equivalently', () => {
+        const cases = [
+            snapshot(),
+            snapshot(
+                { totalWidth: 200 },
+                createCombinedGrid({ totalWidth: 200 })
+            ),
+            snapshot(
+                {
+                    totalWidth: 500,
+                    totalDepth: 500,
+                    maxBoxWidth: 5,
+                    maxBoxDepth: 5,
+                    wallThickness: 0.1,
+                    cornerRadius: 0,
+                },
+                createGridWithTopology({
+                    totalWidth: 500,
+                    totalDepth: 500,
+                    maxBoxWidth: 5,
+                    maxBoxDepth: 5,
+                    wallThickness: 0.1,
+                    cornerRadius: 0,
+                })
+            ),
+        ]
+
+        for (const original of cases) {
+            const encoded = tryEncodeLayout(original)
+            expect(encoded.ok).toBe(true)
+            if (!encoded.ok) continue
+            const decoded = decodeLayout(encoded.encoded)
+            expect(decoded).toEqual({ ok: true, snapshot: original })
+        }
+    })
+
+    it('persists the largest application-supported 100×100 layout', () => {
+        const config = {
+            totalWidth: 500,
+            totalDepth: 500,
+            wallThickness: 0.1,
+            cornerRadius: 0,
+            maxBoxWidth: 5,
+            maxBoxDepth: 5,
+        }
+        const grid = createGridWithTopology(config)
+        expect(grid.length).toBe(100)
+        expect(grid[0].length).toBe(100)
+        expect(grid.length * grid[0].length).toBe(V1_MAX_LAYOUT_CELLS)
+
+        const original = snapshot(
+            {
+                ...config,
+                ...v1SanitizeModelParameters({
+                    ...V1_DEFAULT_CONFIG,
+                    ...config,
+                }),
+            },
+            grid
+        )
+        const encoded = tryEncodeLayout(original)
+        expect(encoded.ok).toBe(true)
+        if (!encoded.ok) return
+        expect(decodeLayout(encoded.encoded)).toEqual({
+            ok: true,
+            snapshot: original,
+        })
+    })
+
+    it('rejects encoding grids above the shared cell capacity', () => {
         const grid = createGridWithTopology({
             totalWidth: 500,
             totalDepth: 500,
@@ -322,24 +398,32 @@ describe('layoutCodec', () => {
             maxBoxWidth: 5,
             maxBoxDepth: 5,
         })
+        grid.push(
+            grid[0].map((cell) => ({
+                ...cell,
+                group: 0,
+                visibility: 'visible' as const,
+            }))
+        )
         expect(grid.length * grid[0].length).toBeGreaterThan(
             V1_MAX_LAYOUT_CELLS
         )
 
-        const result = tryEncodeLayout(
-            snapshot(
-                {
-                    totalWidth: 500,
-                    totalDepth: 500,
-                    wallThickness: 0.1,
-                    cornerRadius: 0,
-                    maxBoxWidth: 5,
-                    maxBoxDepth: 5,
-                },
-                grid
+        expect(
+            tryEncodeLayout(
+                snapshot(
+                    {
+                        totalWidth: 500,
+                        totalDepth: 500,
+                        wallThickness: 0.1,
+                        cornerRadius: 0,
+                        maxBoxWidth: 5,
+                        maxBoxDepth: 5,
+                    },
+                    grid
+                )
             )
-        )
-        expect(result).toEqual({ ok: false, reason: 'oversized' })
+        ).toEqual({ ok: false, reason: 'oversized' })
     })
 
     it('decodes the largest supported multi-group payload quickly', () => {

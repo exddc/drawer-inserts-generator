@@ -28,7 +28,7 @@ export type LayoutDecodeResult =
 
 export type LayoutEncodeResult =
     | { ok: true; encoded: string }
-    | { ok: false; reason: 'oversized' | 'invalid-topology' }
+    | { ok: false; reason: 'oversized' | 'invalid-topology' | 'invalid' }
 
 type WireConfig = Partial<{
     w: number
@@ -85,7 +85,11 @@ export function tryEncodeLayout(snapshot: ModelSnapshot): LayoutEncodeResult {
 
     try {
         validatePersistedGridTopology(snapshot.grid)
-    } catch {
+    } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        if (/Invalid group id/i.test(message)) {
+            return { ok: false, reason: 'invalid' }
+        }
         return { ok: false, reason: 'invalid-topology' }
     }
 
