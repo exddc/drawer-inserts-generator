@@ -84,6 +84,7 @@ export function useSceneView(options: SceneViewOptions): SceneViewControls {
     useEffect(() => {
         const adapter = adapterRef.current
         if (!adapter) return
+        if (options.grid.length === 0 || options.grid[0].length === 0) return
 
         const box = generateCustomBox(options.grid, {
             wallThickness: options.wallThickness,

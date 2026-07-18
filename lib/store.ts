@@ -1,4 +1,5 @@
 import { cornerLine, material, parameters } from '@/lib/defaults'
+import type { ModelSnapshot } from '@/lib/modelSnapshot'
 import type { ModelParameters } from '@/lib/parameterValidation'
 import { sanitizeModelParameters } from '@/lib/parameterValidation'
 import { StoreState } from '@/lib/types'
@@ -33,6 +34,9 @@ export const useStore = create<StoreState>((set, get) => ({
     grid: [],
     setGrid: (grid) => set({ grid }),
 
+    layoutHydrated: false,
+    setLayoutHydrated: (layoutHydrated) => set({ layoutHydrated }),
+
     selectedBoxIds: [],
     setSelectedBoxIds: (selectedBoxIds) => set({ selectedBoxIds }),
     // General
@@ -62,6 +66,28 @@ export const useStore = create<StoreState>((set, get) => ({
     setCornerLineOpacity: (opacity: number) =>
         set({ cornerLineOpacity: opacity }),
 }))
+
+export function hydrateStoreFromSnapshot(snapshot: ModelSnapshot): void {
+    // Apply the decoded snapshot directly — do not re-run live sanitizers,
+    // which could reinterpret a frozen v1 layout.
+    useStore.setState({
+        totalWidth: snapshot.config.totalWidth,
+        totalDepth: snapshot.config.totalDepth,
+        wallThickness: snapshot.config.wallThickness,
+        cornerRadius: snapshot.config.cornerRadius,
+        wallHeight: snapshot.config.wallHeight,
+        generateBottom: snapshot.config.generateBottom,
+        maxBoxWidth: snapshot.config.maxBoxWidth,
+        maxBoxDepth: snapshot.config.maxBoxDepth,
+        grid: snapshot.grid.map((row) => row.map((cell) => ({ ...cell }))),
+        selectedBoxIds: [],
+        layoutHydrated: true,
+    })
+}
+
+export function markLayoutHydrated(): void {
+    useStore.setState({ layoutHydrated: true })
+}
 
 function setModelParameter<K extends keyof ModelParameters>(
     set: (

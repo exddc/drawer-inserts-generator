@@ -19,6 +19,7 @@ import {
 } from '@/lib/lineHelper'
 import {
     getMinimumBoxSize,
+    MAX_LAYOUT_CELLS,
     sanitizeModelParameters,
 } from '@/lib/parameterValidation'
 import { useStore } from '@/lib/store'
@@ -778,6 +779,29 @@ describe('grid resizing', () => {
 })
 
 describe('parameter validation', () => {
+    it('caps the most granular valid configuration at the persistence budget', () => {
+        const sanitized = sanitizeModelParameters({
+            totalWidth: 500,
+            totalDepth: 500,
+            maxBoxWidth: 1,
+            maxBoxDepth: 1,
+            wallThickness: 0.1,
+            cornerRadius: 0,
+        })
+        const grid = resizeGrid(
+            [],
+            sanitized.totalWidth,
+            sanitized.totalDepth,
+            sanitized.maxBoxWidth,
+            sanitized.maxBoxDepth,
+            getMinimumBoxSize(sanitized.wallThickness, sanitized.cornerRadius)
+        )
+
+        expect(grid.length * grid[0].length).toBe(MAX_LAYOUT_CELLS)
+        expect(grid).toHaveLength(100)
+        expect(grid[0]).toHaveLength(100)
+    })
+
     it('rounds a corrected maximum without creating another undersized segment', () => {
         const sanitized = sanitizeModelParameters({
             totalWidth: 41,

@@ -3,6 +3,7 @@ import {
     buildExportBoxMeshes,
     groupExportBoxMeshes,
 } from '@/lib/exportModel'
+import { createModelSnapshot } from '@/lib/modelSnapshot'
 import { useStore } from '@/lib/store'
 import { disposeObject } from '@/lib/threeDisposal'
 import type { DrawerInsert, StoreState } from '@/lib/types'
@@ -87,18 +88,9 @@ Happy printing!
 
 /** Capture only domain state so later UI/store changes cannot affect an export. */
 export function createExportModelSnapshot(state: StoreState): DrawerInsert {
+    const snapshot = createModelSnapshot(state)
     return {
-        config: {
-            totalWidth: state.totalWidth,
-            totalDepth: state.totalDepth,
-            wallThickness: state.wallThickness,
-            cornerRadius: state.cornerRadius,
-            wallHeight: state.wallHeight,
-            generateBottom: state.generateBottom,
-            maxBoxWidth: state.maxBoxWidth,
-            maxBoxDepth: state.maxBoxDepth,
-        },
-        grid: state.grid.map((row) => row.map((cell) => ({ ...cell }))),
+        ...snapshot,
         selectedBoxIds: [...state.selectedBoxIds],
     }
 }

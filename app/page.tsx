@@ -5,6 +5,7 @@ import BoxContextMenu from '@/components/BoxContextMenu'
 import HiddenBoxesDisplay from '@/components/HiddenBoxesDisplay'
 import { useGridCommands } from '@/hooks/useGridCommands'
 import { useGridLayout } from '@/hooks/useGridLayout'
+import { useLayoutPersistence } from '@/hooks/useLayoutPersistence'
 import { useSceneView } from '@/hooks/useSceneView'
 import { getMinimumBoxSize } from '@/lib/parameterValidation'
 import type { ScenePointerSelection } from '@/lib/sceneViewAdapter'
@@ -12,6 +13,7 @@ import { useStore } from '@/lib/store'
 import { useCallback } from 'react'
 
 export default function Home() {
+    useLayoutPersistence()
     const state = useStore()
     const commands = useGridCommands()
     const minBoxSize = getMinimumBoxSize(
@@ -26,6 +28,7 @@ export default function Home() {
         maxBoxDepth: state.maxBoxDepth,
         minBoxSize,
         setGrid: state.setGrid,
+        layoutHydrated: state.layoutHydrated,
     })
 
     const handlePointerSelection = useCallback(
