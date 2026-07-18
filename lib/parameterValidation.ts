@@ -135,33 +135,63 @@ export function fitWithinCellBudget(
 ): { maxBoxWidth: number; maxBoxDepth: number } {
     let width = maxBoxWidth
     let depth = maxBoxDepth
+    const cellLimit = Math.max(1, Math.floor(maxCells))
 
-    for (let guard = 0; guard < 256; guard++) {
+    for (let guard = 0; guard < 16; guard++) {
         const cols = segmentFn(totalWidth, width, minBoxSize).length
         const rows = segmentFn(totalDepth, depth, minBoxSize).length
-        if (cols * rows <= maxCells) {
+        if (cols * rows <= cellLimit) {
             return { maxBoxWidth: width, maxBoxDepth: depth }
         }
 
-        if (cols >= rows && width < totalWidth) {
-            const nextCols = Math.max(1, cols - 1)
-            width = Math.min(
-                totalWidth,
-                Math.max(width, roundDimensionUp(totalWidth / nextCols))
-            )
-            continue
+        const targetCols = Math.min(
+            cols,
+            Math.max(1, Math.floor(Math.sqrt((cellLimit * cols) / rows)))
+        )
+        const targetRows = Math.min(
+            rows,
+            Math.max(1, Math.floor(cellLimit / targetCols))
+        )
+        let boundedTargetCols = targetCols
+
+        if (boundedTargetCols * targetRows > cellLimit) {
+            boundedTargetCols = Math.max(1, Math.floor(cellLimit / targetRows))
         }
 
-        if (depth < totalDepth) {
-            const nextRows = Math.max(1, rows - 1)
-            depth = Math.min(
-                totalDepth,
-                Math.max(depth, roundDimensionUp(totalDepth / nextRows))
-            )
-            continue
+        const nextWidth =
+            boundedTargetCols < cols
+                ? Math.min(
+                      totalWidth,
+                      Math.max(
+                          width,
+                          roundDimensionUp(totalWidth / boundedTargetCols)
+                      )
+                  )
+                : width
+        const nextDepth =
+            targetRows < rows
+                ? Math.min(
+                      totalDepth,
+                      Math.max(depth, roundDimensionUp(totalDepth / targetRows))
+                  )
+                : depth
+
+        if (nextWidth === width && nextDepth === depth) {
+            // Defensive fallback for a custom segment function that does not
+            // shrink after the proportional correction.
+            if (cols >= rows && width < totalWidth) {
+                width = totalWidth
+                continue
+            }
+            if (depth < totalDepth) {
+                depth = totalDepth
+                continue
+            }
+            break
         }
 
-        break
+        width = nextWidth
+        depth = nextDepth
     }
 
     return { maxBoxWidth: width, maxBoxDepth: depth }

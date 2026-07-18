@@ -185,32 +185,65 @@ function fitWithinCellBudget(
     let width = maxBoxWidth
     let depth = maxBoxDepth
 
-    for (let guard = 0; guard < 256; guard++) {
+    for (let guard = 0; guard < 16; guard++) {
         const cols = v1SegmentSizes(totalWidth, width, minBoxSize).length
         const rows = v1SegmentSizes(totalDepth, depth, minBoxSize).length
         if (cols * rows <= V1_MAX_LAYOUT_CELLS) {
             return { maxBoxWidth: width, maxBoxDepth: depth }
         }
 
-        if (cols >= rows && width < totalWidth) {
-            const nextCols = Math.max(1, cols - 1)
-            width = Math.min(
-                totalWidth,
-                Math.max(width, roundDimensionUp(totalWidth / nextCols))
+        const targetCols = Math.min(
+            cols,
+            Math.max(
+                1,
+                Math.floor(Math.sqrt((V1_MAX_LAYOUT_CELLS * cols) / rows))
             )
-            continue
+        )
+        const targetRows = Math.min(
+            rows,
+            Math.max(1, Math.floor(V1_MAX_LAYOUT_CELLS / targetCols))
+        )
+        let boundedTargetCols = targetCols
+
+        if (boundedTargetCols * targetRows > V1_MAX_LAYOUT_CELLS) {
+            boundedTargetCols = Math.max(
+                1,
+                Math.floor(V1_MAX_LAYOUT_CELLS / targetRows)
+            )
         }
 
-        if (depth < totalDepth) {
-            const nextRows = Math.max(1, rows - 1)
-            depth = Math.min(
-                totalDepth,
-                Math.max(depth, roundDimensionUp(totalDepth / nextRows))
-            )
-            continue
+        const nextWidth =
+            boundedTargetCols < cols
+                ? Math.min(
+                      totalWidth,
+                      Math.max(
+                          width,
+                          roundDimensionUp(totalWidth / boundedTargetCols)
+                      )
+                  )
+                : width
+        const nextDepth =
+            targetRows < rows
+                ? Math.min(
+                      totalDepth,
+                      Math.max(depth, roundDimensionUp(totalDepth / targetRows))
+                  )
+                : depth
+
+        if (nextWidth === width && nextDepth === depth) {
+            if (cols >= rows && width < totalWidth) {
+                width = totalWidth
+                continue
+            }
+            if (depth < totalDepth) {
+                depth = totalDepth
+                continue
+            }
+            break
         }
 
-        break
+        width = nextWidth
+        depth = nextDepth
     }
 
     return { maxBoxWidth: width, maxBoxDepth: depth }

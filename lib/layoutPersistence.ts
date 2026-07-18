@@ -110,12 +110,10 @@ export function writeLayoutToHash(encoded: string): boolean {
 
     try {
         const url = new URL(window.location.href)
-        url.hash = `${LAYOUT_HASH_PARAM}=${encoded}`
-        history.replaceState(
-            null,
-            '',
-            `${url.pathname}${url.search}${url.hash}`
-        )
+        const hashParams = getHashParams(url)
+        hashParams.set(LAYOUT_HASH_PARAM, encoded)
+        url.hash = hashParams.toString()
+        replaceCurrentUrl(url)
         return true
     } catch {
         return false
@@ -127,9 +125,12 @@ export function clearLayoutHash(): void {
 
     try {
         const url = new URL(window.location.href)
-        if (!url.hash) return
+        const hashParams = getHashParams(url)
+        if (!hashParams.has(LAYOUT_HASH_PARAM)) return
 
-        history.replaceState(null, '', `${url.pathname}${url.search}`)
+        hashParams.delete(LAYOUT_HASH_PARAM)
+        url.hash = hashParams.toString()
+        replaceCurrentUrl(url)
     } catch {
         // Ignore history failures; callers treat hash as not written.
     }
@@ -141,7 +142,9 @@ export function getShareUrl(encoded: string): string | null {
 
     try {
         const url = new URL(window.location.href)
-        url.hash = `${LAYOUT_HASH_PARAM}=${encoded}`
+        const hashParams = getHashParams(url)
+        hashParams.set(LAYOUT_HASH_PARAM, encoded)
+        url.hash = hashParams.toString()
         return url.toString()
     } catch {
         return null
@@ -157,6 +160,21 @@ export function getHashPayload(): string | null {
     if (!hash) return null
 
     // Present but empty `l=` still counts as an explicit share payload.
-    if (!new URLSearchParams(hash).has(LAYOUT_HASH_PARAM)) return null
-    return new URLSearchParams(hash).get(LAYOUT_HASH_PARAM) ?? ''
+    const hashParams = new URLSearchParams(hash)
+    if (!hashParams.has(LAYOUT_HASH_PARAM)) return null
+    return hashParams.get(LAYOUT_HASH_PARAM) ?? ''
+}
+
+function getHashParams(url: URL): URLSearchParams {
+    return new URLSearchParams(
+        url.hash.startsWith('#') ? url.hash.slice(1) : ''
+    )
+}
+
+function replaceCurrentUrl(url: URL): void {
+    window.history.replaceState(
+        window.history.state,
+        '',
+        `${url.pathname}${url.search}${url.hash}`
+    )
 }

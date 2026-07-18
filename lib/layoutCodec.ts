@@ -4,6 +4,7 @@ import {
     v1GetMinimumBoxSize,
     v1ResizeGrid,
     v1SanitizeModelParameters,
+    v1SegmentSizes,
 } from '@/lib/layoutCodecV1'
 import { validatePersistedGridTopology } from '@/lib/layoutTopology'
 import type { ModelSnapshot } from '@/lib/modelSnapshot'
@@ -92,6 +93,12 @@ export function tryEncodeLayout(snapshot: ModelSnapshot): LayoutEncodeResult {
         }
         return { ok: false, reason: 'invalid-topology' }
     }
+    if (!configMatchesEncodedConfig(snapshot.config)) {
+        return { ok: false, reason: 'invalid' }
+    }
+    if (!gridTopologyMatchesEncodedConfig(snapshot.grid, snapshot.config)) {
+        return { ok: false, reason: 'invalid' }
+    }
 
     const wire: WireLayout = { v: LAYOUT_VERSION }
     const configDiff = encodeConfigDiff(snapshot.config)
@@ -109,6 +116,63 @@ export function tryEncodeLayout(snapshot: ModelSnapshot): LayoutEncodeResult {
     }
 
     return { ok: true, encoded }
+}
+
+function configMatchesEncodedConfig(config: ModelConfig): boolean {
+    if (typeof config.generateBottom !== 'boolean') return false
+
+    const sanitized = v1SanitizeModelParameters(config)
+    return (
+        config.totalWidth === sanitized.totalWidth &&
+        config.totalDepth === sanitized.totalDepth &&
+        config.wallThickness === sanitized.wallThickness &&
+        config.cornerRadius === sanitized.cornerRadius &&
+        config.wallHeight === sanitized.wallHeight &&
+        config.maxBoxWidth === sanitized.maxBoxWidth &&
+        config.maxBoxDepth === sanitized.maxBoxDepth
+    )
+}
+
+/**
+ * Cell dimensions are derived from config and intentionally omitted. Grid
+ * shape only becomes part of the wire contract when cell-indexed topology is
+ * present; otherwise the decoder can safely rebuild a stale or empty grid.
+ */
+function gridTopologyMatchesEncodedConfig(
+    grid: Grid,
+    config: ModelConfig
+): boolean {
+    let hasPersistedTopology = false
+    for (const row of grid) {
+        for (const cell of row) {
+            const visibility = cell.visibility ?? 'visible'
+            if (visibility !== 'visible' && visibility !== 'hidden') {
+                return false
+            }
+            if (cell.group !== 0 || visibility === 'hidden') {
+                hasPersistedTopology = true
+            }
+        }
+    }
+    if (!hasPersistedTopology) return true
+
+    const minBoxSize = v1GetMinimumBoxSize(
+        config.wallThickness,
+        config.cornerRadius
+    )
+    const widths = v1SegmentSizes(
+        config.totalWidth,
+        config.maxBoxWidth,
+        minBoxSize
+    )
+    const depths = v1SegmentSizes(
+        config.totalDepth,
+        config.maxBoxDepth,
+        minBoxSize
+    )
+
+    if (grid.length !== depths.length) return false
+    return grid.every((row) => row.length === widths.length)
 }
 
 export function decodeLayout(encoded: string): LayoutDecodeResult {

@@ -320,6 +320,57 @@ describe('layoutCodec', () => {
         })
     })
 
+    it('rejects topology that cannot map onto the reconstructed grid', () => {
+        const original = snapshot()
+        original.grid[0][0].group = 1
+        original.grid[0][1].group = 1
+        const mismatchedConfig = {
+            ...original,
+            config: { ...original.config, totalWidth: 300 },
+        }
+
+        expect(tryEncodeLayout(mismatchedConfig)).toEqual({
+            ok: false,
+            reason: 'invalid',
+        })
+        expect(
+            tryEncodeLayout({
+                ...original,
+                config: { ...original.config, wallThickness: Number.NaN },
+            })
+        ).toEqual({ ok: false, reason: 'invalid' })
+    })
+
+    it('allows config-only saves to rebuild an empty derived grid', () => {
+        const original = snapshot({ totalWidth: 200 })
+        const encoded = tryEncodeLayout({ ...original, grid: [] })
+
+        expect(encoded.ok).toBe(true)
+        if (!encoded.ok) return
+        const decoded = decodeLayout(encoded.encoded)
+        expect(decoded.ok).toBe(true)
+        if (!decoded.ok) return
+        expect(decoded.snapshot.config).toEqual(original.config)
+        expect(decoded.snapshot.grid.length).toBeGreaterThan(0)
+    })
+
+    it('decodes the most granular valid config within the cell budget', () => {
+        const decoded = decodeLayout(
+            encodeWire({
+                v: 1,
+                c: { w: 500, d: 500, t: 0.1, r: 0, mw: 1, md: 1 },
+            })
+        )
+
+        expect(decoded.ok).toBe(true)
+        if (!decoded.ok) return
+        expect(decoded.snapshot.grid).toHaveLength(100)
+        expect(decoded.snapshot.grid[0]).toHaveLength(100)
+        expect(
+            decoded.snapshot.grid.length * decoded.snapshot.grid[0].length
+        ).toBe(V1_MAX_LAYOUT_CELLS)
+    })
+
     it('roundtrips every successful encode through decode equivalently', () => {
         const cases = [
             snapshot(),

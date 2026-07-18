@@ -79,8 +79,11 @@ function installBrowserMocks() {
         },
     }
 
+    const initialHistoryState = { __NA: true, marker: 'preserve-me' }
     const history = {
-        replaceState: (_state: unknown, _title: string, url: string) => {
+        state: initialHistoryState as unknown,
+        replaceState: (state: unknown, _title: string, url: string) => {
+            history.state = state
             href = new URL(url, href).toString()
         },
     }
@@ -100,6 +103,7 @@ function installBrowserMocks() {
         setHref: (value: string) => {
             href = value
         },
+        initialHistoryState,
     }
 }
 
@@ -212,6 +216,25 @@ describe('layoutPersistence', () => {
         expect(result.oversized).toBe(false)
     })
 
+    it('keeps the last valid save when topology is stale for new dimensions', () => {
+        const previous = encodeLayout(snapshot({ totalWidth: 180 }))
+        localStorage.setItem(LAYOUT_STORAGE_KEY, previous)
+
+        const staleGrid = createGrid()
+        staleGrid[0][0].group = 1
+        staleGrid[0][1].group = 1
+        const result = persistLayout({
+            ...V1_DEFAULT_CONFIG,
+            totalWidth: 300,
+            grid: staleGrid,
+        })
+
+        expect(result.encoded).toBe('')
+        expect(result.localStorageWritten).toBe(false)
+        expect(result.oversized).toBe(false)
+        expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(previous)
+    })
+
     it('rejects local writes above the shared storage/decode ceiling', () => {
         const oversized = 'x'.repeat(MAX_LAYOUT_STORAGE_CHARS + 1)
         expect(writeLayoutToLocalStorage(oversized)).toBe(false)
@@ -247,11 +270,24 @@ describe('layoutPersistence', () => {
         expect(getShareUrl('x'.repeat(MAX_LAYOUT_HASH_LENGTH + 1))).toBeNull()
     })
 
-    it('clearLayoutHash removes the share payload', () => {
+    it('updates only the layout hash and preserves Next.js history state', () => {
+        const browser = installBrowserMocks()
+        browser.setHref('https://box-grid.example/?mode=edit#tab=settings')
+
         writeLayoutToHash(encodeLayout(snapshot()))
         expect(location.hash).toContain('l=')
+        expect(location.hash).toContain('tab=settings')
+        expect(history.state).toBe(browser.initialHistoryState)
+
+        const shareUrl = getShareUrl(
+            encodeLayout(snapshot({ totalWidth: 200 }))
+        )
+        expect(shareUrl).toContain('tab=settings')
+        expect(shareUrl).toContain('l=')
+
         clearLayoutHash()
-        expect(location.hash).toBe('')
+        expect(location.hash).toBe('#tab=settings')
+        expect(history.state).toBe(browser.initialHistoryState)
     })
 
     it('writeLayoutToLocalStorage returns false when storage throws', () => {
