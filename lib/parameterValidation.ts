@@ -1,5 +1,6 @@
 import { parameters } from '@/lib/defaults'
 import { segmentSizes } from '@/lib/gridSizing'
+import { V1_MAX_LAYOUT_CELLS } from '@/lib/layoutCodecV1'
 import type { StoreState } from '@/lib/types'
 
 export type ModelParameters = Pick<
@@ -14,6 +15,8 @@ export type ModelParameters = Pick<
 >
 
 export const minBoxClearance = 1
+/** Shared with persistence — users cannot create layouts that cannot be saved. */
+export const MAX_LAYOUT_CELLS = V1_MAX_LAYOUT_CELLS
 
 export function sanitizeModelParameters(
     values: Partial<ModelParameters>,
@@ -44,7 +47,7 @@ export function sanitizeModelParameters(
         Math.max(parameters.totalDepth.min, minBoxSize),
         parameters.totalDepth.max
     )
-    const maxBoxWidth = extendMaxBoxSize(
+    let maxBoxWidth = extendMaxBoxSize(
         totalWidth,
         clampFinite(
             values.maxBoxWidth,
@@ -54,7 +57,7 @@ export function sanitizeModelParameters(
         ),
         minBoxSize
     )
-    const maxBoxDepth = extendMaxBoxSize(
+    let maxBoxDepth = extendMaxBoxSize(
         totalDepth,
         clampFinite(
             values.maxBoxDepth,
@@ -64,6 +67,17 @@ export function sanitizeModelParameters(
         ),
         minBoxSize
     )
+
+    ;({ maxBoxWidth, maxBoxDepth } = fitWithinCellBudget(
+        totalWidth,
+        totalDepth,
+        maxBoxWidth,
+        maxBoxDepth,
+        minBoxSize,
+        MAX_LAYOUT_CELLS,
+        segmentSizes
+    ))
+
     const wallHeight = clampFinite(
         values.wallHeight,
         fallback.wallHeight,
@@ -104,6 +118,83 @@ export const defaultModelParameters: ModelParameters = {
     wallHeight: parameters.wallHeight.default,
     maxBoxWidth: parameters.maxBoxWidth.default,
     maxBoxDepth: parameters.maxBoxDepth.default,
+}
+
+export function fitWithinCellBudget(
+    totalWidth: number,
+    totalDepth: number,
+    maxBoxWidth: number,
+    maxBoxDepth: number,
+    minBoxSize: number,
+    maxCells: number,
+    segmentFn: (
+        total: number,
+        maxSize: number,
+        minSize?: number
+    ) => number[] = segmentSizes
+): { maxBoxWidth: number; maxBoxDepth: number } {
+    let width = maxBoxWidth
+    let depth = maxBoxDepth
+    const cellLimit = Math.max(1, Math.floor(maxCells))
+
+    for (let guard = 0; guard < 16; guard++) {
+        const cols = segmentFn(totalWidth, width, minBoxSize).length
+        const rows = segmentFn(totalDepth, depth, minBoxSize).length
+        if (cols * rows <= cellLimit) {
+            return { maxBoxWidth: width, maxBoxDepth: depth }
+        }
+
+        const targetCols = Math.min(
+            cols,
+            Math.max(1, Math.floor(Math.sqrt((cellLimit * cols) / rows)))
+        )
+        const targetRows = Math.min(
+            rows,
+            Math.max(1, Math.floor(cellLimit / targetCols))
+        )
+        let boundedTargetCols = targetCols
+
+        if (boundedTargetCols * targetRows > cellLimit) {
+            boundedTargetCols = Math.max(1, Math.floor(cellLimit / targetRows))
+        }
+
+        const nextWidth =
+            boundedTargetCols < cols
+                ? Math.min(
+                      totalWidth,
+                      Math.max(
+                          width,
+                          roundDimensionUp(totalWidth / boundedTargetCols)
+                      )
+                  )
+                : width
+        const nextDepth =
+            targetRows < rows
+                ? Math.min(
+                      totalDepth,
+                      Math.max(depth, roundDimensionUp(totalDepth / targetRows))
+                  )
+                : depth
+
+        if (nextWidth === width && nextDepth === depth) {
+            // Defensive fallback for a custom segment function that does not
+            // shrink after the proportional correction.
+            if (cols >= rows && width < totalWidth) {
+                width = totalWidth
+                continue
+            }
+            if (depth < totalDepth) {
+                depth = totalDepth
+                continue
+            }
+            break
+        }
+
+        width = nextWidth
+        depth = nextDepth
+    }
+
+    return { maxBoxWidth: width, maxBoxDepth: depth }
 }
 
 function clampFinite(
