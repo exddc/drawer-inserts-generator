@@ -1,4 +1,8 @@
-import { buildExportAssembly, buildExportBoxMeshes } from '@/lib/exportModel'
+import {
+    buildExportAssembly,
+    buildExportBoxMeshes,
+    groupExportBoxMeshes,
+} from '@/lib/exportModel'
 import { createExportModelSnapshot, serializeStl } from '@/lib/exportUtils'
 import { useStore } from '@/lib/store'
 import { disposeObject } from '@/lib/threeDisposal'
@@ -29,8 +33,7 @@ describe('export model generation', () => {
     })
 
     it('positions separate meshes at a stable local origin in model order', () => {
-        const entries = buildExportBoxMeshes(createModel())
-        entries.forEach(({ mesh }) => track(mesh))
+        const entries = trackEntries(buildExportBoxMeshes(createModel()))
 
         expect(entries.map(({ metadata }) => metadata.id)).toEqual([
             'group:7',
@@ -42,6 +45,129 @@ describe('export model generation', () => {
             expect(bounds.min.y).toBeCloseTo(0)
             expect(bounds.min.z).toBeCloseTo(0)
         })
+    })
+
+    it('keeps different footprints with identical bounds as separate designs', () => {
+        const entries = trackEntries(
+            buildExportBoxMeshes(
+                createModel([
+                    [
+                        { group: 1, width: 10, depth: 10 },
+                        { group: 1, width: 10, depth: 10 },
+                        { group: 1, width: 10, depth: 10 },
+                        {
+                            group: 0,
+                            width: 10,
+                            depth: 10,
+                            visibility: 'hidden',
+                        },
+                        { group: 2, width: 10, depth: 10 },
+                        { group: 2, width: 10, depth: 10 },
+                        { group: 2, width: 10, depth: 10 },
+                    ],
+                    [
+                        { group: 1, width: 10, depth: 10 },
+                        {
+                            group: 0,
+                            width: 10,
+                            depth: 10,
+                            visibility: 'hidden',
+                        },
+                        {
+                            group: 0,
+                            width: 10,
+                            depth: 10,
+                            visibility: 'hidden',
+                        },
+                        {
+                            group: 0,
+                            width: 10,
+                            depth: 10,
+                            visibility: 'hidden',
+                        },
+                        {
+                            group: 0,
+                            width: 10,
+                            depth: 10,
+                            visibility: 'hidden',
+                        },
+                        { group: 2, width: 10, depth: 10 },
+                        {
+                            group: 0,
+                            width: 10,
+                            depth: 10,
+                            visibility: 'hidden',
+                        },
+                    ],
+                ])
+            )
+        )
+
+        expect(entries.map(({ metadata }) => metadata.dimensions)).toEqual([
+            { width: 30, depth: 20, height: 24 },
+            { width: 30, depth: 20, height: 24 },
+        ])
+        expect(groupExportBoxMeshes(entries)).toHaveLength(2)
+    })
+
+    it('deduplicates identical, rotated, and partition-independent shapes', () => {
+        const identical = trackEntries(
+            buildExportBoxMeshes(
+                createModel([
+                    [
+                        { group: 0, width: 20, depth: 20 },
+                        { group: 0, width: 20, depth: 20 },
+                    ],
+                ])
+            )
+        )
+        const identicalGroups = groupExportBoxMeshes(identical)
+
+        expect(identicalGroups).toHaveLength(1)
+        expect(identicalGroups[0].count).toBe(2)
+
+        const rotated = trackEntries(
+            buildExportBoxMeshes(
+                createModel([
+                    [
+                        {
+                            group: 0,
+                            width: 10,
+                            depth: 10,
+                            visibility: 'hidden',
+                        },
+                        { group: 0, width: 20, depth: 10 },
+                    ],
+                    [
+                        { group: 0, width: 10, depth: 20 },
+                        {
+                            group: 0,
+                            width: 20,
+                            depth: 20,
+                            visibility: 'hidden',
+                        },
+                    ],
+                ])
+            )
+        )
+
+        expect(groupExportBoxMeshes(rotated)).toHaveLength(1)
+
+        const differentlyPartitioned = trackEntries(
+            buildExportBoxMeshes(
+                createModel([
+                    [
+                        { group: 3, width: 10, depth: 20 },
+                        { group: 3, width: 20, depth: 20 },
+                        { group: 0, width: 30, depth: 20 },
+                    ],
+                ])
+            )
+        )
+        const partitionGroups = groupExportBoxMeshes(differentlyPartitioned)
+
+        expect(partitionGroups).toHaveLength(1)
+        expect(partitionGroups[0].count).toBe(2)
     })
 
     it('serializes deterministically despite display-state changes', () => {
@@ -167,4 +293,9 @@ function createModel(grid = createGrid()): DrawerInsert {
 function track<T extends THREE.Object3D>(object: T): T {
     objectsToDispose.push(object)
     return object
+}
+
+function trackEntries<T extends { mesh: THREE.Object3D }[]>(entries: T): T {
+    entries.forEach(({ mesh }) => track(mesh))
+    return entries
 }
