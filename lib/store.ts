@@ -35,7 +35,6 @@ export const useStore = create<StoreState>((set, get) => ({
     setGrid: (grid) => set({ grid }),
 
     layoutHydrated: false,
-    setLayoutHydrated: (layoutHydrated) => set({ layoutHydrated }),
 
     selectedBoxIds: [],
     setSelectedBoxIds: (selectedBoxIds) => set({ selectedBoxIds }),

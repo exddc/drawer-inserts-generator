@@ -185,6 +185,7 @@ describe('layoutPersistence', () => {
         const persisted = persistLayout(storeFromSnapshot(largeSnapshot))
         expect(persisted.localStorageWritten).toBe(true)
         expect(persisted.hashWritten).toBe(false)
+        expect(persisted.failureReason).toBe('hash-failed')
         expect(location.hash).toBe('')
         expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(largeEncoded)
 
@@ -213,7 +214,7 @@ describe('layoutPersistence', () => {
         const result = persistLayout(storeFromSnapshot())
         expect(result.localStorageWritten).toBe(false)
         expect(result.hashWritten).toBe(true)
-        expect(result.oversized).toBe(false)
+        expect(result.failureReason).toBe('storage-failed')
     })
 
     it('keeps the last valid save when topology is stale for new dimensions', () => {
@@ -231,7 +232,7 @@ describe('layoutPersistence', () => {
 
         expect(result.encoded).toBe('')
         expect(result.localStorageWritten).toBe(false)
-        expect(result.oversized).toBe(false)
+        expect(result.failureReason).toBe('invalid')
         expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBe(previous)
     })
 
@@ -263,7 +264,7 @@ describe('layoutPersistence', () => {
         const persisted = persistLayout(storeFromSnapshot())
         expect(persisted.localStorageWritten).toBe(true)
         expect(persisted.hashWritten).toBe(false)
-        expect(persisted.oversized).toBe(false)
+        expect(persisted.failureReason).toBe('hash-failed')
     })
 
     it('returns null share urls for oversized encodings', () => {

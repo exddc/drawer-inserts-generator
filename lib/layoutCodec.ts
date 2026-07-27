@@ -66,9 +66,7 @@ export function encodeLayout(snapshot: ModelSnapshot): string {
     const result = tryEncodeLayout(snapshot)
     if (!result.ok) {
         throw new LayoutCodecError(
-            result.reason === 'invalid-topology'
-                ? 'invalid-topology'
-                : 'corrupt',
+            result.reason,
             `Cannot encode layout: ${result.reason}`
         )
     }
@@ -84,14 +82,15 @@ export function tryEncodeLayout(snapshot: ModelSnapshot): LayoutEncodeResult {
         return { ok: false, reason: 'oversized' }
     }
 
-    try {
-        validatePersistedGridTopology(snapshot.grid)
-    } catch (error) {
-        const message = error instanceof Error ? error.message : ''
-        if (/Invalid group id/i.test(message)) {
-            return { ok: false, reason: 'invalid' }
+    const topology = validatePersistedGridTopology(snapshot.grid)
+    if (!topology.ok) {
+        return {
+            ok: false,
+            reason:
+                topology.code === 'invalid-group'
+                    ? 'invalid'
+                    : 'invalid-topology',
         }
-        return { ok: false, reason: 'invalid-topology' }
     }
     if (!configMatchesEncodedConfig(snapshot.config)) {
         return { ok: false, reason: 'invalid' }
@@ -224,24 +223,26 @@ export function decodeLayout(encoded: string): LayoutDecodeResult {
         const hidden = decodeHiddenCells(wire.z, cellCount)
         applyHiddenCells(grid, hidden)
 
-        validatePersistedGridTopology(grid)
+        const topology = validatePersistedGridTopology(grid)
+        if (!topology.ok) {
+            return {
+                ok: false,
+                reason:
+                    topology.code === 'invalid-group'
+                        ? 'corrupt'
+                        : 'invalid-topology',
+            }
+        }
 
         return { ok: true, snapshot: { config, grid } }
     } catch (error) {
         if (error instanceof LayoutCodecError) {
             return {
                 ok: false,
-                reason:
-                    error.code === 'invalid-topology'
-                        ? 'invalid-topology'
-                        : 'corrupt',
+                reason: error.code === 'invalid-topology'
+                    ? 'invalid-topology'
+                    : 'corrupt',
             }
-        }
-        if (
-            error instanceof Error &&
-            /disconnected|hole/i.test(error.message)
-        ) {
-            return { ok: false, reason: 'invalid-topology' }
         }
         return { ok: false, reason: 'corrupt' }
     }
@@ -249,7 +250,11 @@ export function decodeLayout(encoded: string): LayoutDecodeResult {
 
 class LayoutCodecError extends Error {
     constructor(
-        readonly code: 'corrupt' | 'invalid-topology',
+        readonly code:
+            | 'corrupt'
+            | 'invalid-topology'
+            | 'invalid'
+            | 'oversized',
         message: string
     ) {
         super(message)
@@ -260,29 +265,20 @@ class LayoutCodecError extends Error {
 function encodeConfigDiff(config: ModelConfig): WireConfig {
     const wire: WireConfig = {}
 
-    if (config.totalWidth !== V1_DEFAULT_CONFIG.totalWidth) {
-        wire.w = config.totalWidth
-    }
-    if (config.totalDepth !== V1_DEFAULT_CONFIG.totalDepth) {
-        wire.d = config.totalDepth
-    }
-    if (config.wallThickness !== V1_DEFAULT_CONFIG.wallThickness) {
-        wire.t = config.wallThickness
-    }
-    if (config.cornerRadius !== V1_DEFAULT_CONFIG.cornerRadius) {
-        wire.r = config.cornerRadius
-    }
-    if (config.wallHeight !== V1_DEFAULT_CONFIG.wallHeight) {
-        wire.h = config.wallHeight
-    }
-    if (config.generateBottom !== V1_DEFAULT_CONFIG.generateBottom) {
-        wire.b = config.generateBottom ? 1 : 0
-    }
-    if (config.maxBoxWidth !== V1_DEFAULT_CONFIG.maxBoxWidth) {
-        wire.mw = config.maxBoxWidth
-    }
-    if (config.maxBoxDepth !== V1_DEFAULT_CONFIG.maxBoxDepth) {
-        wire.md = config.maxBoxDepth
+    for (const [wireKey, modelKey] of Object.entries(WIRE_CONFIG_KEY_MAP) as [
+        keyof WireConfig,
+        keyof ModelConfig,
+    ][]) {
+        const value = config[modelKey]
+        const baseline = V1_DEFAULT_CONFIG[modelKey]
+        if (value === baseline) continue
+
+        if (modelKey === 'generateBottom') {
+            wire.b = value ? 1 : 0
+        } else {
+            // Numeric ModelConfig fields map 1:1 onto WireConfig numbers.
+            ;(wire as Record<string, number>)[wireKey] = value as number
+        }
     }
 
     return wire

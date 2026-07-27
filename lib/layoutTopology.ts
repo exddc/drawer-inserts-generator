@@ -2,15 +2,37 @@ import type { Grid } from '@/lib/types'
 
 /**
  * Near-linear topology checks for persisted layouts.
- * Connectivity: one flood-fill pass over all positive groups.
+ * Connectivity: one flood-fill over positive groups.
  * Holes: exterior flood-fill per multi-cell group (skipped for tiny shapes).
+ *
+ * Product rule: a group may not enclose any cell (including other groups).
+ * A polyomino needs at least 8 cells to enclose a 1-cell hole, so smaller
+ * groups skip the hole pass.
  */
-export function validatePersistedGridTopology(grid: Grid): void {
-    if (grid.length === 0) return
+
+export type TopologyFailureCode =
+    | 'not-rectangular'
+    | 'invalid-group'
+    | 'disconnected'
+    | 'hole'
+
+export type TopologyValidationResult =
+    | { ok: true }
+    | { ok: false; code: TopologyFailureCode; message: string }
+
+export function validatePersistedGridTopology(
+    grid: Grid
+): TopologyValidationResult {
+    if (grid.length === 0) return { ok: true }
+
     const rows = grid.length
     const cols = grid[0].length
     if (grid.some((row) => row.length !== cols)) {
-        throw new Error('Grid is not rectangular')
+        return {
+            ok: false,
+            code: 'not-rectangular',
+            message: 'Grid is not rectangular',
+        }
     }
 
     const totals = new Map<number, number>()
@@ -18,9 +40,11 @@ export function validatePersistedGridTopology(grid: Grid): void {
         for (let x = 0; x < cols; x++) {
             const group = grid[z][x].group
             if (!Number.isInteger(group) || group < 0) {
-                throw new Error(
-                    `Invalid group id ${String(group)} at ${x},${z}`
-                )
+                return {
+                    ok: false,
+                    code: 'invalid-group',
+                    message: `Invalid group id ${String(group)} at ${x},${z}`,
+                }
             }
             if (group > 0) {
                 totals.set(group, (totals.get(group) ?? 0) + 1)
@@ -39,7 +63,11 @@ export function validatePersistedGridTopology(grid: Grid): void {
 
             const reached = floodGroup(grid, visited, x, z, group)
             if (reached !== totals.get(group)) {
-                throw new Error(`Group ${group} is disconnected`)
+                return {
+                    ok: false,
+                    code: 'disconnected',
+                    message: `Group ${group} is disconnected`,
+                }
             }
         }
     }
@@ -48,9 +76,15 @@ export function validatePersistedGridTopology(grid: Grid): void {
         // A polyomino needs at least 8 cells to enclose a 1-cell hole.
         if (count < 8) continue
         if (groupHasHole(grid, group)) {
-            throw new Error(`Group ${group} contains a hole`)
+            return {
+                ok: false,
+                code: 'hole',
+                message: `Group ${group} contains a hole`,
+            }
         }
     }
+
+    return { ok: true }
 }
 
 function floodGroup(

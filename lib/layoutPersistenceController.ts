@@ -19,7 +19,7 @@ export type LayoutPersistenceControllerOptions = {
     debounceMs?: number
 }
 
-const PERSISTENCE_KEYS: (keyof StoreState)[] = [
+const PERSISTENCE_CONFIG_KEYS = [
     'totalWidth',
     'totalDepth',
     'wallThickness',
@@ -28,19 +28,14 @@ const PERSISTENCE_KEYS: (keyof StoreState)[] = [
     'generateBottom',
     'maxBoxWidth',
     'maxBoxDepth',
-    'grid',
-]
+] as const satisfies ReadonlyArray<keyof StoreState>
 
 export function hasPersistenceChanges(
     current: StoreState,
     previous: StoreState
 ): boolean {
     if (current.grid !== previous.grid) return true
-
-    return PERSISTENCE_KEYS.some((key) => {
-        if (key === 'grid') return false
-        return current[key] !== previous[key]
-    })
+    return PERSISTENCE_CONFIG_KEYS.some((key) => current[key] !== previous[key])
 }
 
 export function createLayoutPersistenceController(

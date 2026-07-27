@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { copyShareLink } from '@/hooks/useLayoutPersistence'
+import { copyShareLink } from '@/lib/shareLink'
 import { Link2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -18,6 +18,11 @@ export default function ShareLinkButton() {
 
             if (result.status === 'too-large') {
                 toast.error('Layout is too large to share via URL')
+                return
+            }
+
+            if (result.status === 'invalid-layout') {
+                toast.error('Layout cannot be shared in its current state')
                 return
             }
 

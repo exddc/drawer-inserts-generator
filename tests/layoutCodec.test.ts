@@ -13,14 +13,20 @@ import {
     v1ResizeGrid,
     v1SanitizeModelParameters,
 } from '@/lib/layoutCodecV1'
+import { parameters } from '@/lib/defaults'
+import { resizeGrid } from '@/lib/gridHelper'
 import {
-    applyModelSnapshot,
     createModelSnapshot,
     defaultModelConfig,
 } from '@/lib/modelSnapshot'
-import { defaultModelParameters } from '@/lib/parameterValidation'
+import {
+    defaultModelParameters,
+    getMinimumBoxSize,
+    sanitizeModelParameters,
+} from '@/lib/parameterValidation'
+import { hydrateStoreFromSnapshot, useStore } from '@/lib/store'
 import type { Grid, ModelConfig } from '@/lib/types'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 function createGridWithTopology(
     config: Partial<ModelConfig> = {},
@@ -300,6 +306,7 @@ describe('layoutCodec', () => {
             )
         ).toEqual({ ok: false, reason: 'invalid-topology' })
 
+        // 3×3 ring of group 1 enclosing a different cell — product rule: no holes.
         expect(
             decodeLayout(
                 encodeWire({
@@ -520,7 +527,7 @@ describe('layoutCodec', () => {
         }
     })
 
-    it('applies decoded layouts back into store-shaped model state', () => {
+    it('hydrates decoded layouts through the freeze path without live resize', () => {
         const original = snapshot(
             {
                 totalWidth: 220,
@@ -532,11 +539,100 @@ describe('layoutCodec', () => {
         expect(decoded.ok).toBe(true)
         if (!decoded.ok) return
 
-        const applied = applyModelSnapshot(decoded.snapshot)
+        hydrateStoreFromSnapshot(decoded.snapshot)
+        const state = useStore.getState()
 
-        expect(applied.totalWidth).toBe(220)
-        expect(applied.generateBottom).toBe(false)
-        expect(applied.grid).toEqual(original.grid)
-        expect(applied.maxBoxWidth).toBe(defaultModelParameters.maxBoxWidth)
+        expect(state.totalWidth).toBe(220)
+        expect(state.generateBottom).toBe(false)
+        expect(state.grid).toEqual(original.grid)
+        expect(state.maxBoxWidth).toBe(defaultModelParameters.maxBoxWidth)
+        expect(state.layoutHydrated).toBe(true)
+    })
+})
+
+describe('live vs frozen v1 encode contract', () => {
+    afterEach(() => {
+        useStore.setState({
+            ...V1_DEFAULT_CONFIG,
+            grid: [],
+            layoutHydrated: false,
+            selectedBoxIds: [],
+        })
+    })
+
+    it('keeps overlapping live ranges and defaults aligned with v1 freeze', () => {
+        expect(parameters.totalWidth.default).toBe(V1_DEFAULT_CONFIG.totalWidth)
+        expect(parameters.totalDepth.default).toBe(V1_DEFAULT_CONFIG.totalDepth)
+        expect(parameters.wallThickness.default).toBe(
+            V1_DEFAULT_CONFIG.wallThickness
+        )
+        expect(parameters.cornerRadius.default).toBe(
+            V1_DEFAULT_CONFIG.cornerRadius
+        )
+        expect(parameters.wallHeight.default).toBe(V1_DEFAULT_CONFIG.wallHeight)
+        expect(parameters.maxBoxWidth.default).toBe(
+            V1_DEFAULT_CONFIG.maxBoxWidth
+        )
+        expect(parameters.maxBoxDepth.default).toBe(
+            V1_DEFAULT_CONFIG.maxBoxDepth
+        )
+
+        for (const key of Object.keys(V1_PARAMETER_RANGES) as Array<
+            keyof typeof V1_PARAMETER_RANGES
+        >) {
+            expect(parameters[key].min).toBe(V1_PARAMETER_RANGES[key].min)
+            expect(parameters[key].max).toBe(V1_PARAMETER_RANGES[key].max)
+        }
+    })
+
+    it('never emits live-sanitized configs that fail the v1 encode gate', () => {
+        const cases: Array<Partial<ModelConfig>> = [
+            {},
+            { totalWidth: 220, totalDepth: 180 },
+            {
+                totalWidth: 500,
+                totalDepth: 500,
+                maxBoxWidth: 1,
+                maxBoxDepth: 1,
+                wallThickness: 0.1,
+                cornerRadius: 0,
+            },
+            {
+                totalWidth: 300,
+                maxBoxWidth: 50,
+                wallHeight: 40,
+                generateBottom: false,
+            },
+            {
+                wallThickness: 15,
+                cornerRadius: 30,
+                totalWidth: 100,
+                totalDepth: 100,
+            },
+        ]
+
+        for (const partial of cases) {
+            const sanitized = sanitizeModelParameters(partial)
+            const minBoxSize = getMinimumBoxSize(
+                sanitized.wallThickness,
+                sanitized.cornerRadius
+            )
+            const grid = resizeGrid(
+                [],
+                sanitized.totalWidth,
+                sanitized.totalDepth,
+                sanitized.maxBoxWidth,
+                sanitized.maxBoxDepth,
+                minBoxSize
+            )
+            const model = createModelSnapshot({
+                ...sanitized,
+                generateBottom: partial.generateBottom ?? true,
+                grid,
+            })
+
+            const encoded = tryEncodeLayout(model)
+            expect(encoded.ok, JSON.stringify(partial)).toBe(true)
+        }
     })
 })

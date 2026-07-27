@@ -43,13 +43,10 @@ function gridFitsDimensions(
 }
 
 /**
- * Resolves the display/store grid.
- *
- * Pre-hydration: returns a safe computed preview without writing (avoids empty
- * scene generation and stale overwrite races).
- *
- * Post-hydration: keeps a fitting persisted grid unchanged until the user
- * changes sizing parameters — then applies live resize rules explicitly.
+ * Resolves display/store grid. Preserves hydrated cell sizes until sizing
+ * params change. The previous params key is a ref written only in an effect so
+ * advancing it cannot re-render and re-freeze a stale grid prop before setGrid
+ * feeds back.
  */
 export function useGridLayout({
     grid,
@@ -61,7 +58,6 @@ export function useGridLayout({
     setGrid,
     layoutHydrated,
 }: GridLayoutOptions): Grid {
-    const appliedParamsRef = useRef<string | null>(null)
     const key = paramsKey(
         totalWidth,
         totalDepth,
@@ -69,6 +65,13 @@ export function useGridLayout({
         maxBoxDepth,
         minBoxSize
     )
+    const committedParamsKeyRef = useRef<string | null>(null)
+
+    // Derived for this render: true when sizing params changed since last commit.
+    const paramsChanged =
+        layoutHydrated &&
+        committedParamsKeyRef.current !== null &&
+        committedParamsKeyRef.current !== key
 
     const resolvedGrid = useMemo(() => {
         const computeLive = () =>
@@ -82,7 +85,6 @@ export function useGridLayout({
             )
 
         if (!layoutHydrated) {
-            // Preview only — never write until hydration finishes.
             if (grid.length === 0) {
                 return resizeGrid(
                     [],
@@ -100,11 +102,11 @@ export function useGridLayout({
             return computeLive()
         }
 
-        // Preserve hydrated (e.g. frozen v1) cell sizes until params change.
+        // First post-hydration frame (ref still null) or unchanged params:
+        // keep a dimension-fitting grid (e.g. frozen v1 segment sizes).
         if (
-            gridFitsDimensions(grid, totalWidth, totalDepth) &&
-            (appliedParamsRef.current === null ||
-                appliedParamsRef.current === key)
+            !paramsChanged &&
+            gridFitsDimensions(grid, totalWidth, totalDepth)
         ) {
             return grid
         }
@@ -131,12 +133,15 @@ export function useGridLayout({
         maxBoxDepth,
         minBoxSize,
         layoutHydrated,
-        key,
+        paramsChanged,
     ])
 
     useEffect(() => {
-        if (!layoutHydrated) return
-        appliedParamsRef.current = key
+        if (!layoutHydrated) {
+            committedParamsKeyRef.current = null
+            return
+        }
+        committedParamsKeyRef.current = key
         if (resolvedGrid !== grid) setGrid(resolvedGrid)
     }, [grid, resolvedGrid, setGrid, layoutHydrated, key])
 

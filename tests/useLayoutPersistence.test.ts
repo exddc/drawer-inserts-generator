@@ -1,7 +1,3 @@
-import {
-    copyShareLink,
-    reportPersistFailure,
-} from '@/hooks/useLayoutPersistence'
 import { resizeGrid } from '@/lib/gridHelper'
 import { encodeLayout, V1_DEFAULT_CONFIG } from '@/lib/layoutCodec'
 import { LAYOUT_HASH_PARAM, LAYOUT_STORAGE_KEY } from '@/lib/layoutPersistence'
@@ -11,6 +7,7 @@ import {
 } from '@/lib/layoutPersistenceController'
 import { createModelSnapshot } from '@/lib/modelSnapshot'
 import { getMinimumBoxSize } from '@/lib/parameterValidation'
+import { copyShareLink, reportPersistFailure } from '@/lib/shareLink'
 import { useStore } from '@/lib/store'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -244,7 +241,7 @@ describe('layout persistence controller', () => {
                     encoded: 'abc',
                     hashWritten: false,
                     localStorageWritten: false,
-                    oversized: false,
+                    failureReason: 'storage-failed',
                 },
                 { alreadyReported: false }
             )
@@ -257,12 +254,38 @@ describe('layout persistence controller', () => {
                     encoded: 'abc',
                     hashWritten: false,
                     localStorageWritten: false,
-                    oversized: false,
+                    failureReason: 'storage-failed',
                 },
                 { alreadyReported: true }
             )
         ).toBe(true)
         expect(toast.error).toHaveBeenCalledTimes(1)
+    })
+
+    it('labels oversized and invalid encode failures distinctly', () => {
+        reportPersistFailure(
+            {
+                encoded: '',
+                hashWritten: false,
+                localStorageWritten: false,
+                failureReason: 'oversized',
+            },
+            { alreadyReported: false }
+        )
+        expect(toast.error).toHaveBeenCalledWith('Layout is too large to save.')
+
+        reportPersistFailure(
+            {
+                encoded: '',
+                hashWritten: false,
+                localStorageWritten: false,
+                failureReason: 'invalid-topology',
+            },
+            { alreadyReported: false }
+        )
+        expect(toast.error).toHaveBeenCalledWith(
+            'Could not save layout. Changes may be lost on refresh.'
+        )
     })
 })
 
@@ -331,5 +354,24 @@ describe('copyShareLink', () => {
         await expect(copyShareLink()).resolves.toEqual({
             status: 'hash-failed',
         })
+    })
+
+    it('reports invalid-layout without clearing a previous good hash', async () => {
+        const good = encodeLayout(
+            createModelSnapshot({
+                ...V1_DEFAULT_CONFIG,
+                grid: defaultGrid(),
+            })
+        )
+        history.replaceState(null, '', `https://box-grid.example/#l=${good}`)
+
+        const grid = defaultGrid()
+        grid[0][0].group = -1
+        useStore.setState({ grid })
+
+        await expect(copyShareLink()).resolves.toEqual({
+            status: 'invalid-layout',
+        })
+        expect(location.hash).toContain('l=')
     })
 })

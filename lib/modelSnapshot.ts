@@ -26,7 +26,14 @@ export function createModelSnapshot(
     }
 }
 
-export function applyModelSnapshot(
+/**
+ * Re-run **live** sanitizers and grid resize on a snapshot.
+ *
+ * Not for loading share links or local saves — those must use
+ * `hydrateStoreFromSnapshot`, which preserves frozen v1 cell geometry.
+ * Use only when intentionally reinterpreting a layout under current app rules.
+ */
+export function reinterpretSnapshotWithLiveRules(
     snapshot: ModelSnapshot
 ): Pick<StoreState, keyof ModelConfig | 'grid'> {
     const sanitized = sanitizeModelParameters(snapshot.config)

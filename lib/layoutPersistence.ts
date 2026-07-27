@@ -2,6 +2,7 @@ import {
     decodeLayout,
     MAX_LAYOUT_STORAGE_CHARS,
     tryEncodeLayout,
+    type LayoutEncodeResult,
 } from '@/lib/layoutCodec'
 import { createModelSnapshot, type ModelSnapshot } from '@/lib/modelSnapshot'
 import type { ModelConfig, StoreState } from '@/lib/types'
@@ -12,11 +13,20 @@ export const LAYOUT_STORAGE_KEY = 'box-grid:layout:v1'
 export const LAYOUT_HASH_PARAM = 'l'
 export const MAX_LAYOUT_HASH_LENGTH = 8000
 
+/** Why persist failed or was partial. Null when encode + both writes succeed. */
+export type PersistFailureReason =
+    | 'oversized'
+    | 'invalid'
+    | 'invalid-topology'
+    | 'storage-failed'
+    | 'hash-failed'
+
 export type PersistLayoutResult = {
     encoded: string
     hashWritten: boolean
     localStorageWritten: boolean
-    oversized: boolean
+    /** Primary failure when anything failed; null on full success. */
+    failureReason: PersistFailureReason | null
 }
 
 export type HydrationResult =
@@ -24,6 +34,12 @@ export type HydrationResult =
     | { status: 'local'; snapshot: ModelSnapshot }
     | { status: 'default' }
     | { status: 'invalid-hash'; reason: string }
+
+export function encodePersistableLayout(
+    state: PersistableState
+): LayoutEncodeResult {
+    return tryEncodeLayout(createModelSnapshot(state))
+}
 
 export function resolvePersistedLayout(): HydrationResult {
     if (typeof window === 'undefined') return { status: 'default' }
@@ -54,41 +70,44 @@ export function readLayoutFromLocalStorage(): ModelSnapshot | null {
     }
 }
 
+/**
+ * Encode and write layout to localStorage and the URL hash.
+ * On encode failure the hash is cleared so reload does not keep a stale share;
+ * the previous localStorage value is left untouched.
+ */
 export function persistLayout(state: PersistableState): PersistLayoutResult {
-    const encodedResult = tryEncodeLayout(createModelSnapshot(state))
+    const encodedResult = encodePersistableLayout(state)
     if (!encodedResult.ok) {
         clearLayoutHash()
         return {
             encoded: '',
             hashWritten: false,
             localStorageWritten: false,
-            oversized: encodedResult.reason === 'oversized',
+            failureReason: encodedResult.reason,
         }
     }
 
     const encoded = encodedResult.encoded
-    if (encoded.length > MAX_LAYOUT_STORAGE_CHARS) {
-        clearLayoutHash()
-        return {
-            encoded,
-            hashWritten: false,
-            localStorageWritten: false,
-            oversized: true,
-        }
-    }
-
     const localStorageWritten = writeLayoutToLocalStorage(encoded)
     const hashWritten = writeLayoutToHash(encoded)
+
+    let failureReason: PersistFailureReason | null = null
+    if (!localStorageWritten) {
+        failureReason = 'storage-failed'
+    } else if (!hashWritten) {
+        failureReason = 'hash-failed'
+    }
 
     return {
         encoded,
         hashWritten,
         localStorageWritten,
-        oversized: false,
+        failureReason,
     }
 }
 
 export function writeLayoutToLocalStorage(encoded: string): boolean {
+    // Guard direct callers; tryEncodeLayout already enforces this ceiling.
     if (encoded.length > MAX_LAYOUT_STORAGE_CHARS) return false
 
     try {
