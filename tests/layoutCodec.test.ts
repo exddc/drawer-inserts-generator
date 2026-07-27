@@ -1,3 +1,5 @@
+import { parameters } from '@/lib/defaults'
+import { resizeGrid } from '@/lib/gridHelper'
 import {
     decodeLayout,
     encodeLayout,
@@ -13,12 +15,7 @@ import {
     v1ResizeGrid,
     v1SanitizeModelParameters,
 } from '@/lib/layoutCodecV1'
-import { parameters } from '@/lib/defaults'
-import { resizeGrid } from '@/lib/gridHelper'
-import {
-    createModelSnapshot,
-    defaultModelConfig,
-} from '@/lib/modelSnapshot'
+import { createModelSnapshot, defaultModelConfig } from '@/lib/modelSnapshot'
 import {
     defaultModelParameters,
     getMinimumBoxSize,

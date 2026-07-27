@@ -11,14 +11,10 @@ import type { Grid } from '@/lib/types'
  */
 
 export type TopologyFailureCode =
-    | 'not-rectangular'
-    | 'invalid-group'
-    | 'disconnected'
-    | 'hole'
+    'not-rectangular' | 'invalid-group' | 'disconnected' | 'hole'
 
 export type TopologyValidationResult =
-    | { ok: true }
-    | { ok: false; code: TopologyFailureCode; message: string }
+    { ok: true } | { ok: false; code: TopologyFailureCode; message: string }
 
 export function validatePersistedGridTopology(
     grid: Grid

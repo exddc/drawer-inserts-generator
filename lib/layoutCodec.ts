@@ -239,9 +239,10 @@ export function decodeLayout(encoded: string): LayoutDecodeResult {
         if (error instanceof LayoutCodecError) {
             return {
                 ok: false,
-                reason: error.code === 'invalid-topology'
-                    ? 'invalid-topology'
-                    : 'corrupt',
+                reason:
+                    error.code === 'invalid-topology'
+                        ? 'invalid-topology'
+                        : 'corrupt',
             }
         }
         return { ok: false, reason: 'corrupt' }
@@ -250,11 +251,7 @@ export function decodeLayout(encoded: string): LayoutDecodeResult {
 
 class LayoutCodecError extends Error {
     constructor(
-        readonly code:
-            | 'corrupt'
-            | 'invalid-topology'
-            | 'invalid'
-            | 'oversized',
+        readonly code: 'corrupt' | 'invalid-topology' | 'invalid' | 'oversized',
         message: string
     ) {
         super(message)
